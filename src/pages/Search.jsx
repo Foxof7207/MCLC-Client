@@ -22,6 +22,22 @@ function Search() {
     const [installing, setInstalling] = useState(false);
     const [installedIds, setInstalledIds] = useState(new Set());
 
+    // Hilfsfunktion für intelligente Download-Formatierung
+    const formatDownloads = (downloads) => {
+        if (downloads === undefined || downloads === null) return '0';
+
+        if (downloads >= 1_000_000_000) {
+            return (downloads / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B';
+        }
+        if (downloads >= 1_000_000) {
+            return (downloads / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+        }
+        if (downloads >= 1_000) {
+            return (downloads / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+        }
+        return downloads.toString();
+    };
+
     useEffect(() => {
         handleSearch();
     }, [offset, sortMethod, projectType]); // Trigger search on offset, sort, or type change
@@ -188,7 +204,7 @@ function Search() {
                                             <span className="text-[10px] bg-white/5 px-2 py-1 rounded text-gray-400 capitalize border border-white/5">{mod.project_type}</span>
                                             <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded border border-primary/20 flex items-center gap-1">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" transform="rotate(180 10 10)" /></svg>
-                                                {mod.downloads > 1000 ? (mod.downloads / 1000).toFixed(1) + 'k' : mod.downloads}
+                                                {formatDownloads(mod.downloads)}
                                             </span>
                                         </div>
                                     </div>
@@ -197,8 +213,8 @@ function Search() {
                                 <button
                                     onClick={() => openInstall(mod)}
                                     className={`w-full font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${installedIds.has(mod.project_id)
-                                            ? 'bg-primary text-black'
-                                            : 'bg-white/5 hover:bg-primary hover:text-black text-white group-hover:bg-white/10'
+                                        ? 'bg-primary text-black'
+                                        : 'bg-white/5 hover:bg-primary hover:text-black text-white group-hover:bg-white/10'
                                         }`}
                                 >
                                     {installedIds.has(mod.project_id) ? (
