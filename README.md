@@ -82,7 +82,7 @@ MCLC is a high-performance, modern, and beautiful Minecraft launcher built with 
 
 ## 📜 License & Credits
 
-- Developed by **Fernsehheft**
+- Developed by **Fernsehheft, Mobilestars, ItzzMateo**
 - Icons by [Heroicons](https://heroicons.com/)
 - Powered by the amazing Minecraft open-source community.
 
