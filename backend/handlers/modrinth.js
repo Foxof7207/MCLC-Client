@@ -7,7 +7,7 @@ const MODRINTH_API = 'https://api.modrinth.com/v2';
 const appData = app.getPath('userData');
 const instancesDir = path.join(appData, 'instances');
 
-module.exports = (ipcMain) => {
+module.exports = (ipcMain, win) => {
     ipcMain.handle('modrinth:search', async (_, query, facets = [], options = {}) => {
         try {
             // Default to filtering for mods if not needed
@@ -54,7 +54,23 @@ module.exports = (ipcMain) => {
             const response = await axios({
                 url,
                 method: 'GET',
-                responseType: 'stream'
+                responseType: 'stream',
+                timeout: 30000
+            });
+
+            const totalSize = parseInt(response.headers['content-length'], 10);
+            let downloadedSize = 0;
+
+            response.data.on('data', (chunk) => {
+                downloadedSize += chunk.length;
+                if (win) {
+                    const progress = Math.round((downloadedSize / totalSize) * 100);
+                    win.webContents.send('install:progress', {
+                        instanceName,
+                        progress,
+                        status: `Installing ${filename}`
+                    });
+                }
             });
 
             response.data.pipe(writer);
@@ -62,7 +78,16 @@ module.exports = (ipcMain) => {
             return new Promise((resolve, reject) => {
                 writer.on('finish', resolve);
                 writer.on('error', reject);
-            }).then(() => ({ success: true }));
+            }).then(() => {
+                if (win) {
+                    win.webContents.send('install:progress', {
+                        instanceName,
+                        progress: 100,
+                        status: `Installed ${filename}`
+                    });
+                }
+                return { success: true };
+            });
 
         } catch (e) {
             return { success: false, error: e.message };
@@ -80,6 +105,67 @@ module.exports = (ipcMain) => {
             const response = await axios.get(`${MODRINTH_API}/project/${projectId}/version`, { params });
             return { success: true, versions: response.data };
         } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('modrinth:update-file', async (_, { instanceName, projectType, oldFileName, newFileName, url }) => {
+        try {
+            const folder = projectType === 'resourcepack' ? 'resourcepacks' : 'mods';
+            const contentDir = path.join(instancesDir, instanceName, folder);
+
+            const oldPath = path.join(contentDir, oldFileName);
+            const newPath = path.join(contentDir, newFileName);
+
+            console.log(`[Modrinth:Update] Updating ${oldFileName} -> ${newFileName} in ${instanceName}`);
+
+            // Download new file
+            const writer = fs.createWriteStream(newPath);
+            const response = await axios({
+                url,
+                method: 'GET',
+                responseType: 'stream',
+                timeout: 30000
+            });
+
+            const totalSize = parseInt(response.headers['content-length'], 10);
+            let downloadedSize = 0;
+
+            response.data.on('data', (chunk) => {
+                downloadedSize += chunk.length;
+                if (win) {
+                    const progress = Math.round((downloadedSize / totalSize) * 100);
+                    win.webContents.send('install:progress', {
+                        instanceName,
+                        progress,
+                        status: `Updating ${newFileName}`
+                    });
+                }
+            });
+
+            response.data.pipe(writer);
+
+            await new Promise((resolve, reject) => {
+                writer.on('finish', resolve);
+                writer.on('error', reject);
+            });
+
+            // Delete old file
+            if (await fs.pathExists(oldPath)) {
+                await fs.remove(oldPath);
+            }
+
+            if (win) {
+                win.webContents.send('install:progress', {
+                    instanceName,
+                    progress: 100,
+                    status: `Updated ${newFileName}`
+                });
+            }
+
+            return { success: true };
+        } catch (e) {
+            console.error(`[Modrinth:Update] Error updating file:`, e);
             return { success: false, error: e.message };
         }
     });

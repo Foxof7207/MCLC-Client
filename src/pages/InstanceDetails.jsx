@@ -67,6 +67,11 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     // Confirmation Modal State
     const [modToDelete, setModToDelete] = useState(null);
 
+    // Update States
+    const [updates, setUpdates] = useState({}); // projectId -> updateData
+    const [checkingUpdates, setCheckingUpdates] = useState(false);
+    const [updatingMod, setUpdatingMod] = useState(null); // projectId being updated
+
     const handleSettingsSave = (newConfig) => {
         // Update parent state so UI reflects changes immediately
         if (onInstanceUpdate) {
@@ -220,6 +225,90 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
         setModToDelete(null);
         addNotification("Mod deleted successfully", 'success');
         loadMods();
+    };
+
+    const handleCheckUpdates = async () => {
+        setCheckingUpdates(true);
+        try {
+            const contentToCheck = [
+                ...mods.filter(m => m.projectId).map(m => ({ projectId: m.projectId, versionId: m.versionId, type: 'mod', name: m.name })),
+                ...resourcePacks.filter(p => p.projectId).map(p => ({ projectId: p.projectId, versionId: p.versionId, type: 'resourcepack', name: p.name }))
+            ];
+
+            if (contentToCheck.length === 0) {
+                addNotification("No Modrinth content found to check for updates.", 'info');
+                return;
+            }
+
+            const res = await window.electronAPI.checkUpdates(instance.name, contentToCheck);
+            if (res.success) {
+                const updateMap = {};
+                res.updates.forEach(u => {
+                    updateMap[u.projectId] = u;
+                });
+                setUpdates(updateMap);
+                const count = Object.keys(updateMap).length;
+                if (count > 0) {
+                    addNotification(`Found ${count} update(s)!`, 'success');
+                } else {
+                    addNotification("All mods and resource packs are up to date.", 'success');
+                }
+            } else {
+                addNotification("Failed to check for updates: " + res.error, 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            addNotification("Error checking updates: " + e.message, 'error');
+        } finally {
+            setCheckingUpdates(false);
+        }
+    };
+
+    const handleUpdateMod = async (updateData) => {
+        setUpdatingMod(updateData.projectId);
+        try {
+            const res = await window.electronAPI.updateFile({
+                instanceName: instance.name,
+                projectType: updateData.type,
+                oldFileName: updateData.name,
+                newFileName: updateData.filename,
+                url: updateData.downloadUrl
+            });
+
+            if (res.success) {
+                addNotification(`Updated ${updateData.filename}!`, 'success');
+                // Remove from updates list
+                setUpdates(prev => {
+                    const next = { ...prev };
+                    delete next[updateData.projectId];
+                    return next;
+                });
+                // Reload lists
+                if (updateData.type === 'mod') loadMods();
+                else loadResourcePacks();
+            } else {
+                addNotification(`Failed to update: ${res.error}`, 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            addNotification(`Update error: ${e.message}`, 'error');
+        } finally {
+            setUpdatingMod(null);
+        }
+    };
+
+    const handleUpdateAll = async () => {
+        const updateList = Object.values(updates);
+        if (updateList.length === 0) return;
+
+        addNotification(`Updating ${updateList.length} item(s)...`, 'info');
+
+        // Use sequential updates to be safe with file operations and UI feedback
+        for (const updateData of updateList) {
+            await handleUpdateMod(updateData);
+        }
+
+        addNotification("All updates completed!", 'success');
     };
 
     // --- Search & Install ---
@@ -645,20 +734,55 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                         }}
                                         className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${searchCategory === 'resourcepack' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
                                     >
-                                        Resource Packets
+                                        Resource Packs
                                     </button>
                                 </div>
                             )}
 
                             {(contentView === 'mods' || contentView === 'resourcepacks') && (
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        placeholder={contentView === 'mods' ? "Filter mods..." : "Filter resource packs..."}
-                                        value={localSearchQuery}
-                                        onChange={(e) => setLocalSearchQuery(e.target.value)}
-                                        className="bg-background-dark border border-white/10 rounded-lg py-1.5 px-3 text-sm text-gray-300 w-64 focus:border-primary outline-none"
-                                    />
+                                <div className="flex items-center gap-3">
+                                    {Object.keys(updates).length > 0 && (
+                                        <button
+                                            onClick={handleUpdateAll}
+                                            className="px-4 py-1.5 bg-green-500 hover:bg-green-400 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-500/20 transition-all transform hover:scale-105"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                            Update All ({Object.keys(updates).length})
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={handleCheckUpdates}
+                                        disabled={checkingUpdates}
+                                        className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-2 ${checkingUpdates ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'}`}
+                                    >
+                                        {checkingUpdates ? (
+                                            <>
+                                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Checking...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                Check for Updates
+                                            </>
+                                        )}
+                                    </button>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder={contentView === 'mods' ? "Filter mods..." : "Filter resource packs..."}
+                                            value={localSearchQuery}
+                                            onChange={(e) => setLocalSearchQuery(e.target.value)}
+                                            className="bg-background-dark border border-white/10 rounded-lg py-1.5 px-3 text-sm text-gray-300 w-64 focus:border-primary outline-none"
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -707,6 +831,25 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-6">
+                                                    {updates[mod.projectId] && (
+                                                        <button
+                                                            onClick={() => handleUpdateMod(updates[mod.projectId])}
+                                                            disabled={updatingMod === mod.projectId}
+                                                            className={`p-2 rounded-lg transition-all transform hover:scale-110 ${updatingMod === mod.projectId ? 'bg-green-500/10 text-green-500 animate-pulse' : 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black'}`}
+                                                            title={`Update to ${updates[mod.projectId].newVersionNumber}`}
+                                                        >
+                                                            {updatingMod === mod.projectId ? (
+                                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                            ) : (
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                </svg>
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     <label className="relative inline-flex items-center cursor-pointer">
                                                         <input type="checkbox" checked={mod.enabled} onChange={() => handleToggleMod(mod.name)} className="sr-only peer" />
                                                         <div className="w-10 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -753,6 +896,25 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-6">
+                                                    {updates[pack.projectId] && (
+                                                        <button
+                                                            onClick={() => handleUpdateMod(updates[pack.projectId])}
+                                                            disabled={updatingMod === pack.projectId}
+                                                            className={`p-2 rounded-lg transition-all transform hover:scale-110 ${updatingMod === pack.projectId ? 'bg-green-500/10 text-green-500 animate-pulse' : 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black'}`}
+                                                            title={`Update to ${updates[pack.projectId].newVersionNumber}`}
+                                                        >
+                                                            {updatingMod === pack.projectId ? (
+                                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg>
+                                                            ) : (
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                </svg>
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     <button onClick={async () => {
                                                         await window.electronAPI.deleteMod(instance.name, pack.name);
                                                         loadResourcePacks();

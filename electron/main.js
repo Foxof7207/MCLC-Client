@@ -54,7 +54,7 @@ function createWindow() {
     require('../backend/handlers/launcher')(ipcMain, mainWindow);
     require('../backend/handlers/servers')(ipcMain, mainWindow);
     console.log('[Main] Registering Modrinth handler...');
-    require('../backend/handlers/modrinth')(ipcMain);
+    require('../backend/handlers/modrinth')(ipcMain, mainWindow);
     console.log('[Main] Registering data handler...');
     require('../backend/handlers/data')(ipcMain);
     console.log('[Main] Registering settings handler...');

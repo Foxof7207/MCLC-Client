@@ -59,6 +59,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     installMod: (data) => ipcRenderer.invoke('modrinth:install', data),
     installLocalMod: (instanceName, filePath) => ipcRenderer.invoke('instance:install-local-mod', instanceName, filePath),
     getModVersions: (projectId, loaders, gameVersions) => ipcRenderer.invoke('modrinth:get-versions', projectId, loaders, gameVersions),
+    checkUpdates: (instanceName, contentList) => ipcRenderer.invoke('instance:check-updates', instanceName, contentList),
+    updateFile: (data) => ipcRenderer.invoke('modrinth:update-file', data),
 
     // Data (Versions/Loaders)
     getVanillaVersions: () => ipcRenderer.invoke('data:get-vanilla-versions'),

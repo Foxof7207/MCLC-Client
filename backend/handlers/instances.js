@@ -10,9 +10,20 @@ const axios = require('axios');
 const zlib = require('zlib');
 const { promisify } = require('util');
 const gunzip = promisify(zlib.gunzip);
+const crypto = require('crypto');
 
 let appData = app.getPath('userData');
 const instancesDir = path.join(appData, 'instances');
+
+async function calculateSha1(filePath) {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha1');
+        const stream = fs.createReadStream(filePath);
+        stream.on('error', err => reject(err));
+        stream.on('data', chunk => hash.update(chunk));
+        stream.on('end', () => resolve(hash.digest('hex')));
+    });
+}
 
 // Mod Loader Meta APIs
 const FABRIC_META = 'https://meta.fabricmc.net/v2';
@@ -361,22 +372,22 @@ module.exports = (ipcMain, win) => {
 
             const files = await fs.readdir(rpDir, { withFileTypes: true });
 
-            const rpObjects = await Promise.all(files.map(async (dirent) => {
-                const fileName = dirent.name;
-                const filePath = path.join(rpDir, fileName);
-
-                const isPack = dirent.isDirectory() ||
-                    fileName.toLowerCase().endsWith('.zip') ||
-                    fileName.toLowerCase().endsWith('.rar');
-
-                if (!isPack) return null;
-
+            const rpObjects = (await Promise.all(files.map(async (dirent) => {
                 try {
+                    const fileName = dirent.name;
+                    const filePath = path.join(rpDir, fileName);
+
+                    const isPack = dirent.isDirectory() ||
+                        fileName.toLowerCase().endsWith('.zip') ||
+                        fileName.toLowerCase().endsWith('.rar');
+
+                    if (!isPack) return null;
+
                     const stats = await fs.stat(filePath);
                     let title = null, icon = null, version = null;
 
                     const cacheKey = `${fileName}-${stats.size}`;
-                    if (modCache[cacheKey]) {
+                    if (modCache[cacheKey] && modCache[cacheKey].projectId) {
                         title = modCache[cacheKey].title;
                         icon = modCache[cacheKey].icon;
                         version = modCache[cacheKey].version;
@@ -385,12 +396,15 @@ module.exports = (ipcMain, win) => {
                             const hash = await calculateSha1(filePath);
                             const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
                                 headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                timeout: 2000
+                                timeout: 3000
                             });
                             const versionData = res.data;
-                            const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${versionData.project_id}`, {
+                            const versionId = versionData.id;
+                            const projectId = versionData.project_id;
+
+                            const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${projectId}`, {
                                 headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                timeout: 2000
+                                timeout: 3000
                             });
                             const projectData = projectRes.data;
 
@@ -398,7 +412,7 @@ module.exports = (ipcMain, win) => {
                             icon = projectData.icon_url;
                             version = versionData.version_number;
 
-                            modCache[cacheKey] = { title, icon, version };
+                            modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
                         } catch (e) { /* silent metadata fail */ }
                     }
 
@@ -407,19 +421,20 @@ module.exports = (ipcMain, win) => {
                         title: title || fileName,
                         icon,
                         version,
+                        projectId: modCache[cacheKey]?.projectId,
+                        versionId: modCache[cacheKey]?.versionId,
                         size: stats.size,
                         enabled: true
                     };
                 } catch (e) {
-                    console.error(`Error processing resource pack ${fileName}:`, e);
+                    console.error(`Error processing resource pack:`, e);
                     return null;
                 }
-            }));
+            }))).filter(p => p !== null);
 
-            const filteredPacks = rpObjects.filter(p => p !== null);
             await fs.writeJson(modCachePath, modCache).catch(() => { });
 
-            return { success: true, packs: filteredPacks };
+            return { success: true, packs: rpObjects };
         } catch (e) {
             console.error('Failed to get resource packs', e);
             return { success: false, error: e.message };
@@ -1252,17 +1267,6 @@ module.exports = (ipcMain, win) => {
     });
 
     // Mod Management
-    const crypto = require('crypto');
-
-    async function calculateSha1(filePath) {
-        return new Promise((resolve, reject) => {
-            const hash = crypto.createHash('sha1');
-            const stream = fs.createReadStream(filePath);
-            stream.on('error', err => reject(err));
-            stream.on('data', chunk => hash.update(chunk));
-            stream.on('end', () => resolve(hash.digest('hex')));
-        });
-    }
 
 
 
@@ -1291,30 +1295,29 @@ module.exports = (ipcMain, win) => {
             const files = await fs.readdir(modsDir);
             const jars = files.filter(f => f.endsWith('.jar') || f.endsWith('.jar.disabled') || f.endsWith('.litemod'));
 
-            const modObjects = await Promise.all(jars.map(async (fileName) => {
-                const filePath = path.join(modsDir, fileName);
-                const stats = await fs.stat(filePath);
-                const isEnabled = !fileName.endsWith('.disabled');
-
-                // metadata lookup
-                let title = null;
-                let icon = null;
-                let version = null;
-
+            const modObjects = (await Promise.all(jars.map(async (fileName) => {
                 try {
+                    const filePath = path.join(modsDir, fileName);
+                    const stats = await fs.stat(filePath);
+                    const isEnabled = !fileName.endsWith('.disabled');
+
+                    // metadata lookup
+                    let title = null;
+                    let icon = null;
+                    let version = null;
+
                     const cacheKey = `${fileName}-${stats.size}`;
-                    if (modCache[cacheKey]) {
+                    if (modCache[cacheKey] && modCache[cacheKey].projectId) {
                         title = modCache[cacheKey].title;
                         icon = modCache[cacheKey].icon;
                         version = modCache[cacheKey].version;
                     } else {
-                        // Only hash if we need to lookup (and maybe skip for very large files if slow?)
-                        const hash = await calculateSha1(filePath);
-                        // Query Modrinth
+                        // Lookup Modrinth metadata
                         try {
+                            const hash = await calculateSha1(filePath);
                             const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
                                 headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                timeout: 2000
+                                timeout: 3000
                             });
                             const versionData = res.data;
 
@@ -1322,37 +1325,47 @@ module.exports = (ipcMain, win) => {
                                 // Get project for icon
                                 const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${versionData.project_id}`, {
                                     headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                    timeout: 2000
+                                    timeout: 3000
                                 });
                                 const projectData = projectRes.data;
 
                                 title = projectData.title;
                                 icon = projectData.icon_url;
                                 version = versionData.version_number;
+                                const projectId = projectData.id;
+                                const versionId = versionData.id;
 
-                                // Update cache
-                                modCache[cacheKey] = { title, icon, version, hash };
-                                saveModCache();
+                                // Update cache object (we'll save it after the loop)
+                                modCache[cacheKey] = { title, icon, version, hash, projectId, versionId };
                             }
                         } catch (apiErr) {
-                            // 404 means not found on Modrinth
+                            // Silently fail API lookups
                         }
                     }
-                } catch (e) { /* ignore */ }
 
-                return {
-                    name: fileName,
-                    path: filePath,
-                    size: stats.size,
-                    enabled: isEnabled,
-                    title: title || fileName,
-                    icon: icon,
-                    version: version
-                };
-            }));
+                    return {
+                        name: fileName,
+                        path: filePath,
+                        size: stats.size,
+                        enabled: isEnabled,
+                        title: title || fileName,
+                        icon: icon,
+                        version: version,
+                        projectId: modCache[cacheKey]?.projectId,
+                        versionId: modCache[cacheKey]?.versionId
+                    };
+                } catch (e) {
+                    console.error(`Error processing mod ${fileName}:`, e);
+                    return null;
+                }
+            }))).filter(m => m !== null);
+
+            // Save cache once after processing everything
+            await fs.writeJson(modCachePath, modCache).catch(() => { });
 
             return { success: true, mods: modObjects };
         } catch (e) {
+            console.error('Failed to get mods:', e);
             return { success: false, error: e.message };
         }
     });
@@ -1382,6 +1395,57 @@ module.exports = (ipcMain, win) => {
             const modPath = path.join(modsDir, modFileName);
             await fs.remove(modPath);
             return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('instance:check-updates', async (_, instanceName, contentList) => {
+        // contentList: [{ projectId: string, versionId: string, type: 'mod' | 'resourcepack' }]
+        try {
+            const configPath = path.join(instancesDir, instanceName, 'instance.json');
+            const config = await fs.readJson(configPath);
+            const mcVersion = config.version;
+            const loader = config.loader ? config.loader.toLowerCase() : 'vanilla';
+
+            const results = await Promise.all(contentList.map(async (item) => {
+                if (!item.projectId) return { ...item, hasUpdate: false };
+
+                try {
+                    // Fetch versions filtered by MC version and loader
+                    const loaders = item.type === 'resourcepack' ? [] : [loader];
+                    const params = {
+                        loaders: JSON.stringify(loaders),
+                        game_versions: JSON.stringify([mcVersion])
+                    };
+
+                    const response = await axios.get(`https://api.modrinth.com/v2/project/${item.projectId}/version`, {
+                        params,
+                        headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                        timeout: 5000
+                    });
+
+                    const versions = response.data;
+                    if (versions.length > 0) {
+                        const latest = versions[0];
+                        if (latest.id !== item.versionId) {
+                            return {
+                                ...item,
+                                hasUpdate: true,
+                                newVersionId: latest.id,
+                                newVersionNumber: latest.version_number,
+                                downloadUrl: latest.files.find(f => f.primary)?.url || latest.files[0]?.url,
+                                filename: latest.files.find(f => f.primary)?.filename || latest.files[0]?.filename
+                            };
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Failed to check update for ${item.projectId}:`, e.message);
+                }
+                return { ...item, hasUpdate: false };
+            }));
+
+            return { success: true, updates: results.filter(r => r.hasUpdate) };
         } catch (e) {
             return { success: false, error: e.message };
         }
