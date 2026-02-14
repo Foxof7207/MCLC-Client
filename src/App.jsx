@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import ServerDashboard from './pages/ServerDashboard';
+import ServerDetails from './pages/ServerDetails';
 import Search from './pages/Search';
 import Settings from './pages/Settings';
 import Styling from './pages/Styling';
@@ -8,12 +10,10 @@ import Skins from './pages/Skins';
 import InstanceDetails from './pages/InstanceDetails';
 import Sidebar from './components/Sidebar';
 import RightPanel from './components/RightPanel';
-import { useRef } from 'react';
-
-
 
 function App() {
-    const [currentView, setCurrentView] = useState('login'); // login, dashboard, search, instance-details
+    const [currentView, setCurrentView] = useState('login'); // login, dashboard, server-dashboard, server-details, search, instance-details
+    const [currentMode, setCurrentMode] = useState('client'); // 'client' or 'server'
     const [userProfile, setUserProfile] = useState(null);
     const [theme, setTheme] = useState({
         primaryColor: '#1bd96a',
@@ -25,15 +25,19 @@ function App() {
         bgMedia: { url: '', type: 'none' }
     });
     const [selectedInstance, setSelectedInstance] = useState(null);
+    const [selectedServer, setSelectedServer] = useState(null);
     const [runningInstances, setRunningInstances] = useState({}); // { [name]: 'launching' | 'running' | 'installing' }
     const [activeDownloads, setActiveDownloads] = useState({}); // { [name]: { progress, status, type } }
     const [isMaximized, setIsMaximized] = useState(false);
 
     const [showDownloads, setShowDownloads] = useState(false);
     const [showSessions, setShowSessions] = useState(false);
+    const [showModeMenu, setShowModeMenu] = useState(false);
 
     const downloadsRef = useRef(null);
     const sessionsRef = useRef(null);
+    const modeMenuRef = useRef(null);
+    const logoRef = useRef(null);
 
     useEffect(() => {
         // Check for existing login on startup
@@ -207,13 +211,16 @@ function App() {
             });
         });
 
-
         const handleClickOutside = (event) => {
             if (downloadsRef.current && !downloadsRef.current.contains(event.target)) {
                 setShowDownloads(false);
             }
             if (sessionsRef.current && !sessionsRef.current.contains(event.target)) {
                 setShowSessions(false);
+            }
+            if (modeMenuRef.current && !modeMenuRef.current.contains(event.target) &&
+                logoRef.current && !logoRef.current.contains(event.target)) {
+                setShowModeMenu(false);
             }
         };
 
@@ -279,6 +286,7 @@ function App() {
     const handleLoginSuccess = (profile) => {
         setUserProfile(profile);
         setCurrentView('dashboard');
+        setCurrentMode('client');
     };
 
     const handleLogout = () => {
@@ -289,17 +297,38 @@ function App() {
     const handleInstanceClick = (instance) => {
         setSelectedInstance(instance);
         setCurrentView('instance-details');
-    }
+    };
+
+    const handleServerClick = (server) => {
+        setSelectedServer(server);
+        setCurrentView('server-details');
+    };
 
     const handleInstanceUpdate = (updatedInstance) => {
-        // Update the selected instance with new data (e.g., after rename)
         setSelectedInstance(updatedInstance);
-    }
+    };
+
+    const handleServerUpdate = (updatedServer) => {
+        setSelectedServer(updatedServer);
+    };
 
     const handleBackToDashboard = () => {
         setSelectedInstance(null);
-        setCurrentView('dashboard');
-    }
+        setSelectedServer(null);
+        setCurrentView(currentMode === 'client' ? 'dashboard' : 'server-dashboard');
+    };
+
+    const handleModeSelect = (mode) => {
+        setCurrentMode(mode);
+        setCurrentView(mode === 'client' ? 'dashboard' : 'server-dashboard');
+        setSelectedInstance(null);
+        setSelectedServer(null);
+        setShowModeMenu(false);
+    };
+
+    const toggleModeMenu = () => {
+        setShowModeMenu(!showModeMenu);
+    };
 
     const activeDownloadCount = Object.keys(activeDownloads).length;
     const runningCount = Object.keys(runningInstances).filter(k => runningInstances[k] === 'running').length;
@@ -342,13 +371,48 @@ function App() {
                 className="h-16 w-full titlebar z-50 flex justify-between items-center pl-2 pr-6 bg-surface/30 border-b border-white/5 flex-none relative"
                 style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
             >
-
                 <div className="flex items-center gap-2 drag no-drag">
-                    <div
-                        onClick={() => setCurrentView('dashboard')}
-                        className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary font-bold text-2xl hover:bg-primary/30 transition-colors cursor-pointer pointer-events-auto shadow-lg border border-primary/20"
-                    >
-                        M
+                    {/* Logo with Dropdown */}
+                    <div className="relative" ref={logoRef}>
+                        <div
+                            onClick={toggleModeMenu}
+                            className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary font-bold text-2xl hover:bg-primary/30 transition-colors cursor-pointer pointer-events-auto shadow-lg border border-primary/20"
+                        >
+                            M
+                        </div>
+
+                        {/* Dropdown Menu */}
+                        {showModeMenu && (
+                            <div
+                                ref={modeMenuRef}
+                                className="absolute top-14 left-0 w-48 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-100 z-[100]"
+                            >
+                                <button
+                                    onClick={() => handleModeSelect('client')}
+                                    className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3 ${currentMode === 'client' ? 'bg-primary/10 text-primary' : 'text-gray-200'}`}
+                                >
+                                    <span className="text-lg">🎮</span>
+                                    <span className="font-medium">Client</span>
+                                    {currentMode === 'client' && (
+                                        <svg className="h-4 w-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => handleModeSelect('server')}
+                                    className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3 ${currentMode === 'server' ? 'bg-primary/10 text-primary' : 'text-gray-200'}`}
+                                >
+                                    <span className="text-lg">🖥️</span>
+                                    <span className="font-medium">Server</span>
+                                    {currentMode === 'server' && (
+                                        <svg className="h-4 w-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -439,8 +503,7 @@ function App() {
                         <button onClick={() => window.electronAPI.maximize()} className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors">
                             {isMaximized ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                                 </svg>
                             ) : (
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -457,13 +520,22 @@ function App() {
 
             {userProfile ? (
                 <div className="flex flex-1 overflow-hidden">
-                    <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} />
+                    <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} currentMode={currentMode} />
 
                     <main className="flex-1 my-4 ml-4 mr-2 bg-surface/10 relative overflow-hidden flex flex-col rounded-2xl border border-white/5 shadow-2xl"
                         style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
                     >
                         <div className="flex-1 overflow-hidden bg-surface/20 rounded-2xl relative flex flex-col">
                             {currentView === 'dashboard' && <Dashboard onInstanceClick={handleInstanceClick} runningInstances={runningInstances} />}
+                            {currentView === 'server-dashboard' && <ServerDashboard onServerClick={handleServerClick} runningInstances={runningInstances} />}
+                            {currentView === 'server-details' && selectedServer && (
+                                <ServerDetails
+                                    server={selectedServer}
+                                    onBack={handleBackToDashboard}
+                                    runningInstances={runningInstances}
+                                    onServerUpdate={handleServerUpdate}
+                                />
+                            )}
                             {currentView === 'search' && <Search />}
                             {currentView === 'skins' && <Skins onLogout={handleLogout} />}
                             {currentView === 'styling' && <Styling />}

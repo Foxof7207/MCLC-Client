@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNotification } from '../context/NotificationContext';
 
 function Settings() {
@@ -18,6 +18,10 @@ function Settings() {
     const [isInstallingJava, setIsInstallingJava] = useState(false);
     const [javaInstallProgress, setJavaInstallProgress] = useState(null);
     const [showJavaModal, setShowJavaModal] = useState(false);
+
+    // Ref to track if settings have been saved on close
+    const hasUnsavedChanges = useRef(false);
+    const initialSettingsRef = useRef(null);
 
     useEffect(() => {
         const cleanup = window.electronAPI.onJavaProgress((data) => {
@@ -49,6 +53,23 @@ function Settings() {
     useEffect(() => {
         loadSettings();
         loadInstances();
+
+        // Add beforeunload event listener for when navigating away
+        const handleBeforeUnload = (e) => {
+            if (hasUnsavedChanges.current) {
+                saveSettings(settings);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            // Save settings when component unmounts (user navigates away)
+            if (hasUnsavedChanges.current) {
+                saveSettings(settings, true); // true = silent save with notification
+            }
+        };
     }, []);
 
     const loadInstances = async () => {
@@ -59,24 +80,41 @@ function Settings() {
     const loadSettings = async () => {
         const res = await window.electronAPI.getSettings();
         if (res.success) {
-            setSettings(prev => ({ ...prev, ...res.settings }));
+            const loadedSettings = { ...settings, ...res.settings };
+            setSettings(loadedSettings);
+            initialSettingsRef.current = loadedSettings; // Store initial state for comparison
         }
     };
 
     const handleChange = (key, value) => {
         setSettings(prev => {
             const newSettings = { ...prev, [key]: value };
-            saveSettings(newSettings);
+
+            // Check if there are actual changes from initial state
+            if (initialSettingsRef.current) {
+                const hasChanges = Object.keys(newSettings).some(
+                    key => newSettings[key] !== initialSettingsRef.current[key]
+                );
+                hasUnsavedChanges.current = hasChanges;
+            }
+
+            // Auto-save silently without notification
+            saveSettings(newSettings, true); // true = silent mode
             return newSettings;
         });
     };
 
-    const saveSettings = async (newSettings) => {
+    const saveSettings = async (newSettings, silent = false) => {
         const res = await window.electronAPI.saveSettings(newSettings);
         if (res.success) {
-            // Optional: Silent save or subtle indicator?
-            addNotification('Settings saved', 'success', 1000);
-            // Too spammy if autosaving. Let's just notify on error.
+            // Update initial settings ref to match saved state
+            initialSettingsRef.current = newSettings;
+            hasUnsavedChanges.current = false;
+
+            // Only show notification if not silent
+            if (!silent) {
+                addNotification('Settings saved successfully', 'success');
+            }
         } else {
             addNotification('Failed to save settings', 'error');
         }
@@ -89,14 +127,32 @@ function Settings() {
         });
         if (path) {
             handleChange('javaPath', path);
-            addNotification('Java path updated', 'success');
+            // handleChange already saves silently, no need for extra notification
         }
+    };
+
+    // Optional: Manual save button if you want to give users control
+    const handleManualSave = () => {
+        saveSettings(settings, false); // false = show notification
     };
 
     return (
         <div className="p-10 text-white h-full overflow-y-auto custom-scrollbar">
             <h1 className="text-3xl font-bold mb-2">Settings</h1>
             <p className="text-gray-400 mb-10">Manage your launcher preferences.</p>
+
+            {/* Optional: Save button for manual control */}
+            <div className="max-w-3xl mb-6 flex justify-end">
+                <button
+                    onClick={handleManualSave}
+                    className="px-6 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-medium transition flex items-center gap-2"
+                >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    <span>Save Settings</span>
+                </button>
+            </div>
 
             <div className="space-y-6 max-w-3xl">
                 {/* Java Install Modal */}

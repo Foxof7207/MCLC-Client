@@ -1,0 +1,748 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import Dropdown from '../components/Dropdown';
+import { useNotification } from '../context/NotificationContext';
+import LoadingOverlay from '../components/LoadingOverlay';
+import ConfirmationModal from '../components/ConfirmationModal';
+
+const DEFAULT_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='8' y1='9' x2='16' y2='9'%3E%3C/line%3E%3Cline x1='8' y1='13' x2='16' y2='13'%3E%3C/line%3E%3Cline x1='8' y1='17' x2='12' y2='17'%3E%3C/line%3E%3C/svg%3E";
+
+// Format uptime from seconds to readable string
+const formatUptime = (seconds) => {
+    if (!seconds || seconds <= 0) return 'Offline';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+};
+
+function ServerDashboard({ onInstanceClick, runningInstances = {} }) {
+    const { addNotification } = useNotification();
+    const [servers, setServers] = useState([]);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [contextMenu, setContextMenu] = useState(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [serverToDelete, setServerToDelete] = useState(null);
+
+    // Create Server State
+    const [newServerName, setNewServerName] = useState('');
+    const [selectedVersion, setSelectedVersion] = useState('');
+    const [selectedSoftware, setSelectedSoftware] = useState('vanilla');
+    const [newServerIcon, setNewServerIcon] = useState(DEFAULT_ICON);
+    const [serverPort, setServerPort] = useState('25565');
+    const [maxPlayers, setMaxPlayers] = useState('20');
+    const [serverMemory, setServerMemory] = useState('1024');
+
+    const [availableVersions, setAvailableVersions] = useState([]);
+    const [loadingVersions, setLoadingVersions] = useState(false);
+
+    const [isCreating, setIsCreating] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Multi-step creation
+    const [creationStep, setCreationStep] = useState(1);
+    const [softwareVersions, setSoftwareVersions] = useState([]);
+    const [selectedSoftwareVersion, setSelectedSoftwareVersion] = useState('');
+
+    // File Input Ref
+    const fileInputRef = useRef(null);
+
+    // Available server software
+    const serverSoftware = [
+        { value: 'vanilla', label: 'Vanilla' },
+        { value: 'paper', label: 'Paper' },
+        { value: 'purpur', label: 'Purpur' },
+        { value: 'spigot', label: 'Spigot' },
+        { value: 'bukkit', label: 'Bukkit' },
+        { value: 'fabric', label: 'Fabric' },
+        { value: 'forge', label: 'Forge' },
+        { value: 'neoforge', label: 'NeoForge' }
+    ];
+
+    // Memory options
+    const memoryOptions = [
+        { value: '512', label: '512 MB' },
+        { value: '1024', label: '1 GB' },
+        { value: '2048', label: '2 GB' },
+        { value: '3072', label: '3 GB' },
+        { value: '4096', label: '4 GB' },
+        { value: '6144', label: '6 GB' },
+        { value: '8192', label: '8 GB' },
+        { value: '10240', label: '10 GB' },
+        { value: '16384', label: '16 GB' }
+    ];
+
+    useEffect(() => {
+        loadServers();
+
+        const removeListener = window.electronAPI.onServerStatus(({ serverName, status }) => {
+            if (status === 'stopped' || status === 'ready' || status === 'error' || status === 'deleted') {
+                loadServers();
+            }
+        });
+
+        return () => {
+            if (removeListener) removeListener();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (showCreateModal) {
+            fetchVersions();
+            setNewServerName('');
+            setNewServerIcon(DEFAULT_ICON);
+            setSelectedSoftware('vanilla');
+            setServerPort('25565');
+            setMaxPlayers('20');
+            setServerMemory('1024');
+            setIsCreating(false);
+            setCreationStep(1);
+            setSoftwareVersions([]);
+            setSelectedSoftwareVersion('');
+        }
+    }, [showCreateModal]);
+
+    const [showSnapshots, setShowSnapshots] = useState(false);
+
+    useEffect(() => {
+        if (!showCreateModal) return;
+
+        const updateVersions = async () => {
+            setLoadingVersions(true);
+            try {
+                if (selectedSoftware === 'vanilla') {
+                    const res = await window.electronAPI.getVanillaVersions();
+                    if (res.success) {
+                        const versions = res.versions.filter(v => showSnapshots ? true : v.type === 'release');
+                        setAvailableVersions(versions);
+                        if (versions.length > 0 && (!selectedVersion || !versions.find(v => v.id === selectedVersion))) {
+                            setSelectedVersion(versions[0].id);
+                        }
+                    }
+                } else {
+                    const res = await window.electronAPI.getServerVersions(selectedSoftware);
+                    if (res.success) {
+                        let versions = res.versions;
+                        if (!showSnapshots) {
+                            versions = versions.filter(v => /^\d+\.\d+(\.\d+)?$/.test(v));
+                        }
+                        const versionObjs = versions.map(v => ({ id: v, type: 'release' }));
+                        setAvailableVersions(versionObjs);
+                        if (versionObjs.length > 0 && (!selectedVersion || !versionObjs.find(v => v.id === selectedVersion))) {
+                            setSelectedVersion(versionObjs[0].id);
+                        }
+                    } else {
+                        addNotification(`Failed to get versions for ${selectedSoftware}: ${res.error}`, 'error');
+                        setAvailableVersions([]);
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoadingVersions(false);
+            }
+        };
+
+        updateVersions();
+    }, [showCreateModal, selectedSoftware, showSnapshots]);
+
+    const loadServers = async () => {
+        const list = await window.electronAPI.getServers();
+        setServers(list || []);
+    };
+
+    const fetchVersions = async () => {
+        setLoadingVersions(true);
+        const res = await window.electronAPI.getVanillaVersions();
+        setLoadingVersions(false);
+        if (res.success) {
+            const versions = res.versions.filter(v => v.type === 'release');
+            setAvailableVersions(versions);
+            if (versions.length > 0) setSelectedVersion(versions[0].id);
+        }
+    };
+
+    const handleCreate = async (e) => {
+        e.preventDefault();
+        if (isCreating) return;
+
+        if (creationStep === 1 && selectedSoftware !== 'vanilla') {
+            if (!selectedVersion) {
+                addNotification('Please select a Minecraft version', 'error');
+                return;
+            }
+
+            setLoadingVersions(true);
+            try {
+                const res = await window.electronAPI.getSoftwareVersions(selectedSoftware, selectedVersion);
+                setLoadingVersions(false);
+
+                if (res.success && res.versions && res.versions.length > 0) {
+                    setSoftwareVersions(res.versions);
+                    setSelectedSoftwareVersion(res.versions[0]);
+                    setCreationStep(2);
+                    return;
+                } else {
+                    addNotification('No specific software versions found, using latest.', 'info');
+                }
+            } catch (err) {
+                setLoadingVersions(false);
+                addNotification('Failed to fetch software versions: ' + err.message, 'error');
+                return;
+            }
+        }
+
+        performCreation();
+    };
+
+    const performCreation = async () => {
+        setIsCreating(true);
+        const nameToUse = newServerName.trim() || "New Server";
+
+        try {
+            const result = await window.electronAPI.createServer(
+                nameToUse,
+                selectedVersion,
+                selectedSoftware,
+                selectedSoftwareVersion || null,
+                {
+                    port: parseInt(serverPort),
+                    maxPlayers: parseInt(maxPlayers),
+                    memory: parseInt(serverMemory),
+                    icon: newServerIcon
+                }
+            );
+
+            if (result.success) {
+                setShowCreateModal(false);
+                await loadServers();
+                addNotification(`Started creating server: ${result.serverName || nameToUse}`, 'success');
+            } else {
+                addNotification(`Failed to create server: ${result.error}`, 'error');
+            }
+        } catch (err) {
+            addNotification(`Error creating server: ${err.message}`, 'error');
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setNewServerIcon(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleContextMenu = (e, server) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const menuWidth = 180;
+        const menuHeight = 280;
+        let x = e.clientX;
+        let y = e.clientY;
+
+        if (x + menuWidth > window.innerWidth) {
+            x = window.innerWidth - menuWidth - 10;
+        }
+        if (y + menuHeight > window.innerHeight) {
+            y = window.innerHeight - menuHeight - 10;
+        }
+
+        setContextMenu({ x, y, server });
+    };
+
+    const handleContextAction = async (action) => {
+        const server = contextMenu?.server;
+        if (!server) return;
+        setContextMenu(null);
+
+        switch (action) {
+            case 'start':
+                window.electronAPI.startServer(server.name);
+                addNotification(`Starting server: ${server.name}...`, 'info');
+                break;
+            case 'stop':
+                window.electronAPI.stopServer(server.name);
+                addNotification(`Stopping server: ${server.name}...`, 'info');
+                break;
+            case 'restart':
+                window.electronAPI.restartServer(server.name);
+                addNotification(`Restarting server: ${server.name}...`, 'info');
+                break;
+            case 'console':
+                // Hier rufen wir onInstanceClick mit dem Server-Objekt auf
+                // Die App.jsx wird dann currentView auf 'instance-details' setzen
+                onInstanceClick(server);
+                break;
+            case 'duplicate':
+                try {
+                    const result = await window.electronAPI.duplicateServer(server.name);
+                    if (result.success) {
+                        addNotification(`Duplicated server: ${server.name}`, 'success');
+                        await loadServers();
+                    } else {
+                        addNotification(`Duplicate failed: ${result.error}`, 'error');
+                    }
+                } catch (e) {
+                    addNotification(`Duplicate failed: ${e.message}`, 'error');
+                }
+                break;
+            case 'backup':
+                try {
+                    const result = await window.electronAPI.backupServer(server.name);
+                    if (result.success) {
+                        addNotification(`Backup created: ${result.path}`, 'success');
+                    } else if (result.error !== 'Cancelled') {
+                        addNotification(`Backup failed: ${result.error}`, 'error');
+                    }
+                } catch (e) {
+                    addNotification(`Backup failed: ${e.message}`, 'error');
+                }
+                break;
+            case 'folder':
+                window.electronAPI.openServerFolder(server.name);
+                break;
+            case 'delete':
+                setServerToDelete(server);
+                setShowDeleteModal(true);
+                break;
+        }
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!serverToDelete) return;
+
+        setIsLoading(true);
+        try {
+            const status = runningInstances[serverToDelete.name];
+            if (status === 'running') {
+                await window.electronAPI.stopServer(serverToDelete.name);
+                addNotification(`Stopped ${serverToDelete.name}`, 'info');
+            }
+            await window.electronAPI.deleteServer(serverToDelete.name);
+            addNotification(`Deleted server: ${serverToDelete.name}`, 'info');
+            await loadServers();
+        } catch (e) {
+            addNotification(`Failed to delete: ${e.message}`, 'error');
+        } finally {
+            setIsLoading(false);
+            setShowDeleteModal(false);
+            setServerToDelete(null);
+        }
+    };
+
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
+
+    const versionOptions = availableVersions.map(v => ({
+        value: v.id,
+        label: v.id
+    }));
+
+    // Wenn wir auf eine Server-Karte klicken, gehen wir zur Console-Ansicht
+    const handleServerClick = (server) => {
+        onInstanceClick(server); // Das setzt currentView auf 'instance-details'
+    };
+
+    return (
+        <div className="p-8 h-full flex flex-col">
+            {isLoading && <LoadingOverlay message="Processing..." />}
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-white mb-1">Server Management</h1>
+                    <p className="text-gray-400 text-sm">Manage your Minecraft servers</p>
+                </div>
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="bg-primary hover:bg-primary-hover text-black font-bold px-6 py-3 rounded-xl shadow-primary-glow transition-all transform hover:scale-105 flex items-center gap-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    New Server
+                </button>
+            </div>
+
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6 pb-20 overflow-y-auto custom-scrollbar">
+                {servers.map((server) => {
+                    const liveStatus = runningInstances[server.name];
+                    const status = liveStatus || server.status;
+                    const isRunning = status === 'running';
+                    const isStarting = status === 'starting';
+                    const isStopping = status === 'stopping';
+
+                    return (
+                        <div
+                            key={server.name}
+                            onClick={() => handleServerClick(server)}
+                            onContextMenu={(e) => handleContextMenu(e, server)}
+                            className={`group bg-surface/40 backdrop-blur-sm border rounded-xl p-4 transition-all cursor-pointer relative overflow-hidden shadow-lg hover:shadow-xl hover:shadow-black/50 ${isRunning ? 'border-primary/50 ring-1 ring-primary/20' : 'border-white/5 hover:border-primary/50'}`}
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-40 transition-opacity"></div>
+
+                            {/* 3-dot menu button */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleContextMenu(e, server);
+                                }}
+                                className="absolute top-3 right-3 z-20 w-8 h-8 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                            >
+                                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                </svg>
+                            </button>
+
+                            <div className="flex items-start gap-4 mb-3 relative z-10">
+                                <div className="w-16 h-16 bg-background rounded-lg flex items-center justify-center text-4xl shadow-inner border border-white/5 overflow-hidden">
+                                    {server.icon && server.icon.startsWith('data:') ? (
+                                        <img src={server.icon} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <rect x="2" y="4" width="20" height="16" rx="2" ry="2" strokeWidth={1.5} />
+                                            <line x1="8" y1="9" x2="16" y2="9" strokeWidth={1.5} />
+                                            <line x1="8" y1="13" x2="16" y2="13" strokeWidth={1.5} />
+                                            <line x1="8" y1="17" x2="12" y2="17" strokeWidth={1.5} />
+                                        </svg>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-lg text-white truncate group-hover:text-primary transition-colors">{server.name}</h3>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                        <span className="bg-white/5 px-2 py-0.5 rounded capitalize border border-white/5">{server.software}</span>
+                                        <span>{server.version}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-400 mt-1">
+                                        Port: {server.port || '25565'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/5 relative z-10">
+                                <div className="text-xs text-gray-500">
+                                    <span className="block text-[10px] uppercase tracking-wider text-gray-600">Players</span>
+                                    <span className="font-mono">{server.players || '0'}/{server.maxPlayers || '20'}</span>
+                                </div>
+                                <div className="text-xs text-gray-500 text-right">
+                                    <span className="block text-[10px] uppercase tracking-wider text-gray-600">Uptime</span>
+                                    <span className="font-mono">{formatUptime(server.uptime)}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end mt-3 relative z-10">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isRunning) {
+                                            window.electronAPI.stopServer(server.name);
+                                            addNotification(`Stopping ${server.name}...`, 'info');
+                                        } else if (!isStarting && !isStopping) {
+                                            window.electronAPI.startServer(server.name);
+                                            addNotification(`Starting ${server.name}...`, 'info');
+                                        }
+                                    }}
+                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all transform hover:scale-105 shadow-lg z-20 ${isRunning ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : (isStarting || isStopping) ? 'bg-gray-700 text-gray-400 cursor-wait' : 'bg-primary/20 text-primary hover:bg-primary/30'}`}
+                                    disabled={isStarting || isStopping}
+                                >
+                                    {isRunning ? (
+                                        <>
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><rect x="6" y="6" width="8" height="8" rx="1" /></svg>
+                                            Stop
+                                        </>
+                                    ) : isStarting ? (
+                                        <>
+                                            <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                                            Starting...
+                                        </>
+                                    ) : isStopping ? (
+                                        <>
+                                            <div className="w-3 h-3 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin"></div>
+                                            Stopping...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+                                            Start
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {servers.length === 0 && (
+                    <div className="col-span-full py-20 text-center text-gray-500 border-2 border-white/5 border-dashed rounded-xl flex flex-col items-center justify-center">
+                        <svg className="w-12 h-12 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <rect x="2" y="4" width="20" height="16" rx="2" ry="2" strokeWidth={1.5} />
+                            <line x1="8" y1="9" x2="16" y2="9" strokeWidth={1.5} />
+                            <line x1="8" y1="13" x2="16" y2="13" strokeWidth={1.5} />
+                            <line x1="8" y1="17" x2="12" y2="17" strokeWidth={1.5} />
+                        </svg>
+                        <p className="text-xl font-medium mb-2 text-gray-400">No servers found</p>
+                        <p className="text-sm">Create a new server to get started</p>
+                    </div>
+                )}
+            </div>
+
+            {contextMenu && createPortal(
+                <div
+                    className="fixed bg-surface border border-white/10 rounded-lg shadow-2xl py-2 z-[9999] min-w-[180px]"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {contextMenu.server.status === 'running' ? (
+                        <>
+                            <button onClick={() => handleContextAction('stop')} className="w-full px-4 py-2 text-left hover:bg-white/5 flex items-center gap-3 text-sm text-red-400">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><rect x="6" y="6" width="8" height="8" rx="1" /></svg>
+                                Stop Server
+                            </button>
+                            <button onClick={() => handleContextAction('restart')} className="w-full px-4 py-2 text-left hover:bg-white/5 flex items-center gap-3 text-sm">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                Restart
+                            </button>
+                        </>
+                    ) : (
+                        <button onClick={() => handleContextAction('start')} className="w-full px-4 py-2 text-left hover:bg-white/5 flex items-center gap-3 text-sm text-primary">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+                            Start Server
+                        </button>
+                    )}
+                    <div className="border-t border-white/5 my-1"></div>
+                    <button onClick={() => handleContextAction('console')} className="w-full px-4 py-2 text-left hover:bg-white/5 flex items-center gap-3 text-sm">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        Console
+                    </button>
+                    <button onClick={() => handleContextAction('duplicate')} className="w-full px-4 py-2 text-left hover:bg-white/5 flex items-center gap-3 text-sm">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Duplicate
+                    </button>
+                    <button onClick={() => handleContextAction('backup')} className="w-full px-4 py-2 text-left hover:bg-white/5 flex items-center gap-3 text-sm">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                        Create Backup
+                    </button>
+                    <button onClick={() => handleContextAction('folder')} className="w-full px-4 py-2 text-left hover:bg-white/5 flex items-center gap-3 text-sm">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                        Open folder
+                    </button>
+                    <div className="border-t border-white/5 my-1"></div>
+                    <button onClick={() => handleContextAction('delete')} className="w-full px-4 py-2 text-left hover:bg-red-500/20 text-red-400 flex items-center gap-3 text-sm">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Delete
+                    </button>
+                </div>,
+                document.body
+            )}
+
+            {/* Create Server Modal */}
+            {showCreateModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-surface border border-white/10 rounded-2xl w-full max-w-2xl p-8 shadow-2xl transform transition-all scale-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                        <h2 className="text-2xl font-bold mb-6 text-white text-center">Create New Server</h2>
+                        <form onSubmit={handleCreate} className="space-y-6">
+                            {creationStep === 1 && (
+                                <>
+                                    {/* Icon Selection */}
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-24 h-24 bg-background rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative group cursor-pointer hover:border-primary/50 transition-colors"
+                                            onClick={() => fileInputRef.current?.click()}>
+                                            <img src={newServerIcon} alt="Icon" className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                onChange={handleFileSelect}
+                                                accept="image/*"
+                                                className="hidden"
+                                            />
+                                        </div>
+                                        <span className="text-xs text-gray-400 uppercase tracking-wide font-bold">Click to upload server icon</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="col-span-2">
+                                            <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wide">Server Name</label>
+                                            <input
+                                                type="text"
+                                                value={newServerName}
+                                                onChange={(e) => setNewServerName(e.target.value)}
+                                                className="w-full bg-background border border-white/10 rounded-xl p-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+                                                placeholder="My Server"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wide">Server Port</label>
+                                            <input
+                                                type="number"
+                                                value={serverPort}
+                                                onChange={(e) => setServerPort(e.target.value)}
+                                                className="w-full bg-background border border-white/10 rounded-xl p-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+                                                min="1"
+                                                max="65535"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wide">Max Players</label>
+                                            <input
+                                                type="number"
+                                                value={maxPlayers}
+                                                onChange={(e) => setMaxPlayers(e.target.value)}
+                                                className="w-full bg-background border border-white/10 rounded-xl p-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+                                                min="1"
+                                                max="100"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wide">Memory (RAM)</label>
+                                            <Dropdown
+                                                options={memoryOptions}
+                                                value={serverMemory}
+                                                onChange={setServerMemory}
+                                                placeholder="Select Memory"
+                                            />
+                                        </div>
+
+                                        <div className="col-span-2">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-gray-400 text-sm font-bold uppercase tracking-wide">Minecraft Version</label>
+                                                <div className="flex items-center gap-2 cursor-pointer" onClick={() => setShowSnapshots(!showSnapshots)}>
+                                                    <div className={`w-8 h-4 rounded-full relative transition-colors ${showSnapshots ? 'bg-primary' : 'bg-gray-600'}`}>
+                                                        <div className={`absolute top-0.5 bottom-0.5 w-3 h-3 bg-white rounded-full transition-all ${showSnapshots ? 'left-4.5' : 'left-0.5'}`} style={{ left: showSnapshots ? '18px' : '2px' }}></div>
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase">Snapshots</span>
+                                                </div>
+                                            </div>
+                                            {loadingVersions ? (
+                                                <div className="p-3 text-gray-500 bg-background border border-white/10 rounded-xl">Loading versions...</div>
+                                            ) : (
+                                                <Dropdown
+                                                    options={versionOptions}
+                                                    value={selectedVersion}
+                                                    onChange={setSelectedVersion}
+                                                    placeholder="Select Version"
+                                                />
+                                            )}
+                                        </div>
+
+                                        <div className="col-span-2">
+                                            <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wide">Server Software</label>
+                                            <Dropdown
+                                                options={serverSoftware}
+                                                value={selectedSoftware}
+                                                onChange={setSelectedSoftware}
+                                                placeholder="Select Software"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {creationStep === 2 && (
+                                <div>
+                                    <label className="block text-gray-400 text-sm font-bold mb-2 uppercase tracking-wide">Select {serverSoftware.find(s => s.value === selectedSoftware)?.label} Version</label>
+                                    <Dropdown
+                                        options={softwareVersions.map(v => ({ value: v, label: v }))}
+                                        value={selectedSoftwareVersion}
+                                        onChange={setSelectedSoftwareVersion}
+                                        placeholder="Select Software Version"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">Minecraft {selectedVersion}</p>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between gap-3 pt-4 border-t border-white/5">
+                                {creationStep === 1 && (
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            disabled={isCreating}
+                                            onClick={async () => {
+                                                const result = await window.electronAPI.importServer();
+                                                if (result.success) {
+                                                    addNotification(`Imported server: ${result.serverName}`, 'success');
+                                                    setShowCreateModal(false);
+                                                    loadServers();
+                                                } else if (result.error !== 'Cancelled') {
+                                                    addNotification(`Import failed: ${result.error}`, 'error');
+                                                }
+                                            }}
+                                            className="px-4 py-2 rounded-xl text-xs text-gray-400 font-bold hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-white/5"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                            Import Server
+                                        </button>
+                                    </div>
+                                )}
+
+                                {creationStep === 2 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setCreationStep(1)}
+                                        className="px-6 py-2 rounded-xl text-gray-400 font-bold hover:text-white hover:bg-white/5 transition-colors"
+                                    >
+                                        Back
+                                    </button>
+                                )}
+
+                                <div className="flex gap-3 ml-auto">
+                                    <button
+                                        type="button"
+                                        disabled={isCreating}
+                                        onClick={() => setShowCreateModal(false)}
+                                        className="px-6 py-2 rounded-xl text-gray-400 font-bold hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isCreating || (creationStep === 1 && loadingVersions)}
+                                        className="bg-primary hover:bg-primary-hover text-black font-bold px-8 py-2 rounded-xl shadow-lg flex items-center gap-2 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    >
+                                        {isCreating && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>}
+                                        {isCreating ? 'Creating...' : (
+                                            creationStep === 1 && selectedSoftware !== 'vanilla' ? 'Next' : 'Create Server'
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirmation Modal */}
+            {showDeleteModal && (
+                <ConfirmationModal
+                    title="Delete Server"
+                    message={`Are you sure you want to delete "${serverToDelete?.name}"? This will delete all server files and cannot be undone.`}
+                    confirmText="Delete"
+                    isDangerous={true}
+                    onConfirm={handleDeleteConfirm}
+                    onCancel={() => {
+                        setShowDeleteModal(false);
+                        setServerToDelete(null);
+                    }}
+                />
+            )}
+        </div>
+    );
+}
+
+export default ServerDashboard;
