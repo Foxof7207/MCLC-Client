@@ -42,6 +42,7 @@ function Dashboard({ onInstanceClick, runningInstances = {} }) {
     const [selectedLoaderVersion, setSelectedLoaderVersion] = useState('');
     const [availableLoaders, setAvailableLoaders] = useState({ Vanilla: true, Fabric: true, Forge: true, NeoForge: true, Quilt: true });
     const [checkingLoaders, setCheckingLoaders] = useState(false);
+    const [pendingLaunches, setPendingLaunches] = useState({}); // { [name]: boolean }
 
     // File Input Ref
     const fileInputRef = useRef(null);
@@ -417,23 +418,38 @@ function Dashboard({ onInstanceClick, runningInstances = {} }) {
                                     {formatPlaytime(instance.playtime)}
                                 </span>
                                 <button
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                         e.stopPropagation();
                                         if (isRunning) {
                                             window.electronAPI.killGame(instance.name);
                                             addNotification(`Stopping ${instance.name}...`, 'info');
-                                        } else if (!isInstalling && !isLaunching) {
-                                            window.electronAPI.launchGame(instance.name);
-                                            addNotification(`Launching ${instance.name}...`, 'info');
+                                        } else if (!isInstalling && !isLaunching && !pendingLaunches[instance.name]) {
+                                            setPendingLaunches(prev => ({ ...prev, [instance.name]: true }));
+                                            try {
+                                                const result = await window.electronAPI.launchGame(instance.name);
+                                                if (!result.success) {
+                                                    addNotification(`Launch failed: ${result.error}`, 'error');
+                                                } else {
+                                                    addNotification(`Launching ${instance.name}...`, 'info');
+                                                }
+                                            } catch (err) {
+                                                addNotification(`Launch error: ${err.message}`, 'error');
+                                            } finally {
+                                                setPendingLaunches(prev => {
+                                                    const next = { ...prev };
+                                                    delete next[instance.name];
+                                                    return next;
+                                                });
+                                            }
                                         }
                                     }}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transform transition-all duration-300 shadow-lg z-20 ${isRunning ? 'bg-red-500 hover:bg-red-400 text-white opacity-100' : (isInstalling || isLaunching) ? 'bg-gray-700 text-gray-400 cursor-wait opacity-100' : 'bg-primary text-black opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 hover:bg-primary-hover hover:scale-110'}`}
-                                    title={isRunning ? "Stop" : isInstalling ? "Installing..." : isLaunching ? "Launching..." : "Launch Game"}
-                                    disabled={isInstalling || isLaunching}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transform transition-all duration-300 shadow-lg z-20 ${isRunning ? 'bg-red-500 hover:bg-red-400 text-white opacity-100' : (isInstalling || isLaunching || pendingLaunches[instance.name]) ? 'bg-gray-700 text-gray-400 cursor-wait opacity-100' : 'bg-primary text-black opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 hover:bg-primary-hover hover:scale-110'}`}
+                                    title={isRunning ? "Stop" : isInstalling ? "Installing..." : isLaunching ? "Launching..." : pendingLaunches[instance.name] ? "Starting..." : "Launch Game"}
+                                    disabled={isInstalling || isLaunching || pendingLaunches[instance.name]}
                                 >
                                     {isRunning ? (
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><rect x="6" y="6" width="8" height="8" rx="1" /></svg>
-                                    ) : (isInstalling || isLaunching) ? (
+                                    ) : (isInstalling || isLaunching || pendingLaunches[instance.name]) ? (
                                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                     ) : (
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>

@@ -61,6 +61,9 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     // Header Menu State
     const [showMenu, setShowMenu] = useState(false);
 
+    // Initial Launch Pending State
+    const [localPending, setLocalPending] = useState(false);
+
     // Confirmation Modal State
     const [modToDelete, setModToDelete] = useState(null);
 
@@ -421,7 +424,8 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
 
 
     const handleLaunch = async () => {
-        if (isRunning) return;
+        if (isRunning || isLaunching || isInstalling || localPending) return;
+        setLocalPending(true);
         try {
             const result = await window.electronAPI.launchGame(instance.name);
             if (!result.success) {
@@ -430,6 +434,8 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
         } catch (e) {
             console.error('Launch exception:', e);
             addNotification(`Launch failed: ${e.message}`, 'error');
+        } finally {
+            setLocalPending(false);
         }
     };
 
@@ -510,16 +516,16 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                     ) : (
                         <button
                             onClick={handleLaunch}
-                            className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transform transition-all ${status === 'launching' || status === 'installing' ? 'bg-gray-600/50 text-gray-300 cursor-not-allowed border-gray-500' : 'bg-primary hover:bg-primary-hover text-black hover:scale-105 shadow-primary-glow border-transparent'}`}
-                            disabled={status === 'launching' || status === 'installing'}
+                            className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transform transition-all ${status === 'launching' || status === 'installing' || localPending ? 'bg-gray-600/50 text-gray-300 cursor-not-allowed border-gray-500' : 'bg-primary hover:bg-primary-hover text-black hover:scale-105 shadow-primary-glow border-transparent'}`}
+                            disabled={status === 'launching' || status === 'installing' || localPending}
                         >
-                            {status === 'launching' ? (
+                            {status === 'launching' || localPending ? (
                                 <>
                                     <svg className="animate-spin h-5 w-5 text-white/80" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
-                                    Launching...
+                                    {localPending ? 'Starting...' : 'Launching...'}
                                 </>
                             ) : status === 'installing' ? (
                                 <>
