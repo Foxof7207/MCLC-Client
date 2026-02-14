@@ -77,11 +77,8 @@ module.exports = (ipcMain, mainWindow) => {
             if (isLocalValid) {
                 // Proactively check with Mojang to be 100% sure (helps with revoked tokens)
                 try {
-                    const axios = require('axios');
-                    await axios.get('https://api.minecraftservices.com/minecraft/profile', {
-                        headers: { Authorization: `Bearer ${profile.access_token}` },
-                        timeout: 15000
-                    });
+                    const { getCachedProfile } = require('../utils/profileCache');
+                    await getCachedProfile(profile.access_token);
                     return { success: true };
                 } catch (e) {
                     if (e.response?.status === 401) {
@@ -168,6 +165,13 @@ module.exports = (ipcMain, mainWindow) => {
     });
 
     ipcMain.handle('auth:logout', () => {
+        const profile = store.get('user_profile');
+        if (profile && profile.access_token) {
+            try {
+                const { clearCache } = require('../utils/profileCache');
+                clearCache(profile.access_token);
+            } catch (e) { }
+        }
         store.delete('user_profile');
         return { success: true };
     });

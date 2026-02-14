@@ -37,13 +37,10 @@ module.exports = (ipcMain, mainWindow) => {
     ipcMain.handle('skin:get-current', async (_, token) => {
         try {
             if (!token) return { success: false, error: 'No token provided' };
+            const { getCachedProfile } = require('../utils/profileCache');
+            const data = await getCachedProfile(token);
 
-            const res = await axios.get('https://api.minecraftservices.com/minecraft/profile', {
-                headers: { Authorization: `Bearer ${token}` },
-                timeout: 30000
-            });
-
-            const skins = res.data.skins || [];
+            const skins = data.skins || [];
             const currentSkin = skins.find(s => s.state === 'ACTIVE');
 
             if (currentSkin) {
@@ -51,10 +48,10 @@ module.exports = (ipcMain, mainWindow) => {
                     success: true,
                     url: currentSkin.url,
                     variant: currentSkin.variant,
-                    capes: res.data.capes || []
+                    capes: data.capes || []
                 };
             }
-            return { success: false, error: 'No active skin found', capes: res.data.capes || [] };
+            return { success: false, error: 'No active skin found', capes: data.capes || [] };
         } catch (e) {
             console.error('Failed to fetch current skin:', e.response?.data || e.message);
             if (e.response?.status === 401) {

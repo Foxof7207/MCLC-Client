@@ -105,8 +105,16 @@ const CapePreview = ({ src, className }) => {
             img.src = src;
             img.onload = () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                // Cape Back: 12, 1, 10, 16
-                ctx.drawImage(img, 12, 1, 10, 16, 0, 0, 10 * scale, 16 * scale);
+
+                // Determine scale based on image width (standard is 64x32)
+                const s = img.width / 64;
+
+                // Cape layout in 64x32:
+                // Back Face: (1, 1) size (10, 16)
+                // Front Face: (12, 1) size (10, 16)
+                // Previous code used 12, 1 (Front), which is why it looked wrong.
+                // We should show the Back face (1, 1).
+                ctx.drawImage(img, 1 * s, 1 * s, 10 * s, 16 * s, 0, 0, 10 * scale, 16 * scale);
             };
         };
         render();
