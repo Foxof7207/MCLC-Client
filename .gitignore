@@ -18,6 +18,8 @@ dist/
 build/
 release/
 dist/
+website/
+news-admin/
 
 # OS files
 .DS_Store
