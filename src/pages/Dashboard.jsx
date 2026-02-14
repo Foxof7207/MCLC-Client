@@ -43,6 +43,9 @@ function Dashboard({ onInstanceClick, runningInstances = {} }) {
     const [availableLoaders, setAvailableLoaders] = useState({ Vanilla: true, Fabric: true, Forge: true, NeoForge: true, Quilt: true });
     const [checkingLoaders, setCheckingLoaders] = useState(false);
     const [pendingLaunches, setPendingLaunches] = useState({}); // { [name]: boolean }
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortMethod, setSortMethod] = useState('playtime'); // name, version, playtime
+    const [groupMethod, setGroupMethod] = useState('version'); // none, version, loader
 
     // File Input Ref
     const fileInputRef = useRef(null);
@@ -339,134 +342,218 @@ function Dashboard({ onInstanceClick, runningInstances = {} }) {
         { value: 'Quilt', label: 'Quilt' }
     ];
 
+    const sortOptions = [
+        { value: 'name', label: 'Sort by: Name' },
+        { value: 'version', label: 'Sort by: Game version' },
+        { value: 'playtime', label: 'Sort by: Playtime' }
+    ];
+
+    const groupOptions = [
+        { value: 'none', label: 'Group by: None' },
+        { value: 'version', label: 'Group by: Game version' },
+        { value: 'loader', label: 'Group by: Loader' }
+    ];
+
+    // 1. Filter
+    const filteredInstances = instances.filter(inst =>
+        inst.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        inst.version.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // 2. Sort
+    const sortedInstances = [...filteredInstances].sort((a, b) => {
+        if (sortMethod === 'name') return a.name.localeCompare(b.name);
+        if (sortMethod === 'playtime') return (b.playtime || 0) - (a.playtime || 0);
+        if (sortMethod === 'version') {
+            // Simple version sort (reverse release order usually)
+            return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
+        }
+        return 0;
+    });
+
+    // 3. Group
+    const groupedData = [];
+    if (groupMethod === 'none') {
+        groupedData.push({ title: null, items: sortedInstances });
+    } else {
+        const groups = {};
+        sortedInstances.forEach(inst => {
+            const key = groupMethod === 'version' ? inst.version : (inst.loader || 'Vanilla');
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(inst);
+        });
+
+        // Sort keys for consistent display
+        const sortedKeys = Object.keys(groups).sort((a, b) => {
+            if (groupMethod === 'version') return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
+            return a.localeCompare(b);
+        });
+
+        sortedKeys.forEach(key => {
+            groupedData.push({ title: key, items: groups[key] });
+        });
+    }
+
     return (
-        <div className="p-8 h-full flex flex-col">
-            {isLoading && <LoadingOverlay message="Processing..." />}
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-1">Library</h1>
-                    <p className="text-gray-400 text-sm">Manage your instances</p>
-                </div>
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-primary hover:bg-primary-hover text-black font-bold px-6 py-3 rounded-xl shadow-primary-glow transition-all transform hover:scale-105 flex items-center gap-2"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                    New Instance
-                </button>
-            </div>
-
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-20 overflow-y-auto custom-scrollbar">
-                {instances.map((instance) => {
-                    // Use runningInstances from props first, fallback to persisted status
-                    const liveStatus = runningInstances[instance.name];
-                    const persistedStatus = instance.status;
-                    // liveStatus takes priority, but if not present, check if instance is still installing
-                    const status = liveStatus || (persistedStatus === 'installing' ? 'installing' : null);
-                    const isRunning = status === 'running';
-                    const isLaunching = status === 'launching';
-                    const isInstalling = status === 'installing';
-
-                    return (
-                        <div
-                            key={instance.name}
-                            onClick={() => onInstanceClick(instance)}
-                            onContextMenu={(e) => handleContextMenu(e, instance)}
-                            className={`group bg-surface/40 backdrop-blur-sm border rounded-xl p-4 transition-all cursor-pointer relative overflow-hidden shadow-lg hover:shadow-xl hover:shadow-black/50 ${isRunning ? 'border-primary/50 ring-1 ring-primary/20' : 'border-white/5 hover:border-primary/50'}`}
+        <>
+            <div className="p-8 h-full flex flex-col">
+                {isLoading && <LoadingOverlay message="Processing..." />}
+                <div className="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold text-white mb-1">Library</h1>
+                        <p className="text-gray-400 text-sm">Manage your instances</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="relative group">
+                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <input
+                                type="text"
+                                placeholder="Search"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-background border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-all w-64"
+                            />
+                        </div>
+                        <div className="w-48">
+                            <Dropdown options={sortOptions} value={sortMethod} onChange={setSortMethod} />
+                        </div>
+                        <div className="w-48">
+                            <Dropdown options={groupOptions} value={groupMethod} onChange={setGroupMethod} />
+                        </div>
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="bg-primary hover:bg-primary-hover text-black font-bold px-6 py-2.5 rounded-xl shadow-primary-glow transition-all transform hover:scale-105 flex items-center gap-2 text-sm"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-40 transition-opacity"></div>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                            New Instance
+                        </button>
+                    </div>
+                </div>
 
-                            {/* 3-dot menu button */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleContextMenu(e, instance);
-                                }}
-                                className="absolute top-3 right-3 z-20 w-8 h-8 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
-                            >
-                                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                                </svg>
-                            </button>
-
-                            <div className="flex items-start gap-4 mb-3 relative z-10">
-                                <div className="w-16 h-16 bg-background rounded-lg flex items-center justify-center text-4xl shadow-inner border border-white/5 overflow-hidden">
-                                    {instance.icon && instance.icon.startsWith('data:') ? (
-                                        <img src={instance.icon} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                                    )}
+                <div className="flex-1 overflow-y-auto custom-scrollbar pb-20 pr-1">
+                    {groupedData.map((group, gIdx) => (
+                        <div key={group.title || 'all'} className={gIdx > 0 ? 'mt-3' : ''}>
+                            {group.title && (
+                                <div className="flex items-center gap-4 mb-4">
+                                    <span className="text-white font-bold text-sm whitespace-nowrap opacity-80">{group.title}</span>
+                                    <div className="h-px bg-white/10 flex-1"></div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-lg text-white truncate group-hover:text-primary transition-colors">{instance.name}</h3>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                        <span className="bg-white/5 px-2 py-0.5 rounded capitalize border border-white/5">{instance.loader || 'Vanilla'}</span>
-                                        <span>{instance.version}</span>
-                                    </div>
-                                    {status && status !== 'ready' && status !== 'stopped' && (
-                                        <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-primary animate-pulse">
-                                            <div className="w-2 h-2 rounded-full bg-primary"></div>
-                                            {isInstalling ? 'Installing...' : isLaunching ? 'Launching...' : 'Running'}
+                            )}
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-8">
+                                {group.items.map((instance) => {
+                                    // Use runningInstances from props first, fallback to persisted status
+                                    const liveStatus = runningInstances[instance.name];
+                                    const persistedStatus = instance.status;
+                                    // liveStatus takes priority, but if not present, check if instance is still installing
+                                    const status = liveStatus || (persistedStatus === 'installing' ? 'installing' : null);
+                                    const isRunning = status === 'running';
+                                    const isLaunching = status === 'launching';
+                                    const isInstalling = status === 'installing';
+
+                                    return (
+                                        <div
+                                            key={instance.name}
+                                            onClick={() => onInstanceClick(instance)}
+                                            onContextMenu={(e) => handleContextMenu(e, instance)}
+                                            className={`group bg-surface/40 backdrop-blur-sm border rounded-xl p-4 transition-all cursor-pointer relative overflow-hidden shadow-lg hover:shadow-xl hover:shadow-black/50 ${isRunning ? 'border-primary/50 ring-1 ring-primary/20' : 'border-white/5 hover:border-primary/50'}`}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-40 transition-opacity"></div>
+
+                                            {/* 3-dot menu button */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleContextMenu(e, instance);
+                                                }}
+                                                className="absolute top-3 right-3 z-20 w-8 h-8 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                                            >
+                                                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                                </svg>
+                                            </button>
+
+                                            <div className="flex items-start gap-4 mb-3 relative z-10">
+                                                <div className="w-16 h-16 bg-background rounded-lg flex items-center justify-center text-4xl shadow-inner border border-white/5 overflow-hidden">
+                                                    {instance.icon && instance.icon.startsWith('data:') ? (
+                                                        <img src={instance.icon} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-bold text-lg text-white truncate group-hover:text-primary transition-colors">{instance.name}</h3>
+                                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                                        <span className="bg-white/5 px-2 py-0.5 rounded capitalize border border-white/5">{instance.loader || 'Vanilla'}</span>
+                                                        <span>{instance.version}</span>
+                                                    </div>
+                                                    {status && status !== 'ready' && status !== 'stopped' && (
+                                                        <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-primary animate-pulse">
+                                                            <div className="w-2 h-2 rounded-full bg-primary"></div>
+                                                            {isInstalling ? 'Installing...' : isLaunching ? 'Launching...' : 'Running'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/5 relative z-10">
+                                                <span className="text-xs text-gray-500 font-mono flex items-center gap-1">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>
+                                                    {formatPlaytime(instance.playtime)}
+                                                </span>
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        if (isRunning) {
+                                                            window.electronAPI.killGame(instance.name);
+                                                            addNotification(`Stopping ${instance.name}...`, 'info');
+                                                        } else if (!isInstalling && !isLaunching && !pendingLaunches[instance.name]) {
+                                                            setPendingLaunches(prev => ({ ...prev, [instance.name]: true }));
+                                                            try {
+                                                                const result = await window.electronAPI.launchGame(instance.name);
+                                                                if (!result.success) {
+                                                                    addNotification(`Launch failed: ${result.error}`, 'error');
+                                                                } else {
+                                                                    addNotification(`Launching ${instance.name}...`, 'info');
+                                                                }
+                                                            } catch (err) {
+                                                                addNotification(`Launch error: ${err.message}`, 'error');
+                                                            } finally {
+                                                                setPendingLaunches(prev => {
+                                                                    const next = { ...prev };
+                                                                    delete next[instance.name];
+                                                                    return next;
+                                                                });
+                                                            }
+                                                        }
+                                                    }}
+                                                    className={`w-10 h-10 rounded-full flex items-center justify-center transform transition-all duration-300 shadow-lg z-20 ${isRunning ? 'bg-red-500 hover:bg-red-400 text-white opacity-100' : (isInstalling || isLaunching || pendingLaunches[instance.name]) ? 'bg-gray-700 text-gray-400 cursor-wait opacity-100' : 'bg-primary text-black opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 hover:bg-primary-hover hover:scale-110'}`}
+                                                    title={isRunning ? "Stop" : isInstalling ? "Installing..." : isLaunching ? "Launching..." : pendingLaunches[instance.name] ? "Starting..." : "Launch Game"}
+                                                    disabled={isInstalling || isLaunching || pendingLaunches[instance.name]}
+                                                >
+                                                    {isRunning ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><rect x="6" y="6" width="8" height="8" rx="1" /></svg>
+                                                    ) : (isInstalling || isLaunching || pendingLaunches[instance.name]) ? (
+                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                    ) : (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+                                                    )}
+                                                </button>
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/5 relative z-10">
-                                <span className="text-xs text-gray-500 font-mono flex items-center gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>
-                                    {formatPlaytime(instance.playtime)}
-                                </span>
-                                <button
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (isRunning) {
-                                            window.electronAPI.killGame(instance.name);
-                                            addNotification(`Stopping ${instance.name}...`, 'info');
-                                        } else if (!isInstalling && !isLaunching && !pendingLaunches[instance.name]) {
-                                            setPendingLaunches(prev => ({ ...prev, [instance.name]: true }));
-                                            try {
-                                                const result = await window.electronAPI.launchGame(instance.name);
-                                                if (!result.success) {
-                                                    addNotification(`Launch failed: ${result.error}`, 'error');
-                                                } else {
-                                                    addNotification(`Launching ${instance.name}...`, 'info');
-                                                }
-                                            } catch (err) {
-                                                addNotification(`Launch error: ${err.message}`, 'error');
-                                            } finally {
-                                                setPendingLaunches(prev => {
-                                                    const next = { ...prev };
-                                                    delete next[instance.name];
-                                                    return next;
-                                                });
-                                            }
-                                        }
-                                    }}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transform transition-all duration-300 shadow-lg z-20 ${isRunning ? 'bg-red-500 hover:bg-red-400 text-white opacity-100' : (isInstalling || isLaunching || pendingLaunches[instance.name]) ? 'bg-gray-700 text-gray-400 cursor-wait opacity-100' : 'bg-primary text-black opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 hover:bg-primary-hover hover:scale-110'}`}
-                                    title={isRunning ? "Stop" : isInstalling ? "Installing..." : isLaunching ? "Launching..." : pendingLaunches[instance.name] ? "Starting..." : "Launch Game"}
-                                    disabled={isInstalling || isLaunching || pendingLaunches[instance.name]}
-                                >
-                                    {isRunning ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><rect x="6" y="6" width="8" height="8" rx="1" /></svg>
-                                    ) : (isInstalling || isLaunching || pendingLaunches[instance.name]) ? (
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
-                                    )}
-                                </button>
+                                    );
+                                })}
                             </div>
                         </div>
-                    );
-                })}
+                    ))}
+                </div>
 
-                {instances.length === 0 && (
+                {groupedData.length === 0 || (groupedData.length === 1 && groupedData[0].items.length === 0) ? (
                     <div className="col-span-full py-20 text-center text-gray-500 border-2 border-white/5 border-dashed rounded-xl flex flex-col items-center justify-center">
                         <svg className="w-12 h-12 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                         <p className="text-xl font-medium mb-2 text-gray-400">No instances found</p>
                         <p className="text-sm">Create a new instance to start playing</p>
                     </div>
-                )}
+                ) : null}
             </div>
 
             {contextMenu && createPortal(
@@ -505,10 +592,8 @@ function Dashboard({ onInstanceClick, runningInstances = {} }) {
                 document.body
             )}
 
-            {/* Create Modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    {/* ... (Create Modal Content) ... */}
                     <div className="bg-surface border border-white/10 rounded-2xl w-full max-w-lg p-8 shadow-2xl transform transition-all scale-100">
                         <h2 className="text-2xl font-bold mb-6 text-white text-center">Create New Instance</h2>
                         <form onSubmit={handleCreate} className="space-y-6">
@@ -667,7 +752,6 @@ function Dashboard({ onInstanceClick, runningInstances = {} }) {
                 </div>
             )}
 
-            {/* Confirmation Modal */}
             {showDeleteModal && (
                 <ConfirmationModal
                     title="Delete Instance"
@@ -681,7 +765,7 @@ function Dashboard({ onInstanceClick, runningInstances = {} }) {
                     }}
                 />
             )}
-        </div>
+        </>
     );
 }
 
