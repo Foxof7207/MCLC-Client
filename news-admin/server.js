@@ -27,7 +27,22 @@ const upload = multer({ storage: storage });
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// 1. Serve the landing page website 
+// We check both the current dir and the parent dir to support different server layouts
+const websitePath = fs.existsSync(path.join(__dirname, 'website'))
+    ? path.join(__dirname, 'website')
+    : path.join(__dirname, '../website');
+
+const adminPublicPath = fs.existsSync(path.join(__dirname, 'public'))
+    ? path.join(__dirname, 'public')
+    : path.join(__dirname, 'news-admin/public');
+
+console.log(`[Static] Serving website from: ${websitePath}`);
+console.log(`[Static] Serving admin from: ${adminPublicPath}`);
+
+app.use(express.static(websitePath));
+app.use(express.static(adminPublicPath));
 
 // Initialize news.json if not exists
 if (!fs.existsSync(NEWS_FILE)) {
