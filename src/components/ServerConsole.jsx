@@ -227,8 +227,8 @@ function ServerConsole({ server, onClose, onServerAction }) {
                     <div className="text-sm">
                         <span className="text-gray-400">TPS:</span>
                         <span className={`ml-2 font-mono ${stats.tps > 19 ? 'text-green-400' :
-                                stats.tps > 15 ? 'text-yellow-400' :
-                                    'text-red-400'
+                            stats.tps > 15 ? 'text-yellow-400' :
+                                'text-red-400'
                             }`}>{stats.tps.toFixed(1)}</span>
                     </div>
                 </div>
@@ -299,11 +299,11 @@ function ServerConsole({ server, onClose, onServerAction }) {
                         <div key={index} className="mb-0.5 hover:bg-white/5 group font-mono">
                             <span className="text-gray-500 select-none mr-3 text-xs">[{log.timestamp}]</span>
                             <span className={`whitespace-pre-wrap break-words ${log.type === 'error' ? 'text-red-400' :
-                                    log.type === 'warn' ? 'text-yellow-400' :
-                                        log.type === 'success' ? 'text-green-400' :
-                                            log.type === 'info' ? 'text-blue-400' :
-                                                log.type === 'system' ? 'text-purple-400' :
-                                                    'text-gray-300'
+                                log.type === 'warn' ? 'text-yellow-400' :
+                                    log.type === 'success' ? 'text-green-400' :
+                                        log.type === 'info' ? 'text-blue-400' :
+                                            log.type === 'system' ? 'text-purple-400' :
+                                                'text-gray-300'
                                 }`}>{log.content}</span>
                         </div>
                     ))

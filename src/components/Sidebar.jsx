@@ -10,7 +10,7 @@ function Sidebar({ currentView, setView, onLogout }) {
     ];
 
     return (
-        <div className="w-16 my-4 ml-4 mr-2 bg-surface/10 rounded-2xl border border-white/5 shadow-2xl flex flex-col items-center py-6 gap-2"
+        <div className="w-16 my-4 ml-4 mr-2 bg-surface/10 rounded-2xl border border-white/5 shadow-2xl flex flex-col items-center py-6 gap-2 relative z-50"
             style={{ backdropFilter: 'blur(10px)' }}>
             {menuItems.map((item) => (
                 <button

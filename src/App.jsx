@@ -305,7 +305,7 @@ function App() {
 
             {/* Title Bar */}
             <div
-                className="h-16 w-full titlebar z-50 flex justify-between items-center pl-2 pr-6 bg-surface/30 border-b border-white/5 flex-none relative"
+                className="h-16 w-full titlebar z-[60] flex justify-between items-center pl-2 pr-6 bg-surface/30 border-b border-white/5 flex-none relative"
                 style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
             >
                 <div className="flex items-center gap-2 drag no-drag">
