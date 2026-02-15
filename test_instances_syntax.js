@@ -34,14 +34,6 @@ const electronMock = {
     }
 };
 
-// Mock other modules if needed, but requiring the file typically triggers the side effects (registration)
-// We need to override require for 'electron' if possible, or just rely on the fact that instances.js takes ipcMain as arg.
-// instances.js requires 'electron' for shell, dialog, app. We need to mock those.
-
-// Since we can't easily mock require in this simple script without a loader like proxyquire,
-// we will try to load it and see if it crashes on require. 
-// However, instances.js does `const { ipcMain, app, shell, dialog } = require('electron');` at top level.
-// This will fail in a node script if electron is not available or if we are not in electron.
 
 console.log('Test script: verifying syntax and basic loading...');
 

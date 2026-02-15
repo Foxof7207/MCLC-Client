@@ -28,6 +28,11 @@ const electronAPI = {
     getCustomPresets: () => ipcRenderer.invoke('theme:get-custom-presets'),
     saveCustomPreset: (preset) => ipcRenderer.invoke('theme:save-custom-preset', preset),
     deleteCustomPreset: (handle) => ipcRenderer.invoke('theme:delete-custom-preset', handle),
+    exportCustomPreset: (preset) => ipcRenderer.invoke('theme:export-custom-preset', preset),
+    importCustomPreset: () => ipcRenderer.invoke('theme:import-custom-preset'),
+
+    softReset: () => ipcRenderer.invoke('app:soft-reset'),
+    factoryReset: () => ipcRenderer.invoke('app:factory-reset'),
 
     openInstanceFolder: (name) => ipcRenderer.invoke('instance:open-folder', name),
     getMods: (instanceName) => ipcRenderer.invoke('instance:get-mods', instanceName),

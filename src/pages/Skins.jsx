@@ -188,20 +188,14 @@ function Skins({ onLogout, onProfileUpdate }) {
             if (window.electronAPI.validateSession) {
                 const val = await window.electronAPI.validateSession();
                 if (!val.success) {
-                    if (onLogout) {
-                        onLogout();
-                    } else {
-                        setUserProfile(null);
-                    }
+                    if (onLogout) onLogout();
+                    else setUserProfile(null);
                     setIsLoading(false);
                     return;
                 }
             }
 
             const profile = await window.electronAPI.getProfile();
-            setUserProfile(profile);
-            if (onProfileUpdate) onProfileUpdate(profile);
-
             if (profile && profile.access_token && window.electronAPI.getCurrentSkin) {
                 try {
                     const res = await window.electronAPI.getCurrentSkin(profile.access_token);
@@ -209,6 +203,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                         const skinUrl = res.url;
                         const model = res.variant || 'classic';
 
+                        profile.skinUrl = skinUrl;
                         setCurrentSkinUrl(skinUrl);
                         setVariant(model);
                         setCapes(res.capes || []);
@@ -219,7 +214,6 @@ function Skins({ onLogout, onProfileUpdate }) {
                         await updateSkinInViewer(skinUrl, model);
                     } else {
                         if (res.authError) {
-                            console.warn("Session expired detected in Skins tab, logging out...");
                             addNotification('Session expired. Please login again.', 'error');
                             if (onLogout) onLogout();
                             return;
@@ -229,12 +223,15 @@ function Skins({ onLogout, onProfileUpdate }) {
                     }
                 } catch (e) {
                     console.error("Failed to load skin", e);
-                    addNotification('Failed to fetch skin from Mojang. Check your connection.', 'error');
+                    addNotification('Failed to fetch skin from Mojang.', 'error');
                 }
             }
+
+            setUserProfile(profile);
+            if (onProfileUpdate) onProfileUpdate(profile);
         } catch (e) {
             console.error("Failed to load profile/skin", e);
-            addNotification('Failed to load profile. Please try logging in again.', 'error');
+            addNotification('Error loading profile.', 'error');
         }
         setIsLoading(false);
     };

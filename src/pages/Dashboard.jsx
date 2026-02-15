@@ -20,14 +20,14 @@ const formatPlaytime = (ms) => {
     return `${minutes}m`;
 };
 
-const InstanceCard = ({ 
-    instance, 
-    runningInstances, 
-    installProgress, 
-    pendingLaunches, 
-    onInstanceClick, 
-    handleContextMenu, 
-    addNotification, 
+const InstanceCard = ({
+    instance,
+    runningInstances,
+    installProgress,
+    pendingLaunches,
+    onInstanceClick,
+    handleContextMenu,
+    addNotification,
     loadInstances,
     setPendingLaunches
 }) => {
@@ -61,9 +61,9 @@ const InstanceCard = ({
             </button>
 
             <div className="flex items-start gap-4 mb-3 relative z-10">
-                <OptimizedImage 
-                    src={instance.icon} 
-                    alt={instance.name} 
+                <OptimizedImage
+                    src={instance.icon}
+                    alt={instance.name}
                     className="w-16 h-16 bg-background rounded-lg flex items-center justify-center text-4xl shadow-inner border border-white/5 overflow-hidden"
                     fallback={<svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
                 />
@@ -664,9 +664,9 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                                     )}
                                     <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-8">
                                         {group.items.map((instance) => (
-                                            <InstanceCard 
-                                                key={instance.name} 
-                                                instance={instance} 
+                                            <InstanceCard
+                                                key={instance.name}
+                                                instance={instance}
                                                 runningInstances={runningInstances}
                                                 installProgress={installProgress}
                                                 pendingLaunches={pendingLaunches}
@@ -682,54 +682,24 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                             ))}
                         </div>
                     ) : (
-                        <AutoSizer>
-                            {({ height, width }) => {
-                                const CARD_WIDTH = 300; 
-                                const columnCount = Math.max(1, Math.floor(width / CARD_WIDTH));
-                                const gutter = 24;
-                                const adjustedWidth = (width - (gutter * (columnCount + 1))) / columnCount;
-                                const rowCount = Math.ceil(sortedInstances.length / columnCount);
-
-                                return (
-                                    <FixedSizeGrid
-                                        columnCount={columnCount}
-                                        columnWidth={adjustedWidth + gutter}
-                                        height={height}
-                                        rowCount={rowCount}
-                                        rowHeight={200}
-                                        width={width}
-                                        className="custom-scrollbar"
-                                    >
-                                        {({ columnIndex, rowIndex, style }) => {
-                                            const index = rowIndex * columnCount + columnIndex;
-                                            if (index >= sortedInstances.length) return null;
-                                            const instance = sortedInstances[index];
-                                            return (
-                                                <div style={{
-                                                    ...style,
-                                                    paddingLeft: gutter / 2,
-                                                    paddingRight: gutter / 2,
-                                                    paddingBottom: gutter,
-                                                    boxSizing: 'border-box'
-                                                }}>
-                                                    <InstanceCard 
-                                                        instance={instance} 
-                                                        runningInstances={runningInstances}
-                                                        installProgress={installProgress}
-                                                        pendingLaunches={pendingLaunches}
-                                                        onInstanceClick={onInstanceClick}
-                                                        handleContextMenu={handleContextMenu}
-                                                        addNotification={addNotification}
-                                                        loadInstances={loadInstances}
-                                                        setPendingLaunches={setPendingLaunches}
-                                                    />
-                                                </div>
-                                            );
-                                        }}
-                                    </FixedSizeGrid>
-                                );
-                            }}
-                        </AutoSizer>
+                        <div className="h-full overflow-y-auto custom-scrollbar pb-20">
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 p-1">
+                                {sortedInstances.map((instance) => (
+                                    <InstanceCard
+                                        key={instance.name}
+                                        instance={instance}
+                                        runningInstances={runningInstances}
+                                        installProgress={installProgress}
+                                        pendingLaunches={pendingLaunches}
+                                        onInstanceClick={onInstanceClick}
+                                        handleContextMenu={handleContextMenu}
+                                        addNotification={addNotification}
+                                        loadInstances={loadInstances}
+                                        setPendingLaunches={setPendingLaunches}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </div>
 

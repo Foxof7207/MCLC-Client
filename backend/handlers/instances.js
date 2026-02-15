@@ -2015,7 +2015,11 @@ module.exports = (ipcMain, win) => {
         });
 
         console.log('[Instances] Instance handlers registered.');
+        // Log before registering theme handlers
+        console.log('[Instances] Registering theme handlers...');
+
         ipcMain.handle('theme:get-custom-presets', async () => {
+            console.log('[Theme] theme:get-custom-presets invoked');
             try {
                 const userData = app.getPath('userData');
                 const presetsDir = path.join(userData, 'custom_themes');
@@ -2046,6 +2050,8 @@ module.exports = (ipcMain, win) => {
                 return { success: false, error: e.message };
             }
         });
+
+        console.log('[Instances] theme:get-custom-presets registered.');
 
         ipcMain.handle('theme:save-custom-preset', async (_, preset) => {
             try {
@@ -2083,6 +2089,130 @@ module.exports = (ipcMain, win) => {
                 return { success: true };
             } catch (e) {
                 console.error('Failed to delete custom preset:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        // Theme Export Handler
+        ipcMain.handle('theme:export-custom-preset', async (_, preset) => {
+            try {
+                const { filePath } = await dialog.showSaveDialog(win, {
+                    title: 'Export Theme Preset',
+                    defaultPath: `${preset.handle}.json`,
+                    filters: [{ name: 'JSON Files', extensions: ['json'] }]
+                });
+
+                if (filePath) {
+                    await fs.writeJson(filePath, preset, { spaces: 4 });
+                    return { success: true, path: filePath };
+                }
+                return { success: false, error: 'Cancelled' };
+            } catch (e) {
+                console.error('Failed to export theme:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        // Theme Import Handler
+        ipcMain.handle('theme:import-custom-preset', async () => {
+            console.log('[Theme] Import triggered');
+            try {
+                const { filePaths } = await dialog.showOpenDialog(win, {
+                    title: 'Import Theme Preset',
+                    properties: ['openFile'],
+                    filters: [{ name: 'JSON Files', extensions: ['json'] }]
+                });
+
+                if (filePaths && filePaths.length > 0) {
+                    const content = await fs.readJson(filePaths[0]);
+
+                    // Validate basic theme structure
+                    const requiredFields = ['name', 'handle', 'primary', 'bg', 'surface'];
+                    const missing = requiredFields.filter(field => !content[field]);
+
+                    if (missing.length > 0) {
+                        return { success: false, error: `Invalid theme file. Missing fields: ${missing.join(', ')}` };
+                    }
+
+                    const userData = app.getPath('userData');
+                    const presetsDir = path.join(userData, 'custom_themes');
+                    await fs.ensureDir(presetsDir);
+
+                    // Ensure unique handle just in case, but overwrite is also fine if user intends it. 
+                    // Let's overwrite for simplicity as per user request to "import" it.
+                    const targetPath = path.join(presetsDir, `${content.handle}.json`);
+                    await fs.writeJson(targetPath, content, { spaces: 4 });
+
+                    return { success: true };
+                }
+                return { success: false, error: 'Cancelled' };
+            } catch (e) {
+                console.error('Failed to import theme:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        console.log('[Instances] All theme handlers registered successfully.');
+
+        // App Maintenance Handlers
+        ipcMain.handle('app:soft-reset', async () => {
+            console.log('[Maintenance] Soft reset triggered');
+            try {
+                const userData = app.getPath('userData');
+                const items = await fs.readdir(userData);
+
+                for (const item of items) {
+                    if (item === 'instances') continue; // PRESERVE INSTANCES
+
+                    const itemPath = path.join(userData, item);
+                    try {
+                        await fs.remove(itemPath);
+                    } catch (err) {
+                        // Log and ignore EBUSY errors for system files
+                        if (err.code === 'EBUSY') {
+                            console.warn(`[Maintenance] Skipping locked file: ${item}`);
+                        } else {
+                            console.error(`[Maintenance] Failed to remove ${item}:`, err);
+                        }
+                    }
+                }
+
+                console.log('[Maintenance] Soft reset complete. Relaunching...');
+                app.relaunch();
+                app.exit(0);
+                return { success: true };
+            } catch (e) {
+                console.error('[Maintenance] Soft reset failed:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('app:factory-reset', async () => {
+            console.log('[Maintenance] Factory reset triggered');
+            try {
+                const userData = app.getPath('userData');
+                const items = await fs.readdir(userData);
+
+                for (const item of items) {
+                    const itemPath = path.join(userData, item);
+                    try {
+                        await fs.remove(itemPath);
+                    } catch (err) {
+                        // Log and ignore EBUSY errors for system files
+                        if (err.code === 'EBUSY') {
+                            console.warn(`[Maintenance] Skipping locked file: ${item}`);
+                        } else {
+                            console.error(`[Maintenance] Failed to remove ${item}:`, err);
+                        }
+                    }
+                }
+
+                console.log('[Maintenance] Factory reset complete. Relaunching...');
+                app.relaunch();
+                app.exit(0);
+                return { success: true };
+            } catch (e) {
+                console.error('[Maintenance] Factory reset failed:', e);
                 return { success: false, error: e.message };
             }
         });

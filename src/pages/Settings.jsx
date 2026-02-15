@@ -1,21 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNotification } from '../context/NotificationContext';
 import ToggleBox from '../components/ToggleBox';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 function Settings() {
     const { addNotification } = useNotification();
     const [settings, setSettings] = useState({
         javaPath: '',
+        javaArgs: '-Xmx4G',
+        gameResolution: { width: 854, height: 480 },
+        launcherTheme: 'dark',
+        minimizeOnLaunch: true,
+        quitOnGameExit: false,
+        animationsExaggerated: false,
+        copySettingsEnabled: false,
+        copySettingsSourceInstance: '',
         minMemory: 1024,
         maxMemory: 4096,
         resolutionWidth: 854,
         resolutionHeight: 480,
         enableDiscordRPC: true,
         autoUploadLogs: true,
-        showDisabledFeatures: false,
-        copySettingsEnabled: false,
-        copySettingsSourceInstance: ''
+        showDisabledFeatures: false
     });
+
+    const [showSoftResetModal, setShowSoftResetModal] = useState(false);
+    const [showFactoryResetModal, setShowFactoryResetModal] = useState(false);
     const [instances, setInstances] = useState([]);
     const [isInstallingJava, setIsInstallingJava] = useState(false);
     const [javaInstallProgress, setJavaInstallProgress] = useState(null);
@@ -111,6 +121,28 @@ function Settings() {
             addNotification('Failed to save settings', 'error');
         }
     };
+    const handleUpdate = async (key, value) => {
+        const newSettings = { ...settings, [key]: value };
+        setSettings(newSettings);
+
+        // Save to backend
+        try {
+            await window.electronAPI.saveSettings(newSettings);
+            // addNotification('Settings saved', 'success'); // Optional: instant feedback
+        } catch (error) {
+            addNotification('Failed to save settings', 'error');
+        }
+    };
+
+    const handleSoftReset = async () => {
+        addNotification('Initiating Soft Reset...', 'info');
+        await window.electronAPI.softReset();
+    };
+
+    const handleFactoryReset = async () => {
+        addNotification('Initiating Factory Reset... Goodbye!', 'error');
+        await window.electronAPI.factoryReset();
+    };
 
     const handleBrowseJava = async () => {
         const path = await window.electronAPI.openFileDialog({
@@ -131,7 +163,7 @@ function Settings() {
             <h1 className="text-3xl font-bold mb-2">Settings</h1>
             <p className="text-gray-400 mb-10">Manage your launcher preferences.</p>
 
-            { }
+            {/* Save Button */}
             <div className="max-w-3xl mb-6 flex justify-end">
                 <button
                     onClick={handleManualSave}
@@ -145,7 +177,7 @@ function Settings() {
             </div>
 
             <div className="space-y-6 max-w-3xl">
-                { }
+                {/* General Section */}
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">General</h2>
 
@@ -165,7 +197,7 @@ function Settings() {
                     </div>
                 </div>
 
-                { }
+                {/* Java Modal */}
                 {showJavaModal && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
                         <div className="bg-secondary p-6 rounded-xl border border-white/10 w-96 shadow-2xl animate-scale-in">
@@ -195,7 +227,7 @@ function Settings() {
                     </div>
                 )}
 
-                { }
+                {/* Java Runtime Section */}
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Java Runtime</h2>
 
@@ -249,7 +281,7 @@ function Settings() {
                     </div>
                 </div>
 
-                { }
+                {/* Memory Allocation Section */}
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Memory Allocation</h2>
 
@@ -291,7 +323,7 @@ function Settings() {
                     </div>
                 </div>
 
-                { }
+                {/* Resolution Section */}
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Resolution</h2>
 
@@ -317,7 +349,7 @@ function Settings() {
                     </div>
                 </div>
 
-                { }
+                {/* Instance Creation Section */}
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Instance Creation</h2>
 
@@ -345,7 +377,7 @@ function Settings() {
                     )}
                 </div>
 
-                { }
+                {/* Launcher Integration Section */}
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Launcher Integration</h2>
 
@@ -371,6 +403,84 @@ function Settings() {
                     />
                 </div>
             </div>
+
+            {/* Maintenance Section */}
+            <div className="bg-surface/50 px-8 py-6 rounded-2xl border border-white/5 mt-6 hover:border-white/10 transition-colors">
+                <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                    Maintenance & Reset
+                </h2>
+
+                <div className="space-y-6">
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                        <div className="flex items-start gap-3">
+                            <svg className="w-5 h-5 text-primary mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <div>
+                                <h3 className="font-bold text-gray-200 text-sm">Troubleshooting Tools</h3>
+                                <p className="text-xs text-gray-400 mt-1">Use these options if the application is behaving unexpectedly or if you want to clear your data.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/5 flex flex-col justify-between h-auto min-h-[140px]">
+                            <div>
+                                <h3 className="font-bold text-white text-sm">Soft Reset</h3>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Resets all settings, themes, and caches.
+                                    <span className="block mt-1 text-primary font-bold">✓ Keeps your Instances & Worlds</span>
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowSoftResetModal(true)}
+                                className="mt-4 w-full bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg text-sm font-bold transition-colors"
+                            >
+                                Soft Reset
+                            </button>
+                        </div>
+
+                        <div className="bg-red-500/5 rounded-xl p-4 border border-red-500/20 flex flex-col justify-between h-auto min-h-[140px]">
+                            <div>
+                                <h3 className="font-bold text-red-400 text-sm">Factory Reset</h3>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Completely wipes the application data.
+                                    <span className="block mt-1 text-red-400 font-bold">⚠ Deletes EVERYTHING</span>
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowFactoryResetModal(true)}
+                                className="mt-4 w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 py-2 rounded-lg text-sm font-bold transition-colors border border-red-500/20"
+                            >
+                                Factory Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Soft Reset Modal */}
+            {showSoftResetModal && (
+                <ConfirmationModal
+                    title="Soft Reset Application?"
+                    message="This will reset your themes, settings, and accounts. Your Minecraft instances and worlds will be SAFE. The application will restart."
+                    confirmText="Soft Reset"
+                    isDangerous={false}
+                    onConfirm={handleSoftReset}
+                    onCancel={() => setShowSoftResetModal(false)}
+                />
+            )}
+
+            {/* Factory Reset Modal */}
+            {showFactoryResetModal && (
+                <ConfirmationModal
+                    title="⚠ FACTORY RESET ⚠"
+                    message="Are you sure? This will DELETE EVERYTHING including all instances, worlds, and settings. This action cannot be undone."
+                    confirmText="DELETE EVERYTHING"
+                    isDangerous={true}
+                    onConfirm={handleFactoryReset}
+                    onCancel={() => setShowFactoryResetModal(false)}
+                />
+            )}
         </div>
     );
 }

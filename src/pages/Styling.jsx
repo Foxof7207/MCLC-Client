@@ -137,6 +137,38 @@ function Styling() {
     }
   };
 
+  const handleExportTheme = async () => {
+    // Export current styling as a preset
+    const presetData = {
+      handle: theme.name ? theme.name.toLowerCase().replace(/[^a-z0-9_-]/g, '') : 'custom_theme',
+      name: theme.name || "Custom Theme",
+      primary: theme.primaryColor,
+      bg: theme.backgroundColor,
+      surface: theme.surfaceColor,
+      sidebarGlow: theme.sidebarGlow,
+      panelOpacity: theme.panelOpacity,
+      bgOverlay: theme.bgOverlay,
+    };
+
+    // If we're exporting a specific custom preset, use that
+    const res = await window.electronAPI.exportCustomPreset(presetData);
+    if (res.success) {
+      addNotification(`Theme exported to ${res.path}`, "success");
+    } else if (res.error !== 'Cancelled') {
+      addNotification(`Export failed: ${res.error}`, "error");
+    }
+  };
+
+  const handleImportTheme = async () => {
+    const res = await window.electronAPI.importCustomPreset();
+    if (res.success) {
+      addNotification("Theme imported successfully!", "success");
+      loadCustomPresets();
+    } else if (res.error !== 'Cancelled') {
+      addNotification(`Import failed: ${res.error}`, "error");
+    }
+  };
+
   const applyPreset = (p) => {
     const nt = {
       ...theme,
@@ -312,17 +344,15 @@ function Styling() {
               <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em]">
                 Quick Themes
               </h2>
-              {settings.showDisabledFeatures ? (
-                <button
-                  disabled
-                  className="text-[10px] font-bold text-gray-500 uppercase tracking-widest opacity-50 cursor-not-allowed"
-                  title="This feature is coming soon"
-                >
-                  Save Custom
-                </button>
-              ) : null}
+              <button
+                onClick={handleImportTheme}
+                className="text-[10px] font-bold text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Import
+              </button>
             </div>
-            
+
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {customPresets.length > 0 && (
                 <div className="space-y-2">
@@ -557,7 +587,7 @@ function Styling() {
                     </>
                   )}
                 </div>
-                
+
                 {theme.bgMedia?.url && (
                   <div className="space-y-4">
                     <div className="space-y-3">
@@ -605,15 +635,12 @@ function Styling() {
             >
               Reset
             </button>
-            {settings.showDisabledFeatures ? (
-              <button
-                disabled
-                className="bg-white/5 text-gray-500 px-8 py-3 rounded-xl font-bold transition-all text-sm border border-white/10 cursor-not-allowed opacity-50"
-                title="This feature is coming soon"
-              >
-                Export Theme
-              </button>
-            ) : null}
+            <button
+              onClick={handleExportTheme}
+              className="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-8 py-3 rounded-xl font-bold transition-all text-sm border border-white/10"
+            >
+              Export Theme
+            </button>
             <button
               onClick={handleSave}
               className="bg-primary hover:scale-[1.02] active:scale-95 text-black px-12 py-3 rounded-xl font-black shadow-2xl shadow-primary/30 transition-all text-sm"
