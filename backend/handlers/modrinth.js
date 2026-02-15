@@ -222,6 +222,72 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
+
+    ipcMain.handle('modrinth:resolve-dependencies', async (_, versionId, loaders = [], gameVersions = []) => {
+        const resolved = new Map(); // projectId -> version info
+        const queue = [versionId];
+        const visited = new Set();
+
+        try {
+            while (queue.length > 0) {
+                const currentId = queue.shift();
+                if (visited.has(currentId)) continue;
+
+                // Fetch current version details
+                const vRes = await axios.get(`${MODRINTH_API}/version/${currentId}`);
+                const version = vRes.data;
+
+                // Mark current as resolved if not already (first one is usually the primary mod)
+                if (!resolved.has(version.project_id)) {
+                    // Fetch project info for title/icon
+                    const pRes = await axios.get(`${MODRINTH_API}/project/${version.project_id}`);
+                    resolved.set(version.project_id, {
+                        projectId: version.project_id,
+                        versionId: version.id,
+                        title: pRes.data.title,
+                        iconUrl: pRes.data.icon_url,
+                        filename: (version.files.find(f => f.primary) || version.files[0]).filename,
+                        url: (version.files.find(f => f.primary) || version.files[0]).url,
+                        projectType: pRes.data.project_type,
+                        isPrimary: resolved.size === 0
+                    });
+                }
+
+                // Process dependencies
+                if (version.dependencies) {
+                    for (const dep of version.dependencies) {
+                        if (dep.dependency_type !== 'required') continue;
+
+                        // Case 1: Specific version is provided
+                        if (dep.version_id) {
+                            if (!visited.has(dep.version_id)) {
+                                queue.push(dep.version_id);
+                            }
+                        }
+                        // Case 2: Only project ID is provided, need to find compatible version
+                        else if (dep.project_id) {
+                            if (!resolved.has(dep.project_id)) {
+                                const params = {
+                                    loaders: JSON.stringify(loaders),
+                                    game_versions: JSON.stringify(gameVersions)
+                                };
+                                const vListRes = await axios.get(`${MODRINTH_API}/project/${dep.project_id}/version`, { params });
+                                if (vListRes.data && vListRes.data.length > 0) {
+                                    queue.push(vListRes.data[0].id);
+                                }
+                            }
+                        }
+                    }
+                }
+                visited.add(currentId);
+            }
+
+            return { success: true, dependencies: Array.from(resolved.values()) };
+        } catch (e) {
+            console.error("[Modrinth:Resolve] Error:", e.response?.data || e.message);
+            return { success: false, error: e.message };
+        }
+    });
 };
 
 module.exports.installModInternal = installModInternal;

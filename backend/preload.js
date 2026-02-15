@@ -57,6 +57,7 @@ const electronAPI = {
     installLocalMod: (instanceName, filePath) => ipcRenderer.invoke('instance:install-local-mod', instanceName, filePath),
     getModVersions: (projectId, loaders, gameVersions) => ipcRenderer.invoke('modrinth:get-versions', projectId, loaders, gameVersions),
     getModrinthProject: (projectId) => ipcRenderer.invoke('modrinth:get-project', projectId),
+    resolveDependencies: (versionId, loaders, gameVersions) => ipcRenderer.invoke('modrinth:resolve-dependencies', versionId, loaders, gameVersions),
     checkUpdates: (instanceName, files) => ipcRenderer.invoke('instance:check-updates', instanceName, files),
     updateFile: (data) => ipcRenderer.invoke('instance:update-file', data),
     getVanillaVersions: () => ipcRenderer.invoke('data:get-vanilla-versions'),

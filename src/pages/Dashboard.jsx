@@ -292,7 +292,6 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                             setSelectedVersion('');
                         }
                     } else {
-                        addNotification(`Failed to get versions for ${selectedLoader}: ${res.error}`, 'error');
                         setAvailableVersions([]);
                     }
                 }
@@ -307,7 +306,9 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
     }, [showCreateModal, selectedLoader, showSnapshots]);
 
     const loadInstances = async () => {
+        console.log('[Dashboard] Fetching instances...');
         const list = await window.electronAPI.getInstances();
+        console.log('[Dashboard] Received instances:', list);
         setInstances(list || []);
     };
 
@@ -548,8 +549,8 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
     }
 
     return (
-        <>
-            <div className="p-8 h-full flex flex-col">
+        <div className="w-full h-full flex flex-col overflow-hidden relative">
+            <div className="p-8 flex-1 min-h-0 flex flex-col w-full h-full">
                 {isLoading && <LoadingOverlay message="Processing..." />}
                 <div className="flex justify-between items-center mb-8">
                     <div>
@@ -646,95 +647,86 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden pr-1">
-                    <AutoSizer>
-                        {({ height, width }) => {
-                            const CARD_WIDTH = 300; // Expected min-width + gap
-                            const columnCount = Math.max(1, Math.floor(width / CARD_WIDTH));
-                            const gutter = 24;
-                            const adjustedWidth = (width - (gutter * (columnCount + 1))) / columnCount;
-                            
-                            // Flatten grouped items for grid display if not grouping, 
-                            // or handles groups if needed (simpler: just grid if no group)
-                            const items = groupMethod === 'none' ? sortedInstances : []; 
-                            // For simplicity in this step, only virtualize the 'Search/No group' view 
-                            // as groups add complexity for a simple grid.
-                            
-                            if (groupMethod !== 'none') {
-                                return (
-                                    <div className="h-full overflow-y-auto custom-scrollbar pb-20">
-                                        {groupedData.map((group, gIdx) => (
-                                            <div key={group.title || 'all'} className={gIdx > 0 ? 'mt-3' : ''}>
-                                                {group.title && (
-                                                    <div className="flex items-center gap-4 mb-4">
-                                                        <span className="text-white font-bold text-sm whitespace-nowrap opacity-80">{group.title}</span>
-                                                        <div className="h-px bg-white/10 flex-1"></div>
-                                                    </div>
-                                                )}
-                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-8">
-                                                    {group.items.map((instance) => (
-                                                        <InstanceCard 
-                                                            key={instance.name} 
-                                                            instance={instance} 
-                                                            runningInstances={runningInstances}
-                                                            installProgress={installProgress}
-                                                            pendingLaunches={pendingLaunches}
-                                                            onInstanceClick={onInstanceClick}
-                                                            handleContextMenu={handleContextMenu}
-                                                            addNotification={addNotification}
-                                                            loadInstances={loadInstances}
-                                                            setPendingLaunches={setPendingLaunches}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </div>
+                <div className="flex-1 min-h-0 overflow-hidden pr-1 flex flex-col relative w-full h-full">
+                    {groupMethod !== 'none' ? (
+                        <div className="h-full overflow-y-auto custom-scrollbar pb-20">
+                            {groupedData.map((group, gIdx) => (
+                                <div key={group.title || 'all'} className={gIdx > 0 ? 'mt-3' : ''}>
+                                    {group.title && (
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <span className="text-white font-bold text-sm whitespace-nowrap opacity-80">{group.title}</span>
+                                            <div className="h-px bg-white/10 flex-1"></div>
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-8">
+                                        {group.items.map((instance) => (
+                                            <InstanceCard 
+                                                key={instance.name} 
+                                                instance={instance} 
+                                                runningInstances={runningInstances}
+                                                installProgress={installProgress}
+                                                pendingLaunches={pendingLaunches}
+                                                onInstanceClick={onInstanceClick}
+                                                handleContextMenu={handleContextMenu}
+                                                addNotification={addNotification}
+                                                loadInstances={loadInstances}
+                                                setPendingLaunches={setPendingLaunches}
+                                            />
                                         ))}
                                     </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <AutoSizer>
+                            {({ height, width }) => {
+                                const CARD_WIDTH = 300; 
+                                const columnCount = Math.max(1, Math.floor(width / CARD_WIDTH));
+                                const gutter = 24;
+                                const adjustedWidth = (width - (gutter * (columnCount + 1))) / columnCount;
+                                const rowCount = Math.ceil(sortedInstances.length / columnCount);
+
+                                return (
+                                    <FixedSizeGrid
+                                        columnCount={columnCount}
+                                        columnWidth={adjustedWidth + gutter}
+                                        height={height}
+                                        rowCount={rowCount}
+                                        rowHeight={200}
+                                        width={width}
+                                        className="custom-scrollbar"
+                                    >
+                                        {({ columnIndex, rowIndex, style }) => {
+                                            const index = rowIndex * columnCount + columnIndex;
+                                            if (index >= sortedInstances.length) return null;
+                                            const instance = sortedInstances[index];
+                                            return (
+                                                <div style={{
+                                                    ...style,
+                                                    paddingLeft: gutter / 2,
+                                                    paddingRight: gutter / 2,
+                                                    paddingBottom: gutter,
+                                                    boxSizing: 'border-box'
+                                                }}>
+                                                    <InstanceCard 
+                                                        instance={instance} 
+                                                        runningInstances={runningInstances}
+                                                        installProgress={installProgress}
+                                                        pendingLaunches={pendingLaunches}
+                                                        onInstanceClick={onInstanceClick}
+                                                        handleContextMenu={handleContextMenu}
+                                                        addNotification={addNotification}
+                                                        loadInstances={loadInstances}
+                                                        setPendingLaunches={setPendingLaunches}
+                                                    />
+                                                </div>
+                                            );
+                                        }}
+                                    </FixedSizeGrid>
                                 );
-                            }
-
-                            const rowCount = Math.ceil(sortedInstances.length / columnCount);
-
-                            return (
-                                <FixedSizeGrid
-                                    columnCount={columnCount}
-                                    columnWidth={adjustedWidth + gutter}
-                                    height={height}
-                                    rowCount={rowCount}
-                                    rowHeight={200}
-                                    width={width}
-                                    className="custom-scrollbar"
-                                >
-                                    {({ columnIndex, rowIndex, style }) => {
-                                        const index = rowIndex * columnCount + columnIndex;
-                                        if (index >= sortedInstances.length) return null;
-                                        const instance = sortedInstances[index];
-                                        return (
-                                            <div style={{
-                                                ...style,
-                                                paddingLeft: gutter / 2,
-                                                paddingRight: gutter / 2,
-                                                paddingBottom: gutter,
-                                                boxSizing: 'border-box'
-                                            }}>
-                                                <InstanceCard 
-                                                    instance={instance} 
-                                                    runningInstances={runningInstances}
-                                                    installProgress={installProgress}
-                                                    pendingLaunches={pendingLaunches}
-                                                    onInstanceClick={onInstanceClick}
-                                                    handleContextMenu={handleContextMenu}
-                                                    addNotification={addNotification}
-                                                    loadInstances={loadInstances}
-                                                    setPendingLaunches={setPendingLaunches}
-                                                />
-                                            </div>
-                                        );
-                                    }}
-                                </FixedSizeGrid>
-                            );
-                        }}
-                    </AutoSizer>
+                            }}
+                        </AutoSizer>
+                    )}
                 </div>
 
                 {groupedData.length === 0 || (groupedData.length === 1 && groupedData[0].items.length === 0) ? (
@@ -992,7 +984,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                     }}
                 />
             )}
-        </>
+        </div>
     );
 }
 

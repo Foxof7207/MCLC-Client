@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../context/NotificationContext';
 import { Analytics } from '../services/Analytics';
+import ModDependencyModal from '../components/ModDependencyModal';
 
 function Search({ initialCategory, onCategoryConsumed }) {
     const { addNotification } = useNotification();
@@ -28,6 +29,9 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [previewProject, setPreviewProject] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
+    const [showDependencyModal, setShowDependencyModal] = useState(false);
+    const [pendingDependencies, setPendingDependencies] = useState([]);
+    const [resolvedForInstance, setResolvedForInstance] = useState(null);
 
     const handleNextImage = (e) => {
         e.stopPropagation();
@@ -229,7 +233,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
         setInstalling(true);
         try {
-            addNotification(`Checking compatibility for ${instance.name}...`, 'info');
+            addNotification(`Resolving dependencies for ${selectedMod.title}...`, 'info');
             const loaders = (selectedMod.project_type === 'shader' || selectedMod.project_type === 'resourcepack' || !instance.loader || instance.loader.toLowerCase() === 'vanilla')
                 ? []
                 : [instance.loader];
@@ -238,31 +242,88 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
             if (res.success && res.versions.length > 0) {
                 const version = res.versions[0];
-                const file = version.files.find(f => f.primary) || version.files[0];
-
-                addNotification(`Installing ${selectedMod.title}...`, 'info');
-                await window.electronAPI.installMod({
-                    instanceName: instance.name,
-                    projectId: selectedMod.project_id,
-                    versionId: version.id,
-                    filename: file.filename,
-                    url: file.url,
-                    projectType: selectedMod.project_type
-                });
-                setInstalledIds(prev => new Set(prev).add(selectedMod.project_id));
-                setInstanceInstalledIds(prev => new Set(prev).add(selectedMod.project_id));
-
-                addNotification(`Successfully installed ${selectedMod.title}!`, 'success');
-                Analytics.trackDownload(selectedMod.project_type, selectedMod.title, selectedMod.project_id);
-                setShowInstallModal(false);
+                
+                // Resolve dependencies
+                const depRes = await window.electronAPI.resolveDependencies(version.id, loaders, [instance.version]);
+                
+                if (depRes.success && depRes.dependencies.length > 1) {
+                    setPendingDependencies(depRes.dependencies);
+                    setResolvedForInstance(instance);
+                    setShowDependencyModal(true);
+                    setShowInstallModal(false);
+                } else {
+                    // Just install the primary mod
+                    const file = version.files.find(f => f.primary) || version.files[0];
+                    await executeInstallList([{
+                        instanceName: instance.name,
+                        projectId: selectedMod.project_id,
+                        versionId: version.id,
+                        filename: file.filename,
+                        url: file.url,
+                        projectType: selectedMod.project_type,
+                        title: selectedMod.title
+                    }]);
+                }
             } else {
                 addNotification(`No compatible versions found for ${instance.version} (${instance.loader})`, 'error');
             }
         } catch (e) {
-            addNotification('Installation failed: ' + e.message, 'error');
+            addNotification('Resolution failed: ' + e.message, 'error');
         } finally {
             setInstalling(false);
         }
+    };
+
+    const executeInstallList = async (installList) => {
+        if (!installList || installList.length === 0) return;
+        
+        setInstalling(true);
+        try {
+            for (let i = 0; i < installList.length; i++) {
+                const item = installList[i];
+                addNotification(`Installing ${item.title} (${i + 1}/${installList.length})...`, 'info');
+                
+                const res = await window.electronAPI.installMod({
+                    instanceName: item.instanceName,
+                    projectId: item.projectId,
+                    versionId: item.versionId,
+                    filename: item.filename,
+                    url: item.url,
+                    projectType: item.projectType
+                });
+
+                if (res.success) {
+                    setInstalledIds(prev => new Set(prev).add(item.projectId));
+                    setInstanceInstalledIds(prev => new Set(prev).add(item.projectId));
+                    Analytics.trackDownload(item.projectType, item.title, item.projectId);
+                } else {
+                    addNotification(`Failed to install ${item.title}: ${res.error}`, 'error');
+                }
+            }
+            addNotification(`Successfully installed ${installList.length} item(s)!`, 'success');
+            setShowInstallModal(false);
+            setShowDependencyModal(false);
+        } catch (e) {
+            addNotification('Batch installation failed: ' + e.message, 'error');
+        } finally {
+            setInstalling(false);
+        }
+    };
+
+    const handleDependencyConfirm = async (selectedMods) => {
+        if (!resolvedForInstance) return;
+        
+        const installList = selectedMods.map(m => ({
+            instanceName: resolvedForInstance.name,
+            projectId: m.projectId,
+            versionId: m.versionId,
+            filename: m.filename,
+            url: m.url,
+            projectType: m.projectType,
+            title: m.title
+        }));
+        
+        await executeInstallList(installList);
     };
 
     return (
@@ -616,6 +677,14 @@ function Search({ initialCategory, onCategoryConsumed }) {
                     </div>
                 )
             }
+
+            {showDependencyModal && (
+                <ModDependencyModal 
+                    mods={pendingDependencies}
+                    onConfirm={handleDependencyConfirm}
+                    onCancel={() => setShowDependencyModal(false)}
+                />
+            )}
         </div >
     );
 }

@@ -16,7 +16,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - Minimal mode (system tray integration, configurable in settings)
 - Quick server join (partially implemented)
 - Client-side quick join mod
-- Script support
+- Script support (extensions in work, are similar)
 - Log analysis utility
 - Cloud synchronization for worlds and configurations (e.g., Google Drive, Dropbox, OneDrive)
 - Mod dependency validation

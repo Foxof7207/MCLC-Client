@@ -19,7 +19,7 @@ class AnalyticsService {
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             timeout: 20000,
-            transports: ['polling', 'websocket']
+            transports: ['polling']
         });
 
         this.socket.on("connect", () => {
