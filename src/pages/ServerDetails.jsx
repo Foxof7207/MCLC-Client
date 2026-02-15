@@ -12,10 +12,17 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         cpu: 0,
         memory: 0,
         players: [],
-        uptime: 0
+        uptime: 0,
+        // Für Charts
+        history: {
+            cpu: [],
+            memory: [],
+            playerCount: [],
+            timestamps: []
+        }
     });
     const [currentStatus, setCurrentStatus] = useState(server.status || 'stopped');
-    const [activeTab, setActiveTab] = useState('console'); // 'console' or 'publicity'
+    const [activeTab, setActiveTab] = useState('console'); // 'console', 'publicity', 'charts', 'players'
 
     // Publicity State
     const [playitCode, setPlayitCode] = useState(null);
@@ -23,9 +30,30 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
     const [playitAvailable, setPlayitAvailable] = useState(false);
     const [playitChecking, setPlayitChecking] = useState(false);
 
+    // Player Management State
+    const [offlinePlayers, setOfflinePlayers] = useState([]);
+    const [playerStats, setPlayerStats] = useState({});
+    const [selectedPlayer, setSelectedPlayer] = useState(null);
+    const [selectedPlayers, setSelectedPlayers] = useState([]);
+    const [playerSearch, setPlayerSearch] = useState('');
+    const [showBanDialog, setShowBanDialog] = useState(false);
+    const [banReason, setBanReason] = useState('');
+    const [banDuration, setBanDuration] = useState('permanent');
+    const [teleportCoordinates, setTeleportCoordinates] = useState({ x: 0, y: 64, z: 0 });
+    const [showTeleportDialog, setShowTeleportDialog] = useState(false);
+    const [showWhitelistDialog, setShowWhitelistDialog] = useState(false);
+    const [whitelistPlayer, setWhitelistPlayer] = useState('');
+    const [showGiveDialog, setShowGiveDialog] = useState(false);
+    const [giveItem, setGiveItem] = useState({ item: '', amount: 1 });
+    const [showGamemodeMenu, setShowGamemodeMenu] = useState(false);
+    const [showXpMenu, setShowXpMenu] = useState(false);
+    const [xpAmount, setXpAmount] = useState(100);
+    const [xpType, setXpType] = useState('add');
+
     const consoleRef = useRef(null);
     const commandInputRef = useRef(null);
     const statsInterval = useRef(null);
+    const chartsCanvasRef = useRef(null);
 
     // Extract Playit code from log line
     const extractPlayitCode = (line) => {
@@ -36,7 +64,238 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         return null;
     };
 
-    // Check if Playit plugin is available for this server
+    // Extract player join/leave events
+    const extractPlayerEvents = (line) => {
+        // Join event
+        const joinMatch = line.match(/\[([^\]]+)\]: (.+) joined the game/);
+        if (joinMatch) {
+            const playerName = joinMatch[2];
+            handlePlayerJoin(playerName);
+            return;
+        }
+
+        // Leave event
+        const leaveMatch = line.match(/\[([^\]]+)\]: (.+) left the game/);
+        if (leaveMatch) {
+            const playerName = leaveMatch[2];
+            handlePlayerLeave(playerName);
+            return;
+        }
+
+        // Player list from /list command
+        const listMatch = line.match(/There are (\d+) of a max of (\d+) players online: (.+)/);
+        if (listMatch) {
+            const onlinePlayers = listMatch[3].split(', ').filter(p => p.trim());
+            updateOnlinePlayers(onlinePlayers);
+            return;
+        }
+    };
+
+    // Handle player join
+    const handlePlayerJoin = (playerName) => {
+        setOfflinePlayers(prev => prev.filter(p => p.name !== playerName));
+
+        setPlayerStats(prev => {
+            const now = Date.now();
+            const stats = prev[playerName] || {
+                firstSeen: now,
+                lastSeen: now,
+                playtime: 0,
+                joins: 0
+            };
+            return {
+                ...prev,
+                [playerName]: {
+                    ...stats,
+                    lastSeen: now,
+                    joins: (stats.joins || 0) + 1
+                }
+            };
+        });
+    };
+
+    // Handle player leave
+    const handlePlayerLeave = (playerName) => {
+        setOfflinePlayers(prev => {
+            if (!prev.find(p => p.name === playerName)) {
+                return [...prev, {
+                    name: playerName,
+                    lastSeen: new Date().toISOString(),
+                    playtime: calculatePlaytime(playerName)
+                }];
+            }
+            return prev;
+        });
+    };
+
+    // Update online players
+    const updateOnlinePlayers = (players) => {
+        setServerStats(prev => ({
+            ...prev,
+            players: players
+        }));
+    };
+
+    // Calculate playtime for a player
+    const calculatePlaytime = (playerName) => {
+        return 0;
+    };
+
+    // Load offline players from file
+    const loadOfflinePlayers = async () => {
+        try {
+            if (window.electronAPI.getOfflinePlayers) {
+                const players = await window.electronAPI.getOfflinePlayers(server.name);
+                setOfflinePlayers(players || []);
+            }
+        } catch (error) {
+            console.error('Failed to load offline players:', error);
+        }
+    };
+
+    // Load player stats
+    const loadPlayerStats = async () => {
+        try {
+            if (window.electronAPI.getPlayerStats) {
+                const stats = await window.electronAPI.getPlayerStats(server.name);
+                setPlayerStats(stats || {});
+            }
+        } catch (error) {
+            console.error('Failed to load player stats:', error);
+        }
+    };
+
+    // Player selection functions
+    const togglePlayerSelection = (player) => {
+        setSelectedPlayers(prev =>
+            prev.includes(player)
+                ? prev.filter(p => p !== player)
+                : [...prev, player]
+        );
+    };
+
+    const selectAllOnline = () => {
+        setSelectedPlayers(serverStats.players);
+    };
+
+    const clearSelection = () => {
+        setSelectedPlayers([]);
+    };
+
+    // Player Commands
+    const sendPlayerCommand = async (player, commandType, ...args) => {
+        let cmd = '';
+
+        switch (commandType) {
+            case 'kick':
+                cmd = `kick ${player} ${args[0] || 'You were kicked'}`;
+                break;
+            case 'ban':
+                if (args[0] === 'permanent') {
+                    cmd = `ban ${player} ${args[1] || 'Banned'}`;
+                } else {
+                    const duration = parseDuration(args[0]);
+                    cmd = `tempban ${player} ${duration} ${args[1] || 'Banned'}`;
+                }
+                break;
+            case 'pardon':
+                cmd = `pardon ${player}`;
+                break;
+            case 'op':
+                cmd = `op ${player}`;
+                break;
+            case 'deop':
+                cmd = `deop ${player}`;
+                break;
+            case 'whitelist_add':
+                cmd = `whitelist add ${player}`;
+                break;
+            case 'whitelist_remove':
+                cmd = `whitelist remove ${player}`;
+                break;
+            case 'gamemode':
+                cmd = `gamemode ${args[0]} ${player}`;
+                break;
+            case 'teleport':
+                cmd = `tp ${player} ${args[0]} ${args[1]} ${args[2]}`;
+                break;
+            case 'teleport_to':
+                cmd = `tp ${player} ${args[0]}`;
+                break;
+            case 'teleport_here':
+                cmd = `tp ${args[0]} ${player}`;
+                break;
+            case 'kill':
+                cmd = `kill ${player}`;
+                break;
+            case 'heal':
+                cmd = `heal ${player}`;
+                break;
+            case 'feed':
+                cmd = `feed ${player}`;
+                break;
+            case 'give':
+                cmd = `give ${player} ${args[0]} ${args[1] || 1}`;
+                break;
+            case 'clear':
+                cmd = `clear ${player}`;
+                break;
+            case 'experience':
+                if (args[1] === 'add') cmd = `xp add ${player} ${args[0]}`;
+                else if (args[1] === 'set') cmd = `xp set ${player} ${args[0]}`;
+                else if (args[1] === 'levels') cmd = `xp add ${player} ${args[0]} levels`;
+                else if (args[1] === 'setLevels') cmd = `xp set ${player} ${args[0]} levels`;
+                break;
+            default:
+                return;
+        }
+
+        try {
+            await window.electronAPI.sendServerCommand(server.name, cmd);
+            addNotification(`Command sent to ${player}`, 'success');
+
+            if (showBanDialog) setShowBanDialog(false);
+            if (showTeleportDialog) setShowTeleportDialog(false);
+            if (showGiveDialog) setShowGiveDialog(false);
+            if (showWhitelistDialog) setShowWhitelistDialog(false);
+        } catch (error) {
+            console.error('Failed to send player command:', error);
+            addNotification(`Failed: ${error.message}`, 'error');
+        }
+    };
+
+    // Bulk player operations
+    const handleBulkAction = (action, value) => {
+        if (selectedPlayers.length === 0) {
+            addNotification('No players selected', 'warning');
+            return;
+        }
+
+        selectedPlayers.forEach(player => {
+            if (action === 'gamemode') sendPlayerCommand(player, 'gamemode', value);
+            else if (action === 'kill') sendPlayerCommand(player, 'kill');
+            else if (action === 'heal') sendPlayerCommand(player, 'heal');
+            else if (action === 'feed') sendPlayerCommand(player, 'feed');
+            else if (action === 'clear') sendPlayerCommand(player, 'clear');
+            else if (action === 'experience') sendPlayerCommand(player, 'experience', xpAmount, xpType);
+        });
+
+        addNotification(`${action} applied to ${selectedPlayers.length} players`, 'success');
+        clearSelection();
+        setShowXpMenu(false);
+        setShowGamemodeMenu(false);
+    };
+
+    // Parse duration string (e.g., "1h", "2d", "30m")
+    const parseDuration = (duration) => {
+        const value = parseInt(duration);
+        if (duration.includes('d')) return `${value}d`;
+        if (duration.includes('h')) return `${value}h`;
+        if (duration.includes('m')) return `${value}m`;
+        return `${value}m`;
+    };
+
+    // Check if Playit plugin is available
     const checkPlayitAvailability = async () => {
         if (!server || playitChecked) return;
 
@@ -46,7 +305,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 const result = await window.electronAPI.checkPlayitAvailable(server.software, server.version);
                 setPlayitAvailable(result.available || false);
             } else {
-                // Fallback: assume it's available for non-vanilla servers
                 setPlayitAvailable(server.software !== 'vanilla');
             }
         } catch (error) {
@@ -89,22 +347,14 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 window.electronAPI.openExternal(url)
                     .then(result => {
                         if (!result?.success) {
-                            console.error('Failed to open URL:', result?.error);
-                            // Fallback to window.open
                             window.open(url, '_blank');
                         }
                     })
-                    .catch(error => {
-                        console.error('Error opening URL:', error);
-                        // Fallback to window.open
-                        window.open(url, '_blank');
-                    });
+                    .catch(() => window.open(url, '_blank'));
             } else {
-                // Fallback if electronAPI.openExternal is not available
                 window.open(url, '_blank');
             }
         } else {
-            // Open main Playit site
             const url = 'https://playit.gg';
             if (window.electronAPI.openExternal) {
                 window.electronAPI.openExternal(url)
@@ -116,19 +366,16 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
     };
 
     useEffect(() => {
-        // Check Playit availability on mount
         checkPlayitAvailability();
-
-        // Load console history immediately
         loadConsoleLog();
+        loadOfflinePlayers();
+        loadPlayerStats();
 
-        // Set up all event listeners
         const removeStatusListener = window.electronAPI.onServerStatus?.(({ serverName, status, server: updatedServer }) => {
             if (serverName === server.name) {
                 console.log(`[ServerDetails] Status update for ${serverName}: ${status}`);
                 setCurrentStatus(status);
 
-                // Update server object if provided
                 if (updatedServer && onServerUpdate) {
                     onServerUpdate(updatedServer);
                 }
@@ -140,13 +387,15 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 setConsoleLog(prev => {
                     const newLog = [...prev, log];
 
-                    // Check for Playit code in new log line
+                    // Check for Playit code
                     const code = extractPlayitCode(log);
                     if (code) {
                         setPlayitCode(code);
                     }
 
-                    // Keep only last 500 lines
+                    // Extract player events
+                    extractPlayerEvents(log);
+
                     if (newLog.length > 500) {
                         return newLog.slice(-500);
                     }
@@ -157,11 +406,25 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
 
         const removeStatsListener = window.electronAPI.onServerStats?.(({ serverName, cpu, memory, uptime, players }) => {
             if (serverName === server.name) {
-                setServerStats({
-                    cpu: cpu || 0,
-                    memory: memory || 0,
-                    uptime: uptime || 0,
-                    players: players || []
+                setServerStats(prev => {
+                    const now = Date.now();
+                    const timestamp = new Date().toLocaleTimeString();
+
+                    // Update history for charts (keep last 60 points = 2 minutes at 2s interval)
+                    const newHistory = {
+                        cpu: [...prev.history.cpu, cpu || 0].slice(-60),
+                        memory: [...prev.history.memory, memory || 0].slice(-60),
+                        playerCount: [...prev.history.playerCount, (players?.length || 0)].slice(-60),
+                        timestamps: [...prev.history.timestamps, timestamp].slice(-60)
+                    };
+
+                    return {
+                        cpu: cpu || 0,
+                        memory: memory || 0,
+                        uptime: uptime || 0,
+                        players: players || [],
+                        history: newHistory
+                    };
                 });
             }
         });
@@ -175,31 +438,26 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         const removeConsoleClearedListener = window.electronAPI.onServerConsoleCleared?.(({ serverName }) => {
             if (serverName === server.name) {
                 setConsoleLog([]);
-                setPlayitCode(null); // Reset Playit code when console is cleared
+                setPlayitCode(null);
             }
         });
 
-        // Check server status periodically
         const checkStatusInterval = setInterval(() => {
             checkServerStatus();
         }, 2000);
 
-        // Initial status and stats check
         checkServerStatus();
         loadServerStats();
 
-        // Set up periodic stats refresh
         statsInterval.current = setInterval(() => {
             loadServerStats();
         }, 2000);
 
-        // Focus command input when component mounts
         if (commandInputRef.current) {
             commandInputRef.current.focus();
         }
 
         return () => {
-            // Clean up all listeners
             if (removeStatusListener) removeStatusListener();
             if (removeLogListener) removeLogListener();
             if (removeStatsListener) removeStatsListener();
@@ -213,14 +471,21 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         };
     }, [server.name]);
 
-    // Auto-scroll console to bottom when new lines arrive
+    // Auto-scroll console
     useEffect(() => {
         if (consoleRef.current && activeTab === 'console') {
             consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
         }
     }, [consoleLog, activeTab]);
 
-    // Scan existing console log for Playit code on load
+    // Draw charts when active tab is charts
+    useEffect(() => {
+        if (activeTab === 'charts' && chartsCanvasRef.current) {
+            drawCharts();
+        }
+    }, [activeTab, serverStats.history]);
+
+    // Scan for Playit code
     useEffect(() => {
         if (consoleLog.length > 0 && !playitCode) {
             for (const line of consoleLog) {
@@ -252,15 +517,15 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
 
             const log = await window.electronAPI.getServerLogs(server.name);
             if (Array.isArray(log)) {
-                setConsoleLog(log.slice(-500)); // Keep only last 500 lines
+                setConsoleLog(log.slice(-500));
 
-                // Check for Playit code in loaded logs
+                // Check for Playit code and player events
                 for (const line of log) {
                     const code = extractPlayitCode(line);
                     if (code) {
                         setPlayitCode(code);
-                        break;
                     }
+                    extractPlayerEvents(line);
                 }
             }
         } catch (error) {
@@ -285,6 +550,90 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         }
     };
 
+    const drawCharts = () => {
+        const canvas = chartsCanvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        const { cpu, memory, playerCount, timestamps } = serverStats.history;
+
+        if (cpu.length < 2) return;
+
+        // Helper function to draw a chart
+        const drawChart = (data, color, yOffset, chartHeight, maxValue) => {
+            const points = data.map((value, index) => ({
+                x: (index / (data.length - 1)) * width,
+                y: yOffset + chartHeight - (value / maxValue) * chartHeight
+            }));
+
+            // Draw line
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.moveTo(points[0].x, points[0].y);
+
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+
+            ctx.stroke();
+
+            // Draw fill
+            ctx.lineTo(points[points.length - 1].x, yOffset + chartHeight);
+            ctx.lineTo(points[0].x, yOffset + chartHeight);
+            ctx.closePath();
+
+            ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
+            ctx.fill();
+
+            // Draw points
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+
+            // Draw labels
+            ctx.fillStyle = '#9CA3AF';
+            ctx.font = '10px Inter, sans-serif';
+            ctx.textAlign = 'center';
+
+            points.forEach((point, i) => {
+                if (i % 10 === 0 || i === points.length - 1) {
+                    ctx.fillText(timestamps[i] || '', point.x, yOffset + chartHeight + 15);
+                }
+            });
+        };
+
+        // Draw CPU chart (top)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillText('CPU Usage (%)', 10, 25);
+        drawChart(cpu, 'rgb(59, 130, 246)', 30, 120, 100);
+
+        // Draw Memory chart (middle)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillText('Memory Usage (MB)', 10, 185);
+        drawChart(memory, 'rgb(16, 185, 129)', 170, 120, Math.max(...memory, 1024));
+
+        // Draw Player chart (bottom)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillText('Active Players', 10, 340);
+        drawChart(playerCount, 'rgb(245, 158, 11)', 310, 120, server.maxPlayers || 20);
+    };
+
     const handleSendCommand = async (e) => {
         e.preventDefault();
         if (!command.trim()) return;
@@ -293,7 +642,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             await window.electronAPI.sendServerCommand(server.name, command);
             setCommand('');
 
-            // Keep focus on input after sending
             if (commandInputRef.current) {
                 commandInputRef.current.focus();
             }
@@ -407,7 +755,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 await window.electronAPI.clearServerConsole(server.name);
             } else {
                 setConsoleLog([]);
-                setPlayitCode(null); // Reset Playit code
+                setPlayitCode(null);
             }
             addNotification('Console cleared', 'success');
         } catch (error) {
@@ -436,10 +784,28 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         return `${secs}s`;
     };
 
+    const formatPlaytime = (seconds) => {
+        if (!seconds) return 'Never';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        if (minutes > 0) return `${minutes}m`;
+        return 'Just now';
+    };
+
     const isRunning = currentStatus === 'running';
     const isStarting = currentStatus === 'starting';
     const isStopping = currentStatus === 'stopping';
     const isRestarting = currentStatus === 'restarting';
+
+    // Filter players based on search
+    const filteredOnlinePlayers = serverStats.players.filter(p =>
+        p.toLowerCase().includes(playerSearch.toLowerCase())
+    );
+
+    const filteredOfflinePlayers = offlinePlayers.filter(p =>
+        p.name.toLowerCase().includes(playerSearch.toLowerCase())
+    );
 
     return (
         <div className="h-full flex flex-col bg-background">
@@ -481,6 +847,226 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                 className="px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors font-bold"
                             >
                                 Start
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Player Action Dialogs */}
+            {showBanDialog && selectedPlayer && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-xl font-bold text-white mb-4">Ban {selectedPlayer}</h3>
+
+                        <div className="mb-4">
+                            <label className="block text-gray-400 text-sm mb-2">Duration</label>
+                            <select
+                                value={banDuration}
+                                onChange={(e) => setBanDuration(e.target.value)}
+                                className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            >
+                                <option value="permanent">Permanent</option>
+                                <option value="1h">1 Hour</option>
+                                <option value="6h">6 Hours</option>
+                                <option value="12h">12 Hours</option>
+                                <option value="1d">1 Day</option>
+                                <option value="3d">3 Days</option>
+                                <option value="7d">7 Days</option>
+                                <option value="30d">30 Days</option>
+                            </select>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-gray-400 text-sm mb-2">Reason (optional)</label>
+                            <input
+                                type="text"
+                                value={banReason}
+                                onChange={(e) => setBanReason(e.target.value)}
+                                placeholder="Enter ban reason..."
+                                className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowBanDialog(false)}
+                                className="px-4 py-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    sendPlayerCommand(selectedPlayer, 'ban', banDuration, banReason);
+                                    setShowBanDialog(false);
+                                }}
+                                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors font-bold"
+                            >
+                                Ban Player
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showTeleportDialog && selectedPlayer && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-xl font-bold text-white mb-4">Teleport {selectedPlayer}</h3>
+
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-2">X</label>
+                                <input
+                                    type="number"
+                                    value={teleportCoordinates.x}
+                                    onChange={(e) => setTeleportCoordinates(prev => ({ ...prev, x: parseInt(e.target.value) || 0 }))}
+                                    className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-2">Y</label>
+                                <input
+                                    type="number"
+                                    value={teleportCoordinates.y}
+                                    onChange={(e) => setTeleportCoordinates(prev => ({ ...prev, y: parseInt(e.target.value) || 64 }))}
+                                    className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-400 text-sm mb-2">Z</label>
+                                <input
+                                    type="number"
+                                    value={teleportCoordinates.z}
+                                    onChange={(e) => setTeleportCoordinates(prev => ({ ...prev, z: parseInt(e.target.value) || 0 }))}
+                                    className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 mb-6">
+                            <button
+                                onClick={() => {
+                                    sendPlayerCommand(selectedPlayer, 'teleport_to', '@p');
+                                    setShowTeleportDialog(false);
+                                }}
+                                className="flex-1 px-3 py-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors text-sm"
+                            >
+                                TP to You
+                            </button>
+                            <button
+                                onClick={() => {
+                                    sendPlayerCommand('@p', 'teleport_here', selectedPlayer);
+                                    setShowTeleportDialog(false);
+                                }}
+                                className="flex-1 px-3 py-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors text-sm"
+                            >
+                                TP You to Them
+                            </button>
+                        </div>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowTeleportDialog(false)}
+                                className="px-4 py-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    sendPlayerCommand(selectedPlayer, 'teleport', teleportCoordinates.x, teleportCoordinates.y, teleportCoordinates.z);
+                                    setShowTeleportDialog(false);
+                                }}
+                                className="px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors font-bold"
+                            >
+                                Teleport
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showGiveDialog && selectedPlayer && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-xl font-bold text-white mb-4">Give Items to {selectedPlayer}</h3>
+
+                        <div className="mb-4">
+                            <label className="block text-gray-400 text-sm mb-2">Item ID/Name</label>
+                            <input
+                                type="text"
+                                value={giveItem.item}
+                                onChange={(e) => setGiveItem(prev => ({ ...prev, item: e.target.value }))}
+                                placeholder="e.g., minecraft:diamond, diamond_sword"
+                                className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            />
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-gray-400 text-sm mb-2">Amount</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="64"
+                                value={giveItem.amount}
+                                onChange={(e) => setGiveItem(prev => ({ ...prev, amount: parseInt(e.target.value) || 1 }))}
+                                className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowGiveDialog(false)}
+                                className="px-4 py-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    sendPlayerCommand(selectedPlayer, 'give', giveItem.item, giveItem.amount);
+                                    setShowGiveDialog(false);
+                                }}
+                                className="px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors font-bold"
+                            >
+                                Give Items
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showWhitelistDialog && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
+                        <h3 className="text-xl font-bold text-white mb-4">Add to Whitelist</h3>
+
+                        <div className="mb-6">
+                            <label className="block text-gray-400 text-sm mb-2">Player Name</label>
+                            <input
+                                type="text"
+                                value={whitelistPlayer}
+                                onChange={(e) => setWhitelistPlayer(e.target.value)}
+                                placeholder="Enter player name..."
+                                className="w-full bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowWhitelistDialog(false)}
+                                className="px-4 py-2 bg-white/5 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    sendPlayerCommand(whitelistPlayer, 'whitelist_add');
+                                    setShowWhitelistDialog(false);
+                                    setWhitelistPlayer('');
+                                }}
+                                className="px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors font-bold"
+                            >
+                                Add to Whitelist
                             </button>
                         </div>
                     </div>
@@ -572,7 +1158,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                         {serverStats.players?.length || 0}/{server.maxPlayers || 20}
                     </div>
                     {serverStats.players?.length > 0 && (
-                        <div className="mt-2 text-xs text-gray-400">
+                        <div className="mt-2 text-xs text-gray-400 truncate">
                             {serverStats.players.join(', ')}
                         </div>
                     )}
@@ -615,11 +1201,29 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 >
                     Publicity
                 </button>
+                <button
+                    onClick={() => setActiveTab('charts')}
+                    className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors ${activeTab === 'charts'
+                        ? 'bg-primary/20 text-primary border-b-2 border-primary'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        }`}
+                >
+                    Charts
+                </button>
+                <button
+                    onClick={() => setActiveTab('players')}
+                    className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors ${activeTab === 'players'
+                        ? 'bg-primary/20 text-primary border-b-2 border-primary'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        }`}
+                >
+                    Players ({serverStats.players?.length || 0} online)
+                </button>
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 p-6 flex flex-col min-h-0">
-                {activeTab === 'console' ? (
+            <div className="flex-1 p-6 overflow-auto">
+                {activeTab === 'console' && (
                     /* Console Tab */
                     <>
                         <div className="flex items-center justify-between mb-3">
@@ -648,7 +1252,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                         </div>
                         <div
                             ref={consoleRef}
-                            className="flex-1 bg-black/40 rounded-xl p-4 font-mono text-sm overflow-y-auto custom-scrollbar mb-4 select-text"
+                            className="h-96 bg-black/40 rounded-xl p-4 font-mono text-sm overflow-y-auto custom-scrollbar mb-4 select-text"
                         >
                             {consoleLog.map((line, i) => (
                                 <div key={i} className="text-gray-300 whitespace-pre-wrap mb-1 hover:bg-white/5 cursor-text">
@@ -685,7 +1289,9 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                             </p>
                         )}
                     </>
-                ) : (
+                )}
+
+                {activeTab === 'publicity' && (
                     /* Publicity Tab */
                     <div className="flex flex-col items-center justify-center h-full">
                         <div className="max-w-md w-full text-center">
@@ -705,7 +1311,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                     <span>Checking availability...</span>
                                 </div>
                             ) : playitCode ? (
-                                /* Code available */
                                 <>
                                     <p className="text-gray-300 mb-4">
                                         Your Playit tunnel code is ready! Click the button below to claim your tunnel.
@@ -725,7 +1330,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                     </button>
                                 </>
                             ) : (
-                                /* No code available */
                                 <>
                                     <p className="text-gray-400 mb-2">
                                         {isRunning ? (
@@ -773,10 +1377,407 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                 </>
                             )}
 
-                            {/* Help text */}
                             <p className="text-xs text-gray-600 mt-6">
                                 Playit.gg creates a secure tunnel to make your server accessible online without port forwarding.
                             </p>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'charts' && (
+                    /* Charts Tab */
+                    <div className="flex flex-col h-full">
+                        <h2 className="text-lg font-bold text-white mb-4">Server Performance</h2>
+
+                        <div className="bg-surface/40 rounded-xl p-4">
+                            <canvas
+                                ref={chartsCanvasRef}
+                                width={800}
+                                height={500}
+                                className="w-full h-auto"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mt-4">
+                            <div className="bg-surface/40 rounded-xl p-3 text-center">
+                                <div className="text-sm text-gray-400">Avg CPU</div>
+                                <div className="text-xl font-bold text-white">
+                                    {Math.round(serverStats.history.cpu.reduce((a, b) => a + b, 0) / serverStats.history.cpu.length || 0)}%
+                                </div>
+                            </div>
+                            <div className="bg-surface/40 rounded-xl p-3 text-center">
+                                <div className="text-sm text-gray-400">Avg Memory</div>
+                                <div className="text-xl font-bold text-white">
+                                    {Math.round(serverStats.history.memory.reduce((a, b) => a + b, 0) / serverStats.history.memory.length || 0)} MB
+                                </div>
+                            </div>
+                            <div className="bg-surface/40 rounded-xl p-3 text-center">
+                                <div className="text-sm text-gray-400">Peak Players</div>
+                                <div className="text-xl font-bold text-white">
+                                    {Math.max(...serverStats.history.playerCount, 0)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'players' && (
+                    /* Players Tab */
+                    <div className="flex flex-col h-full">
+                        {/* Header with actions */}
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-bold text-white">Player Management</h2>
+
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowWhitelistDialog(true)}
+                                    className="px-3 py-1.5 bg-white/5 text-white rounded-lg hover:bg-white/10 transition-colors text-sm flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                    </svg>
+                                    Whitelist
+                                </button>
+
+                                <input
+                                    type="text"
+                                    placeholder="Search players..."
+                                    onChange={(e) => setPlayerSearch(e.target.value)}
+                                    className="bg-background border border-white/10 rounded-lg px-4 py-1.5 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Bulk Actions */}
+                        {selectedPlayers.length > 0 && (
+                            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex items-center justify-between">
+                                <span className="text-primary text-sm">
+                                    {selectedPlayers.length} player(s) selected
+                                </span>
+                                <div className="flex gap-2 flex-wrap">
+                                    <button
+                                        onClick={selectAllOnline}
+                                        className="px-2 py-1 bg-white/5 text-white rounded text-xs hover:bg-white/10"
+                                    >
+                                        All Online
+                                    </button>
+                                    <button
+                                        onClick={clearSelection}
+                                        className="px-2 py-1 bg-white/5 text-white rounded text-xs hover:bg-white/10"
+                                    >
+                                        Clear
+                                    </button>
+
+                                    {/* Gamemode Menu */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowGamemodeMenu(!showGamemodeMenu)}
+                                            className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs hover:bg-purple-500/30"
+                                        >
+                                            Gamemode
+                                        </button>
+                                        {showGamemodeMenu && (
+                                            <div className="absolute right-0 mt-1 bg-surface border border-white/10 rounded-lg shadow-xl z-10">
+                                                {['survival', 'creative', 'adventure', 'spectator'].map(mode => (
+                                                    <button
+                                                        key={mode}
+                                                        onClick={() => {
+                                                            handleBulkAction('gamemode', mode);
+                                                            setShowGamemodeMenu(false);
+                                                        }}
+                                                        className="block w-full text-left px-4 py-2 text-white hover:bg-white/5 text-sm capitalize"
+                                                    >
+                                                        {mode}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* XP Menu */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowXpMenu(!showXpMenu)}
+                                            className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs hover:bg-yellow-500/30"
+                                        >
+                                            XP
+                                        </button>
+                                        {showXpMenu && (
+                                            <div className="absolute right-0 mt-1 bg-surface border border-white/10 rounded-lg shadow-xl z-10 p-3 w-48">
+                                                <input
+                                                    type="number"
+                                                    value={xpAmount}
+                                                    onChange={(e) => setXpAmount(parseInt(e.target.value) || 0)}
+                                                    className="w-full bg-background border border-white/10 rounded px-2 py-1 text-white text-sm mb-2"
+                                                    min="0"
+                                                />
+                                                <select
+                                                    value={xpType}
+                                                    onChange={(e) => setXpType(e.target.value)}
+                                                    className="w-full bg-background border border-white/10 rounded px-2 py-1 text-white text-sm mb-2"
+                                                >
+                                                    <option value="add">Add XP</option>
+                                                    <option value="set">Set XP</option>
+                                                    <option value="levels">Add Levels</option>
+                                                    <option value="setLevels">Set Levels</option>
+                                                </select>
+                                                <button
+                                                    onClick={() => {
+                                                        handleBulkAction('experience');
+                                                        setShowXpMenu(false);
+                                                    }}
+                                                    className="w-full bg-primary/20 text-primary rounded px-2 py-1 text-sm hover:bg-primary/30"
+                                                >
+                                                    Apply
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        onClick={() => handleBulkAction('kill')}
+                                        className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30"
+                                    >
+                                        Kill
+                                    </button>
+                                    <button
+                                        onClick={() => handleBulkAction('heal')}
+                                        className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30"
+                                    >
+                                        Heal
+                                    </button>
+                                    <button
+                                        onClick={() => handleBulkAction('feed')}
+                                        className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs hover:bg-blue-500/30"
+                                    >
+                                        Feed
+                                    </button>
+                                    <button
+                                        onClick={() => handleBulkAction('clear')}
+                                        className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded text-xs hover:bg-gray-500/30"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Players Lists */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {/* Online Players */}
+                            <div className="mb-6">
+                                <h3 className="text-md font-semibold text-white mb-3">
+                                    Online ({filteredOnlinePlayers.length})
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {filteredOnlinePlayers.map(player => (
+                                        <div
+                                            key={player}
+                                            className={`bg-surface/40 rounded-lg p-4 hover:bg-surface/60 transition-colors cursor-pointer ${selectedPlayers.includes(player) ? 'ring-2 ring-primary' : ''
+                                                }`}
+                                            onClick={() => togglePlayerSelection(player)}
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div>
+                                                    <div className="font-bold text-white flex items-center gap-2">
+                                                        {player}
+                                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                                    </div>
+                                                    {playerStats[player] && (
+                                                        <div className="text-xs text-gray-400">
+                                                            Joined: {new Date(playerStats[player].firstSeen).toLocaleDateString()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedPlayer(player);
+                                                            setShowTeleportDialog(true);
+                                                        }}
+                                                        className="p-1 hover:bg-blue-500/20 text-blue-400 rounded"
+                                                        title="Teleport"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.19 4.034a2.5 2.5 0 0 1 3.62 0l3.156 3.156a2.5 2.5 0 0 1 0 3.62l-8.96 8.96a2.5 2.5 0 0 1-3.62 0L3.37 12.81a2.5 2.5 0 0 1 0-3.62l3.156-3.156a2.5 2.5 0 0 1 3.62 0L12 5.439l1.19-1.405z" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedPlayer(player);
+                                                            setShowBanDialog(true);
+                                                        }}
+                                                        className="p-1 hover:bg-red-500/20 text-red-400 rounded"
+                                                        title="Ban"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 flex-wrap mt-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(player, 'kick');
+                                                    }}
+                                                    className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-xs hover:bg-orange-500/30"
+                                                >
+                                                    Kick
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(player, 'op');
+                                                    }}
+                                                    className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs hover:bg-purple-500/30"
+                                                >
+                                                    OP
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(player, 'heal');
+                                                    }}
+                                                    className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30"
+                                                >
+                                                    Heal
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(player, 'feed');
+                                                    }}
+                                                    className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs hover:bg-blue-500/30"
+                                                >
+                                                    Feed
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPlayer(player);
+                                                        setShowGiveDialog(true);
+                                                    }}
+                                                    className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs hover:bg-yellow-500/30"
+                                                >
+                                                    Give
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(player, 'gamemode', 'creative');
+                                                    }}
+                                                    className="px-2 py-1 bg-indigo-500/20 text-indigo-400 rounded text-xs hover:bg-indigo-500/30"
+                                                >
+                                                    Creative
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(player, 'gamemode', 'survival');
+                                                    }}
+                                                    className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded text-xs hover:bg-gray-500/30"
+                                                >
+                                                    Survival
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {filteredOnlinePlayers.length === 0 && (
+                                        <div className="col-span-2 text-center py-8 text-gray-500">
+                                            No players online
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Offline Players */}
+                            <div>
+                                <h3 className="text-md font-semibold text-white mb-3">
+                                    Recently Online ({filteredOfflinePlayers.length})
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {filteredOfflinePlayers.map(({ name, lastSeen }) => (
+                                        <div
+                                            key={name}
+                                            className={`bg-surface/40 rounded-lg p-4 hover:bg-surface/60 transition-colors cursor-pointer ${selectedPlayers.includes(name) ? 'ring-2 ring-primary' : ''
+                                                }`}
+                                            onClick={() => togglePlayerSelection(name)}
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div>
+                                                    <div className="font-bold text-white">
+                                                        {name}
+                                                    </div>
+                                                    {lastSeen && (
+                                                        <div className="text-xs text-gray-400">
+                                                            Last seen: {new Date(lastSeen).toLocaleString()}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedPlayer(name);
+                                                            setShowWhitelistDialog(true);
+                                                        }}
+                                                        className="p-1 hover:bg-green-500/20 text-green-400 rounded"
+                                                        title="Add to whitelist"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedPlayer(name);
+                                                            setShowBanDialog(true);
+                                                        }}
+                                                        className="p-1 hover:bg-red-500/20 text-red-400 rounded"
+                                                        title="Ban"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 flex-wrap mt-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(name, 'pardon');
+                                                    }}
+                                                    className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30"
+                                                >
+                                                    Unban
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        sendPlayerCommand(name, 'whitelist_add');
+                                                    }}
+                                                    className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs hover:bg-blue-500/30"
+                                                >
+                                                    Whitelist
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {filteredOfflinePlayers.length === 0 && (
+                                        <div className="col-span-2 text-center py-8 text-gray-500">
+                                            No players have joined yet
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
