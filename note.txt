@@ -19,21 +19,22 @@ Schon Implementiert:
 - Dev Version Support
 - Shader Tab Support/Shader Modrinth Support (Auto Installing of Iris/Sodium)
 - Fabric Api Sofort Instalieren bei Fabric Instance Creation!
+- Modpacks from Modrinth Support
+- Analytics for Player Software Version etc im Admin Panel
+- Auto-Java-Downloader
+- Shader-Vorschau
+- Adding Home Panel
+- Server System (Server Erstellen)
 
 
 Noch offen:
-- Analytics for Player Software Version etc im Admin Panel
 - Code Sharing Instances System
-- Server System (Server Erstellen)
-- Modpacks from Modrinth Support
 - Focus Mode (Maybe)
 - Server-Side Mod-Prüfung
-- Auto-Java-Downloader
-- Shader-Vorschau
 - Mod-Kompatibilitäts-Matrix
 - Minimal-Mode (System Tray) (Über Settings dann)
-- Quick-Server-Join
-- Adding Home Panel
+- Quick-Server-Join (Not Fully Implemented)
+- Client Mod for Quick-Server-Join
 
 Additional Features (Maybe Machen):
 - Scripting-Support

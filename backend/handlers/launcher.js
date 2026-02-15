@@ -553,19 +553,13 @@ Add-Type -TypeDefinition $code -Language CSharp
 
                 activeLaunches.delete(instanceName); // active launch phase over, now running phase
 
-                // QuickPlay: auto-join a world or server on launch
+                // QuickPlay: use MCLC's native quickPlay option to auto-join a world or server
                 if (quickPlay) {
-                    if (!opts.customLaunchArgs) opts.customLaunchArgs = [];
                     if (quickPlay.world) {
-                        // Use --quickPlaySingleplayer for 1.20+ and --world for older versions
-                        const v = config.version.split('.');
-                        const minor = parseInt(v[1]) || 0;
-                        if (minor >= 20) {
-                            opts.customLaunchArgs.push('--quickPlaySingleplayer', quickPlay.world);
-                        }
+                        opts.quickPlay = { type: 'singleplayer', identifier: quickPlay.world };
                         console.log(`[Launcher] QuickPlay: World "${quickPlay.world}"`);
                     } else if (quickPlay.server) {
-                        opts.customLaunchArgs.push('--quickPlayMultiplayer', quickPlay.server);
+                        opts.quickPlay = { type: 'multiplayer', identifier: quickPlay.server };
                         console.log(`[Launcher] QuickPlay: Server "${quickPlay.server}"`);
                     }
                 }
