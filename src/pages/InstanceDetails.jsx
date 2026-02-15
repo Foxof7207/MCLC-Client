@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dropdown from '../components/Dropdown';
 import InstanceSettingsModal from '../components/InstanceSettingsModal';
+import ModpackCodeModal from '../components/ModpackCodeModal'; // Import the new component
 import { useNotification } from '../context/NotificationContext';
 import { Analytics } from '../services/Analytics';
 
@@ -24,6 +25,10 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     const [searchOffset, setSearchOffset] = useState(0);
     const [totalHits, setTotalHits] = useState(0);
     const limit = 10;
+
+    // Code Export/Import State
+    const [showCodeModal, setShowCodeModal] = useState(false);
+    const [codeModalMode, setCodeModalMode] = useState('export'); // 'export' or 'import'
 
     // Installed Mods Search
     const [localSearchQuery, setLocalSearchQuery] = useState('');
@@ -502,11 +507,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             let addedCount = 0;
             for (const file of validFiles) {
                 if (file.path) {
-                    // Reusing installMod with a local file is tricky if it expects Modrinth version data
-                    // Let's check backend/handlers/modrinth.js for a local file handler if it exists
-                    // Actually I can just add a new handler or use installMod but with projectType
-                    // Backend already has modrinth:install which takes filename/url
-                    // I'll add instance:install-local-resourcepack to instances.js for simplicity
                     const res = await window.electronAPI.installLocalMod(instance.name, file.path, 'resourcepack');
                     if (res.success) addedCount++;
                 }
@@ -618,7 +618,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
         }
     };
 
-
     const handleLaunch = async () => {
         if (isRunning || isLaunching || isInstalling || localPending) return;
         setLocalPending(true);
@@ -632,6 +631,80 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             addNotification(`Launch failed: ${e.message}`, 'error');
         } finally {
             setLocalPending(false);
+        }
+    };
+
+    // Handle code import completion
+    const handleCodeImportComplete = async (modpackData) => {
+        addNotification(`Creating instance from code...`, 'info');
+
+        // First create the instance
+        const createRes = await window.electronAPI.createInstance({
+            name: modpackData.name,
+            version: modpackData.instanceVersion,
+            loader: modpackData.instanceLoader,
+            icon: null
+        });
+
+        if (createRes.success) {
+            const instanceName = createRes.instanceName;
+            let installedCount = 0;
+            let totalItems = modpackData.mods.length + modpackData.resourcePacks.length + modpackData.shaders.length;
+
+            // Download all mods
+            for (const mod of modpackData.mods) {
+                const downloadUrl = `https://api.modrinth.com/v2/version/${mod.versionId}/download`;
+                const installRes = await window.electronAPI.installMod({
+                    instanceName,
+                    projectId: mod.projectId,
+                    versionId: mod.versionId,
+                    filename: mod.fileName,
+                    url: downloadUrl,
+                    projectType: 'mod'
+                });
+                if (installRes.success) installedCount++;
+                addNotification(`Progress: ${installedCount}/${totalItems} items installed`, 'info', 3000);
+            }
+
+            // Download all resource packs
+            for (const pack of modpackData.resourcePacks) {
+                const downloadUrl = `https://api.modrinth.com/v2/version/${pack.versionId}/download`;
+                const installRes = await window.electronAPI.installMod({
+                    instanceName,
+                    projectId: pack.projectId,
+                    versionId: pack.versionId,
+                    filename: pack.fileName,
+                    url: downloadUrl,
+                    projectType: 'resourcepack'
+                });
+                if (installRes.success) installedCount++;
+                addNotification(`Progress: ${installedCount}/${totalItems} items installed`, 'info', 3000);
+            }
+
+            // Download all shaders
+            for (const shader of modpackData.shaders) {
+                const downloadUrl = `https://api.modrinth.com/v2/version/${shader.versionId}/download`;
+                const installRes = await window.electronAPI.installMod({
+                    instanceName,
+                    projectId: shader.projectId,
+                    versionId: shader.versionId,
+                    filename: shader.fileName,
+                    url: downloadUrl,
+                    projectType: 'shader'
+                });
+                if (installRes.success) installedCount++;
+                addNotification(`Progress: ${installedCount}/${totalItems} items installed`, 'info', 3000);
+            }
+
+            addNotification(`Modpack "${modpackData.name}" imported successfully with ${installedCount} items!`, 'success');
+
+            // Refresh instances list if callback exists
+            if (onInstanceUpdate) {
+                const instances = await window.electronAPI.getInstances();
+                onInstanceUpdate(instances.find(i => i.name === instanceName));
+            }
+        } else {
+            addNotification(`Failed to create instance: ${createRes.error}`, 'error');
         }
     };
 
@@ -700,7 +773,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    {/* Play/Stop Button - Moved to First Position */}
+                    {/* Play/Stop Button */}
                     {isRunning ? (
                         <button
                             onClick={() => window.electronAPI.killGame(instance.name)}
@@ -756,7 +829,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                             </svg>
                         </button>
                         {showMenu && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden text-sm">
+                            <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden text-sm">
                                 <button
                                     onClick={() => {
                                         window.electronAPI.openInstanceFolder(instance.name);
@@ -782,7 +855,33 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                     className="w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3 transition-colors"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                                    Export Modpack
+                                    Export as .mcpack
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setCodeModalMode('export');
+                                        setShowCodeModal(true);
+                                        setShowMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    Export as Code
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setCodeModalMode('import');
+                                        setShowCodeModal(true);
+                                        setShowMenu(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 hover:bg-white/5 flex items-center gap-3 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    Import from Code
                                 </button>
                             </div>
                         )}
@@ -1320,77 +1419,87 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                     )
                 }
             </div >
-            {
-                showSettings && (
-                    <InstanceSettingsModal
-                        instance={instance}
-                        onClose={() => setShowSettings(false)}
-                        onSave={handleSettingsSave}
-                        onDelete={onBack}
-                    />
-                )
-            }
+
+            {/* Modals */}
+            {showSettings && (
+                <InstanceSettingsModal
+                    instance={instance}
+                    onClose={() => setShowSettings(false)}
+                    onSave={handleSettingsSave}
+                    onDelete={onBack}
+                />
+            )}
+
+            {/* Code Export/Import Modal */}
+            <ModpackCodeModal
+                isOpen={showCodeModal}
+                onClose={() => setShowCodeModal(false)}
+                mode={codeModalMode}
+                instanceData={instance}
+                mods={mods}
+                resourcePacks={resourcePacks}
+                shaders={shaders}
+                onImportComplete={handleCodeImportComplete}
+            />
 
             {/* Modrinth Project Versions Modal */}
-            {
-                selectedProject && (
-                    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8 backdrop-blur-sm" onClick={() => setSelectedProject(null)}>
-                        <div className="bg-background-dark w-full max-w-3xl max-h-[80vh] rounded-xl border border-white/10 flex flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                            {/* Header */}
-                            <div className="p-6 border-b border-white/5 flex items-center gap-4">
-                                <img src={selectedProject.icon_url || 'https://cdn.modrinth.com/placeholder.svg'} alt="" className="w-16 h-16 rounded-xl bg-surface" />
-                                <div className="flex-1">
-                                    <h2 className="text-2xl font-bold">{selectedProject.title}</h2>
-                                    <p className="text-gray-400 text-sm">{selectedProject.description}</p>
-                                </div>
-                                <button onClick={() => setSelectedProject(null)} className="text-gray-400 hover:text-white p-2 hover:bg-white/5 rounded-lg transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
+            {selectedProject && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8 backdrop-blur-sm" onClick={() => setSelectedProject(null)}>
+                    <div className="bg-background-dark w-full max-w-3xl max-h-[80vh] rounded-xl border border-white/10 flex flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-6 border-b border-white/5 flex items-center gap-4">
+                            <img src={selectedProject.icon_url || 'https://cdn.modrinth.com/placeholder.svg'} alt="" className="w-16 h-16 rounded-xl bg-surface" />
+                            <div className="flex-1">
+                                <h2 className="text-2xl font-bold">{selectedProject.title}</h2>
+                                <p className="text-gray-400 text-sm">{selectedProject.description}</p>
                             </div>
+                            <button onClick={() => setSelectedProject(null)} className="text-gray-400 hover:text-white p-2 hover:bg-white/5 rounded-lg transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
 
-                            {/* Versions List */}
-                            <div className="flex-1 overflow-y-auto p-4">
-                                {loadingVersions ? (
-                                    <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-                                ) : projectVersions.length === 0 ? (
-                                    <div className="text-center text-gray-500 py-20">No versions found</div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {projectVersions.map(version => {
-                                            const isCompatible = version.game_versions?.includes(instance.version) && version.loaders?.some(l => l.toLowerCase() === instance.loader?.toLowerCase());
-                                            return (
-                                                <div key={version.id} className={`p-4 rounded-xl border flex items-center gap-4 ${isCompatible ? 'bg-surface border-primary/30' : 'bg-surface/50 border-white/5'}`}>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="font-bold text-white">{version.version_number}</span>
-                                                            <span className={`text-xs px-2 py-0.5 rounded ${version.version_type === 'release' ? 'bg-green-500/20 text-green-400' : version.version_type === 'beta' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                                {version.version_type}
-                                                            </span>
-                                                            {isCompatible && <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary">Compatible</span>}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
-                                                            <span>MC: {version.game_versions?.slice(0, 5).join(', ')}{version.game_versions?.length > 5 ? '...' : ''}</span>
-                                                            <span>|</span>
-                                                            <span>{version.loaders?.join(', ')}</span>
-                                                        </div>
+                        {/* Versions List */}
+                        <div className="flex-1 overflow-y-auto p-4">
+                            {loadingVersions ? (
+                                <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+                            ) : projectVersions.length === 0 ? (
+                                <div className="text-center text-gray-500 py-20">No versions found</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {projectVersions.map(version => {
+                                        const isCompatible = version.game_versions?.includes(instance.version) && version.loaders?.some(l => l.toLowerCase() === instance.loader?.toLowerCase());
+                                        return (
+                                            <div key={version.id} className={`p-4 rounded-xl border flex items-center gap-4 ${isCompatible ? 'bg-surface border-primary/30' : 'bg-surface/50 border-white/5'}`}>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="font-bold text-white">{version.version_number}</span>
+                                                        <span className={`text-xs px-2 py-0.5 rounded ${version.version_type === 'release' ? 'bg-green-500/20 text-green-400' : version.version_type === 'beta' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                            {version.version_type}
+                                                        </span>
+                                                        {isCompatible && <span className="text-xs px-2 py-0.5 rounded bg-primary/20 text-primary">Compatible</span>}
                                                     </div>
-                                                    <button
-                                                        onClick={() => handleInstallVersion(version)}
-                                                        className="bg-white/5 hover:bg-primary hover:text-black text-white px-4 py-2 rounded-lg font-bold text-sm transition-all border border-white/5 flex items-center gap-2 shrink-0"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                                        Install
-                                                    </button>
+                                                    <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-2">
+                                                        <span>MC: {version.game_versions?.slice(0, 5).join(', ')}{version.game_versions?.length > 5 ? '...' : ''}</span>
+                                                        <span>|</span>
+                                                        <span>{version.loaders?.join(', ')}</span>
+                                                    </div>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
+                                                <button
+                                                    onClick={() => handleInstallVersion(version)}
+                                                    className="bg-white/5 hover:bg-primary hover:text-black text-white px-4 py-2 rounded-lg font-bold text-sm transition-all border border-white/5 flex items-center gap-2 shrink-0"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                                    Install
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
             {/* Preview Modal */}
             {showPreviewModal && previewProject && (
@@ -1538,30 +1647,30 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                     </div>
                 </div>
             )}
-            {
-                modToDelete && (
-                    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-surface-dark border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-                            <h3 className="text-xl font-bold mb-2">Delete Mod?</h3>
-                            <p className="text-gray-400 text-sm mb-6">Are you sure you want to delete <span className="text-white font-mono">{modToDelete.name}</span>? This action cannot be undone.</p>
-                            <div className="flex gap-3 justify-end">
-                                <button
-                                    onClick={() => setModToDelete(null)}
-                                    className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 font-bold transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={confirmDeleteMod}
-                                    className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white font-bold transition-colors shadow-lg shadow-red-500/20"
-                                >
-                                    Delete Mod
-                                </button>
-                            </div>
+
+            {/* Delete Confirmation Modal */}
+            {modToDelete && (
+                <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-surface-dark border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <h3 className="text-xl font-bold mb-2">Delete Mod?</h3>
+                        <p className="text-gray-400 text-sm mb-6">Are you sure you want to delete <span className="text-white font-mono">{modToDelete.name}</span>? This action cannot be undone.</p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setModToDelete(null)}
+                                className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 font-bold transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDeleteMod}
+                                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 text-white font-bold transition-colors shadow-lg shadow-red-500/20"
+                            >
+                                Delete Mod
+                            </button>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
         </div>
     );
 }

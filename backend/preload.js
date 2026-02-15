@@ -1,6 +1,16 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electronAPI', {
+console.log('[Preload] 🚀 Preload script wird ausgeführt...');
+
+// Test ipcRenderer
+try {
+    console.log('[Preload] ipcRenderer verfügbar:', !!ipcRenderer);
+    console.log('[Preload] ipcRenderer.invoke verfügbar:', typeof ipcRenderer.invoke === 'function');
+} catch (e) {
+    console.error('[Preload] ipcRenderer Fehler:', e);
+}
+
+const electronAPI = {
     // Window Controls
     minimize: () => ipcRenderer.send('window-minimize'),
     maximize: () => ipcRenderer.send('window-maximize'),
@@ -73,6 +83,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     installJava: (version) => ipcRenderer.invoke('java:install', version),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
+    // ========== MODPACK CODE EXPORT/IMPORT ==========
+    exportModpackAsCode: (data) => {
+        console.log('[Preload] 📤 exportModpackAsCode aufgerufen mit:', data);
+        return ipcRenderer.invoke('modpack:export-code', data);
+    },
+    importModpackFromCode: (code) => {
+        console.log('[Preload] 📥 importModpackFromCode aufgerufen mit:', code);
+        return ipcRenderer.invoke('modpack:import-code', code);
+    },
+    getModpackCodes: () => {
+        console.log('[Preload] 📋 getModpackCodes aufgerufen');
+        return ipcRenderer.invoke('modpack:list-codes');
+    },
+    // ================================================
+
     // Skins
     getCurrentSkin: (token) => ipcRenderer.invoke('skin:get-current', token),
     uploadSkin: (token, skinPath, variant) => ipcRenderer.invoke('skin:upload', token, skinPath, variant),
@@ -125,40 +150,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return () => ipcRenderer.removeListener('window-state', subscription);
     },
 
-    // ==================== SERVER MANAGEMENT ====================
-    // Grundlegende Server-Operationen
+    // Server Management
     getServers: () => ipcRenderer.invoke('server:get-all'),
     createServer: (data) => ipcRenderer.invoke('server:create', data),
     deleteServer: (name) => ipcRenderer.invoke('server:delete', name),
     duplicateServer: (name) => ipcRenderer.invoke('server:duplicate', name),
     importServer: () => ipcRenderer.invoke('server:import'),
-
-    // Server Control
     startServer: (name) => ipcRenderer.invoke('server:start', name),
     stopServer: (name) => ipcRenderer.invoke('server:stop', name),
     restartServer: (name) => ipcRenderer.invoke('server:restart', name),
     getServerStatus: (name) => ipcRenderer.invoke('server:get-status', name),
-
-    // Server Console
     getServerLogs: (name) => ipcRenderer.invoke('server:get-console', name),
     sendServerCommand: (serverName, command) => ipcRenderer.invoke('server:send-command', serverName, command),
     getServerStats: (name) => ipcRenderer.invoke('server:get-stats', name),
     saveServerLogs: (serverName, logs) => ipcRenderer.invoke('server:save-logs', serverName, logs),
-
-    // Server Files & Folders
     openServerFolder: (name) => ipcRenderer.invoke('server:open-folder', name),
-
-    // Server Backups
     backupServer: (name) => ipcRenderer.invoke('server:backup', name),
-
-    // Server Software Management
     downloadServerSoftware: (data) => ipcRenderer.invoke('server:download-software', data),
-
-    // Server EULA Management
     checkServerEula: (serverName) => ipcRenderer.invoke('server:check-eula', serverName),
     acceptServerEula: (serverName) => ipcRenderer.invoke('server:accept-eula', serverName),
-
-    // Playit Plugin Management
     checkPlayitAvailable: (software, version) => ipcRenderer.invoke('server:check-playit-available', software, version),
     installPlayitPlugin: (serverName) => ipcRenderer.invoke('server:install-playit', serverName),
 
@@ -203,4 +213,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('server:plugin-progress', subscription);
         return () => ipcRenderer.removeListener('server:plugin-progress', subscription);
     }
-});
+};
+
+// Expose API
+try {
+    contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+    console.log('[Preload] ✅ electronAPI erfolgreich exposed');
+    console.log('[Preload] Verfügbare Methoden:', Object.keys(electronAPI));
+
+    // Speziell prüfen ob die Modpack-Methoden da sind
+    console.log('[Preload] Modpack-Methoden:', {
+        exportModpackAsCode: typeof electronAPI.exportModpackAsCode === 'function',
+        importModpackFromCode: typeof electronAPI.importModpackFromCode === 'function',
+        getModpackCodes: typeof electronAPI.getModpackCodes === 'function'
+    });
+} catch (error) {
+    console.error('[Preload] ❌ Fehler beim Exposen:', error);
+}
