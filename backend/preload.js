@@ -180,6 +180,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('server:download-progress', subscription);
         return () => ipcRenderer.removeListener('server:download-progress', subscription);
     },
+    // Add this to the electronAPI object in preload.js
+    onServerConsoleCleared: (callback) => {
+        const subscription = (_event, value) => callback(value);
+        ipcRenderer.on('server:console-cleared', subscription);
+        return () => ipcRenderer.removeListener('server:console-cleared', subscription);
+    },
     onServerEulaRequired: (callback) => {
         const subscription = (_event, value) => callback(value);
         ipcRenderer.on('server:eula-required', subscription);
