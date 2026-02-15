@@ -22,7 +22,8 @@ release/
 release/**
 news-admin/
 news-admin/**
-
+MCLC-Mod/
+MCLC-Mod-Sources/
 # Operating system and user-specific files
 .DS_Store
 Thumbs.db
@@ -30,3 +31,4 @@ Thumbs.db
 
 # Other
 COMMIT.md
+/MCLC-Mod-Source
