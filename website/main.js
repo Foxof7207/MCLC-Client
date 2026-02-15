@@ -1,4 +1,3 @@
-// Navbar Scroll Effect
 const navbar = document.getElementById('navbar');
 window.addEventListener('scroll', () => {
     if (window.scrollY > 50) {
@@ -7,8 +6,6 @@ window.addEventListener('scroll', () => {
         navbar.classList.remove('scrolled');
     }
 });
-
-// Reveal Animations on Scroll
 const revealElements = document.querySelectorAll('.reveal');
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -23,8 +20,6 @@ const revealObserver = new IntersectionObserver((entries) => {
 revealElements.forEach(el => {
     revealObserver.observe(el);
 });
-
-// Parallax/Hover Effect for Hero (Subtle)
 const hero = document.getElementById('home');
 hero.addEventListener('mousemove', (e) => {
     const moveX = (e.clientX - window.innerWidth / 2) * 0.01;

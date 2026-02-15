@@ -57,10 +57,10 @@ const Dropdown = ({ options, value, onChange, placeholder = "Select...", disable
                                 onClick={() => !option.disabled && handleSelect(option)}
                                 disabled={option.disabled}
                                 className={`w-full text-left p-3 text-sm transition-colors ${option.disabled
-                                        ? 'text-gray-600 cursor-not-allowed bg-white/2'
-                                        : option.value === value
-                                            ? 'text-primary bg-primary/10 font-bold'
-                                            : 'text-gray-300 hover:bg-white/5'
+                                    ? 'text-gray-600 cursor-not-allowed bg-white/2'
+                                    : option.value === value
+                                        ? 'text-primary bg-primary/10 font-bold'
+                                        : 'text-gray-300 hover:bg-white/5'
                                     }`}
                             >
                                 {option.label}

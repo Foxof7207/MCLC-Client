@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import PlayerHead from './PlayerHead';
-
-// Format UUID with dashes for crafatar API
 const formatUUID = (uuid) => {
     if (!uuid) return null;
     if (uuid.includes('-')) return uuid;
@@ -41,15 +39,15 @@ function RightPanel({ userProfile, onProfileUpdate }) {
 
     useEffect(() => {
         loadNews();
-        const interval = setInterval(loadNews, 30000); // Poll every 30s
+        const interval = setInterval(loadNews, 30000);
         return () => clearInterval(interval);
     }, []);
 
     const loadNews = async () => {
         if (window.electronAPI.getNews) {
-            // console.log("Frontend: Requesting news...");
+
             const res = await window.electronAPI.getNews();
-            // console.log("Frontend: News Response:", res);
+
             if (res.success) {
                 setNewsItems(res.news);
             } else {
@@ -57,9 +55,6 @@ function RightPanel({ userProfile, onProfileUpdate }) {
             }
         }
     };
-
-
-
     const loadAccounts = async () => {
         const accs = await window.electronAPI.getAccounts();
         setAccounts(accs || []);
@@ -68,14 +63,14 @@ function RightPanel({ userProfile, onProfileUpdate }) {
     const handleSwitch = async (uuid) => {
         const res = await window.electronAPI.switchAccount(uuid);
         if (res.success) {
-            // Validate the new session
+
             if (window.electronAPI.validateSession) {
                 const val = await window.electronAPI.validateSession();
                 if (val.success) {
                     const profile = await window.electronAPI.getProfile();
                     onProfileUpdate(profile);
                 } else {
-                    // If validation failed, it will have logged out/cleared the profile
+
                     onProfileUpdate(null);
                 }
             } else {
@@ -107,7 +102,7 @@ function RightPanel({ userProfile, onProfileUpdate }) {
 
     return (
         <div className="w-[250px] bg-transparent flex flex-col p-4 gap-4 relative backdrop-blur-sm">
-            {/* Account Info / Switcher */}
+            { }
             <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Account</span>
@@ -181,7 +176,7 @@ function RightPanel({ userProfile, onProfileUpdate }) {
 
             <div className="my-2 border-t border-white/5 mx-1" />
 
-            {/* News Feed */}
+            { }
             <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between px-1 mb-4">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Launcher News</span>

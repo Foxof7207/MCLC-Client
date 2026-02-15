@@ -18,8 +18,6 @@ function Settings() {
     const [isInstallingJava, setIsInstallingJava] = useState(false);
     const [javaInstallProgress, setJavaInstallProgress] = useState(null);
     const [showJavaModal, setShowJavaModal] = useState(false);
-
-    // Ref to track if settings have been saved on close
     const hasUnsavedChanges = useRef(false);
     const initialSettingsRef = useRef(null);
 
@@ -53,8 +51,6 @@ function Settings() {
     useEffect(() => {
         loadSettings();
         loadInstances();
-
-        // Add beforeunload event listener for when navigating away
         const handleBeforeUnload = (e) => {
             if (hasUnsavedChanges.current) {
                 saveSettings(settings);
@@ -65,9 +61,9 @@ function Settings() {
 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
-            // Save settings when component unmounts (user navigates away)
+
             if (hasUnsavedChanges.current) {
-                saveSettings(settings, true); // true = silent save with notification
+                saveSettings(settings, true);
             }
         };
     }, []);
@@ -82,24 +78,20 @@ function Settings() {
         if (res.success) {
             const loadedSettings = { ...settings, ...res.settings };
             setSettings(loadedSettings);
-            initialSettingsRef.current = loadedSettings; // Store initial state for comparison
+            initialSettingsRef.current = loadedSettings;
         }
     };
 
     const handleChange = (key, value) => {
         setSettings(prev => {
             const newSettings = { ...prev, [key]: value };
-
-            // Check if there are actual changes from initial state
             if (initialSettingsRef.current) {
                 const hasChanges = Object.keys(newSettings).some(
                     key => newSettings[key] !== initialSettingsRef.current[key]
                 );
                 hasUnsavedChanges.current = hasChanges;
             }
-
-            // Auto-save silently without notification
-            saveSettings(newSettings, true); // true = silent mode
+            saveSettings(newSettings, true);
             return newSettings;
         });
     };
@@ -107,11 +99,9 @@ function Settings() {
     const saveSettings = async (newSettings, silent = false) => {
         const res = await window.electronAPI.saveSettings(newSettings);
         if (res.success) {
-            // Update initial settings ref to match saved state
+
             initialSettingsRef.current = newSettings;
             hasUnsavedChanges.current = false;
-
-            // Only show notification if not silent
             if (!silent) {
                 addNotification('Settings saved successfully', 'success');
             }
@@ -127,13 +117,11 @@ function Settings() {
         });
         if (path) {
             handleChange('javaPath', path);
-            // handleChange already saves silently, no need for extra notification
+
         }
     };
-
-    // Optional: Manual save button if you want to give users control
     const handleManualSave = () => {
-        saveSettings(settings, false); // false = show notification
+        saveSettings(settings, false);
     };
 
     return (
@@ -141,7 +129,7 @@ function Settings() {
             <h1 className="text-3xl font-bold mb-2">Settings</h1>
             <p className="text-gray-400 mb-10">Manage your launcher preferences.</p>
 
-            {/* Optional: Save button for manual control */}
+            { }
             <div className="max-w-3xl mb-6 flex justify-end">
                 <button
                     onClick={handleManualSave}
@@ -155,7 +143,7 @@ function Settings() {
             </div>
 
             <div className="space-y-6 max-w-3xl">
-                {/* General Settings */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">General</h2>
 
@@ -175,7 +163,7 @@ function Settings() {
                     </div>
                 </div>
 
-                {/* Java Install Modal */}
+                { }
                 {showJavaModal && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
                         <div className="bg-secondary p-6 rounded-xl border border-white/10 w-96 shadow-2xl animate-scale-in">
@@ -205,7 +193,7 @@ function Settings() {
                     </div>
                 )}
 
-                {/* Java Settings */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Java Runtime</h2>
 
@@ -259,7 +247,7 @@ function Settings() {
                     </div>
                 </div>
 
-                {/* Memory Settings */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Memory Allocation</h2>
 
@@ -301,7 +289,7 @@ function Settings() {
                     </div>
                 </div>
 
-                {/* Video Settings */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Resolution</h2>
 
@@ -327,7 +315,7 @@ function Settings() {
                     </div>
                 </div>
 
-                {/* Instance Creation Settings */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Instance Creation</h2>
 
@@ -364,7 +352,7 @@ function Settings() {
                     )}
                 </div>
 
-                {/* System Settings */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Launcher Integration</h2>
 
@@ -383,8 +371,6 @@ function Settings() {
                             <div className="w-12 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                         </label>
                     </div>
-
-
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
                         <div>
                             <div className="font-medium text-white">Auto-upload logs on crash</div>

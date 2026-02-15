@@ -4,7 +4,7 @@ import ReinstallModal from './ReinstallModal';
 import ConfirmationModal from './ConfirmationModal';
 import Dropdown from './Dropdown';
 
-function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) { // Added onDelete prop (need to pass from Dashboard/App if not available locally, or handle via IPC)
+function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) {
     const { addNotification } = useNotification();
     const [activeTab, setActiveTab] = useState('general');
     const [config, setConfig] = useState({ ...instance });
@@ -51,12 +51,10 @@ function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) { // Add
         setLoading(true);
         setError(null);
         try {
-            // Use the new updateInstanceConfig for icon changes
+
             if (config.icon !== instance.icon) {
                 await window.electronAPI.updateInstanceConfig(instance.name, { icon: config.icon });
             }
-
-            // Check if name was changed
             if (config.name !== instance.name) {
                 const renameResult = await window.electronAPI.renameInstance(instance.name, config.name);
                 if (!renameResult.success) {
@@ -66,7 +64,7 @@ function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) { // Add
                     return;
                 }
             }
-            // Update other settings using the new name
+
             await window.electronAPI.updateInstance(config.name, config);
             addNotification('Settings saved successfully', 'success');
             onSave(config);
@@ -105,8 +103,8 @@ function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) { // Add
         try {
             await window.electronAPI.deleteInstance(instance.name);
             addNotification(`Instance ${instance.name} deleted`, 'success');
-            onClose(); // Close settings
-            if (onDelete) onDelete(instance.name); // Notify parent to refresh list
+            onClose();
+            if (onDelete) onDelete(instance.name);
         } catch (e) {
             setError("Failed to delete: " + e.message);
             setLoading(false);
@@ -140,7 +138,7 @@ function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) { // Add
             <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8 backdrop-blur-sm">
                 <div className="bg-background-dark w-full max-w-4xl h-[600px] rounded-xl border border-white/10 flex overflow-hidden shadow-2xl">
 
-                    {/* Sidebar */}
+                    { }
                     <div className="w-64 bg-surface/50 border-r border-white/5 p-4 flex flex-col gap-2">
                         <div className="text-xl font-bold mb-4 px-2 truncate" title={instance.name}>{instance.name}</div>
 
@@ -158,7 +156,7 @@ function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) { // Add
                         </div>
                     </div>
 
-                    {/* Content */}
+                    { }
                     <div className="flex-1 p-8 overflow-y-auto bg-background">
                         <div className="max-w-2xl">
                             <h2 className={`text-2xl font-bold mb-6 ${activeTab === 'danger' ? 'text-red-500' : ''}`}>

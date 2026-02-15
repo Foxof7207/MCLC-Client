@@ -16,7 +16,7 @@ async function run() {
         }
 
         console.log('Found game version. Loaders:', gameVersion.loaders.length);
-        const loader = gameVersion.loaders[0]; // Latest
+        const loader = gameVersion.loaders[0];
         console.log('Selected Loader:', loader.id);
         console.log('Profile URL:', loader.url);
 

@@ -2,7 +2,7 @@ let DiscordRPC = null;
 try {
     DiscordRPC = require('discord-rpc');
 } catch (e) {
-    // optional dependency not found - Discord RPC will be disabled
+
 }
 
 const clientId = '1469842361830866985';

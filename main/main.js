@@ -13,17 +13,15 @@ function createWindow() {
         minWidth: 900,
         minHeight: 600,
         title: 'Minecraft Launcher',
-        frame: false, // Custom titlebar support
+        frame: false,
         backgroundColor: '#121212',
         webPreferences: {
             preload: path.join(__dirname, '../backend/preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: false // Required for some heavy node modules if needed, but try keep true if possible
+            sandbox: false
         },
     });
-
-    // Load the backend handlers
     require('../backend/handlers/auth')(ipcMain, mainWindow);
     require('../backend/handlers/instances')(ipcMain, mainWindow);
     require('../backend/handlers/launcher')(ipcMain, mainWindow);
@@ -31,11 +29,7 @@ function createWindow() {
     require('../backend/handlers/data')(ipcMain);
     require('../backend/handlers/settings')(ipcMain);
     const discord = require('../backend/handlers/discord');
-
-    // Initialize Discord RPC
     discord.initRPC();
-
-    // In production, load the built index.html. In dev, load localhost.
     const isDev = process.env.NODE_ENV === 'development';
     if (isDev) {
         mainWindow.loadURL('http://localhost:3000');
@@ -43,8 +37,6 @@ function createWindow() {
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     }
-
-    // Window controls
     ipcMain.on('window-minimize', () => mainWindow.minimize());
     ipcMain.on('window-maximize', () => {
         if (mainWindow.isMaximized()) mainWindow.unmaximize();

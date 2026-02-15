@@ -40,8 +40,6 @@ async function downloadFile(url, destPath, onProgress) {
 
 async function installJava(version, runtimesDir, onProgress) {
     console.log(`[JavaUtils] Installing Java ${version}`);
-
-    // 1. Fetch release info
     if (onProgress) onProgress('Fetching release info...', 0);
     const apiUrl = `${ADOPTIUM_API}/assets/feature_releases/${version}/ga?architecture=x64&heap_size=normal&image_type=jdk&jvm_impl=hotspot&os=windows`;
 
@@ -61,16 +59,12 @@ async function installJava(version, runtimesDir, onProgress) {
     if (await fs.pathExists(javaExePath)) {
         return { success: true, path: javaExePath };
     }
-
-    // 2. Download
     await fs.ensureDir(runtimesDir);
     const tempZipPath = path.join(runtimesDir, fileName);
 
     await downloadFile(downloadUrl, tempZipPath, (percent) => {
         if (onProgress) onProgress(`Downloading Java ${version}...`, percent);
     });
-
-    // 3. Extract
     if (onProgress) onProgress('Extracting...', 100);
     const zip = new AdmZip(tempZipPath);
     zip.extractAllTo(runtimesDir, true);
@@ -79,8 +73,6 @@ async function installJava(version, runtimesDir, onProgress) {
     if (await fs.pathExists(javaExePath)) {
         return { success: true, path: javaExePath };
     }
-
-    // Fallback search
     const subdirs = await fs.readdir(runtimesDir);
     for (const dir of subdirs) {
         const potentialPath = path.join(runtimesDir, dir, 'bin', 'java.exe');

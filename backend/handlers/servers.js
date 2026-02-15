@@ -6,14 +6,12 @@ const axios = require('axios');
 const { createWriteStream } = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
-
-// Store running server processes
 const serverProcesses = new Map();
-// Store server stats intervals
+
 const serverStatsIntervals = new Map();
-// Store server process start times
+
 const serverStartTimes = new Map();
-// Store console output for each server (for persistence across reloads)
+
 const serverConsoleBuffers = new Map();
 
 function sanitizeFileName(name) {
@@ -23,13 +21,9 @@ function sanitizeFileName(name) {
 async function downloadServerJar(url, destination, serverName, mainWindow) {
     try {
         console.log(`[Servers] Downloading from URL: ${url}`);
-
-        // Validate URL
         if (!url || typeof url !== 'string') {
             throw new Error('Invalid download URL');
         }
-
-        // Ensure URL is properly formatted
         const parsedUrl = new URL(url);
         console.log(`[Servers] Parsed URL: ${parsedUrl.toString()}`);
 
@@ -38,7 +32,7 @@ async function downloadServerJar(url, destination, serverName, mainWindow) {
             method: 'get',
             url: url,
             responseType: 'stream',
-            timeout: 30000, // 30 second timeout
+            timeout: 30000,
             maxRedirects: 5,
             headers: {
                 'User-Agent': 'Antigravity/MinecraftLauncher/1.0'
@@ -79,32 +73,24 @@ async function downloadServerJar(url, destination, serverName, mainWindow) {
         });
     } catch (error) {
         console.error('[Servers] Error in downloadServerJar:', error);
-
-        // More detailed error logging
         if (error.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
             console.error('[Servers] Error response data:', error.response.data);
             console.error('[Servers] Error response status:', error.response.status);
             console.error('[Servers] Error response headers:', error.response.headers);
         } else if (error.request) {
-            // The request was made but no response was received
+
             console.error('[Servers] Error request:', error.request);
         } else {
-            // Something happened in setting up the request that triggered an Error
+
             console.error('[Servers] Error message:', error.message);
         }
 
         throw error;
     }
 }
-
-// Verbesserte Plugin Download Funktion für Playit Companion
 async function downloadPlayitPlugin(serverDir, software, version, serverName, mainWindow) {
     try {
         console.log(`[Servers] Checking Playit plugin for ${software} ${version}`);
-
-        // Map software names to Modrinth loaders
         const loaderMap = {
             'paper': 'paper',
             'purpur': 'purpur',
@@ -114,21 +100,15 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
             'fabric': 'fabric',
             'forge': 'forge',
             'neoforge': 'neoforge',
-            'vanilla': 'vanilla' // Vanilla doesn't support plugins
+            'vanilla': 'vanilla'
         };
 
         const loader = loaderMap[software.toLowerCase()];
-
-        // Skip if software doesn't support plugins or is vanilla
         if (!loader || loader === 'vanilla') {
             console.log(`[Servers] ${software} doesn't support plugins or is vanilla, skipping Playit plugin`);
             return false;
         }
-
-        // Playit Companion Modrinth project ID
         const projectId = 'og7kbNBC';
-
-        // First, get project info to find the latest version for this loader and game version
         const versionsResponse = await axios.get(`https://api.modrinth.com/v2/project/${projectId}/version`, {
             headers: {
                 'User-Agent': 'Antigravity/MinecraftLauncher/1.0'
@@ -139,15 +119,11 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
             console.log('[Servers] No versions found for Playit plugin');
             return false;
         }
-
-        // Find a version that matches our loader and game version
         const matchingVersion = versionsResponse.data.find(v => {
-            // Check if version supports our loader
+
             const supportsLoader = v.loaders.some(l =>
                 l.toLowerCase() === loader.toLowerCase()
             );
-
-            // Check if version supports our game version
             const supportsGameVersion = v.game_versions.some(gv =>
                 gv === version
             );
@@ -157,8 +133,6 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
 
         if (!matchingVersion) {
             console.log(`[Servers] No Playit plugin version found for ${software} ${version}`);
-
-            // Try to find any version that supports the loader (maybe different game version)
             const anyLoaderVersion = versionsResponse.data.find(v =>
                 v.loaders.some(l => l.toLowerCase() === loader.toLowerCase())
             );
@@ -169,8 +143,6 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
 
             return false;
         }
-
-        // Get the primary file (usually the .jar file)
         const primaryFile = matchingVersion.files.find(f => f.primary) || matchingVersion.files[0];
 
         if (!primaryFile) {
@@ -179,17 +151,15 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
         }
 
         console.log(`[Servers] Downloading Playit plugin v${matchingVersion.version_number} for ${software} ${version}`);
-
-        // WICHTIG: Bestimme den korrekten Plugin-Ordner basierend auf dem Software-Typ
         let pluginDir;
         const softwareLower = software.toLowerCase();
 
         if (['fabric', 'forge', 'neoforge', 'quilt'].includes(softwareLower)) {
-            // Mod Loader verwenden den 'mods' Ordner
+
             pluginDir = path.join(serverDir, 'mods');
             console.log(`[Servers] Using mods folder for ${software} (mod loader)`);
         } else {
-            // Bukkit/Spigot/Paper etc. verwenden den 'plugins' Ordner
+
             pluginDir = path.join(serverDir, 'plugins');
             console.log(`[Servers] Using plugins folder for ${software} (plugin-based)`);
         }
@@ -197,14 +167,10 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
         await fs.ensureDir(pluginDir);
 
         const pluginPath = path.join(pluginDir, primaryFile.filename);
-
-        // Check if plugin already exists
         if (await fs.pathExists(pluginPath)) {
             console.log(`[Servers] Plugin already exists at ${pluginPath}, skipping download`);
             return true;
         }
-
-        // Download the plugin
         const writer = createWriteStream(pluginPath);
         const response = await axios({
             method: 'get',
@@ -237,8 +203,6 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
         return false;
     }
 }
-
-// Update server config
 async function updateServerConfig(serverName, updates) {
     try {
         const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -256,18 +220,14 @@ async function updateServerConfig(serverName, updates) {
     }
     return null;
 }
-
-// Get process stats (CPU and Memory)
 async function getProcessStats(pid) {
     try {
         if (!pid) return { cpu: 0, memory: 0 };
 
         return new Promise((resolve) => {
             if (process.platform === 'win32') {
-                // Windows: Use tasklist and wmic
-                const { exec } = require('child_process');
 
-                // Get memory usage
+                const { exec } = require('child_process');
                 exec(`tasklist /FI "PID eq ${pid}" /FO CSV /NH`, (error, stdout) => {
                     if (error) {
                         resolve({ cpu: 0, memory: 0 });
@@ -276,7 +236,7 @@ async function getProcessStats(pid) {
 
                     const lines = stdout.trim().split('\n');
                     if (lines.length > 0) {
-                        // Parse CSV: "image","pid","session","session#","mem","status","user","cpu","title"
+
                         const parts = lines[0].split('","');
                         if (parts.length >= 5) {
                             const memStr = parts[4].replace(/[",]/g, '').trim();

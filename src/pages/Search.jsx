@@ -7,23 +7,17 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [projectType, setProjectType] = useState(initialCategory || 'mod'); // 'mod', 'resourcepack', 'modpack', 'shader'
-
-    // Pagination
+    const [projectType, setProjectType] = useState(initialCategory || 'mod');
     const [offset, setOffset] = useState(0);
     const limit = 20;
     const [totalHits, setTotalHits] = useState(0);
     const [sortMethod, setSortMethod] = useState('relevance');
-
-    // Apply initial category from navigation
     useEffect(() => {
         if (initialCategory) {
             setProjectType(initialCategory);
             if (onCategoryConsumed) onCategoryConsumed();
         }
     }, [initialCategory]);
-
-    // Install Modal State
     const [showInstallModal, setShowInstallModal] = useState(false);
     const [selectedMod, setSelectedMod] = useState(null);
     const [instances, setInstances] = useState([]);
@@ -31,14 +25,8 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const [installing, setInstalling] = useState(false);
     const [installedIds, setInstalledIds] = useState(new Set());
     const [instanceInstalledIds, setInstanceInstalledIds] = useState(new Set());
-
-
-
-    // Preview Modal State
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [previewProject, setPreviewProject] = useState(null);
-
-    // Lightbox State
     const [lightboxIndex, setLightboxIndex] = useState(-1);
 
     const handleNextImage = (e) => {
@@ -54,8 +42,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
             setLightboxIndex((prev) => (prev - 1 + previewProject.gallery.length) % previewProject.gallery.length);
         }
     };
-
-    // Keyboard navigation for lightbox
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (lightboxIndex === -1) return;
@@ -70,16 +56,12 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const handlePreview = async (mod) => {
         try {
             addNotification(`Loading preview for ${mod.title}...`, 'info');
-            const res = await window.electronAPI.getModrinthProject(mod.project_id); // Search result has project_id
+            const res = await window.electronAPI.getModrinthProject(mod.project_id);
             if (res.success) {
-                // Adapt the project object if necessary for consistency
-                // The search result 'mod' has { project_id, title, ... }
-                // The full project 'res.project' has { id, title, gallery, ... }
-                // We'll store the full project but maybe inject project_id for compatibility if needed
                 const fullProject = {
                     ...res.project,
-                    project_id: res.project.id, // Ensure compatibility with openInstall
-                    project_type: mod.project_type // Ensure type is preserved
+                    project_id: res.project.id,
+                    project_type: mod.project_type
                 };
                 setPreviewProject(fullProject);
                 setShowPreviewModal(true);
@@ -91,9 +73,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
             addNotification('Error loading preview.', 'error');
         }
     };
-
-
-    // Hilfsfunktion für intelligente Download-Formatierung
     const formatDownloads = (downloads) => {
         if (downloads === undefined || downloads === null) return '0';
 
@@ -111,7 +90,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
     useEffect(() => {
         handleSearch();
-    }, [offset, sortMethod, projectType]); // Trigger search on offset, sort, or type change
+    }, [offset, sortMethod, projectType]);
 
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
@@ -137,8 +116,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
             setLoading(false);
         }
     };
-
-    // Check if anything is already installed for the selected instance
     useEffect(() => {
         if (showInstallModal && selectedInstance) {
             checkInstanceInstalled();
@@ -194,15 +171,13 @@ function Search({ initialCategory, onCategoryConsumed }) {
         setInstalling(true);
         try {
             addNotification(`Fetching versions for ${mod.title}...`, 'info');
-            // 1. Get versions
+
             const res = await window.electronAPI.getModVersions(mod.slug, [], []);
 
             if (!res || !res.success || !res.versions || res.versions.length === 0) {
                 addNotification("No versions found for this modpack.", 'error');
                 return;
             }
-
-            // 2. Pick latest version's primary file
             const versions = res.versions;
             const latestVersion = versions[0];
             const primaryFile = latestVersion.files.find(f => f.primary) || latestVersion.files[0];
@@ -211,17 +186,15 @@ function Search({ initialCategory, onCategoryConsumed }) {
                 addNotification("No file found for the latest version.", 'error');
                 return;
             }
-
-            // 3. Install
             addNotification(`Starting installation of ${mod.title}...`, 'info');
             const installRes = await window.electronAPI.installModpack(primaryFile.url, mod.title);
 
             if (installRes.success) {
                 addNotification(`Successfully started installing ${mod.title}. Check Dashboard.`, 'success');
-                // Temporarily mark as installed/installing
+
                 setInstalledIds(prev => new Set(prev).add(mod.project_id));
                 Analytics.trackDownload('modpack', mod.title, mod.project_id);
-                // Also track as a client instance creation
+
                 Analytics.trackInstanceCreation('modpack', 'latest');
             } else {
                 addNotification(`Failed to install: ${installRes.error}`, 'error');
@@ -257,8 +230,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
         setInstalling(true);
         try {
             addNotification(`Checking compatibility for ${instance.name}...`, 'info');
-
-            // Relax loader filter for shaders and resourcepacks
             const loaders = (selectedMod.project_type === 'shader' || selectedMod.project_type === 'resourcepack' || !instance.loader || instance.loader.toLowerCase() === 'vanilla')
                 ? []
                 : [instance.loader];
@@ -278,8 +249,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
                     url: file.url,
                     projectType: selectedMod.project_type
                 });
-
-                // Feedback: Show "Installed" briefly
                 setInstalledIds(prev => new Set(prev).add(selectedMod.project_id));
                 setInstanceInstalledIds(prev => new Set(prev).add(selectedMod.project_id));
 
@@ -430,7 +399,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                 )}
             </div>
 
-            {/* Pagination Controls */}
+            { }
             <div className="mt-auto flex justify-between items-center bg-surface p-4 rounded-xl border border-white/5 shadow-2xl">
                 <button
                     onClick={handlePrev}
@@ -457,7 +426,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                 </button>
             </div>
 
-            {/* Install Modal */}
+            { }
             {
                 showInstallModal && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -497,12 +466,12 @@ function Search({ initialCategory, onCategoryConsumed }) {
                     </div>
                 )
             }
-            {/* Preview Modal */}
+            { }
             {
                 showPreviewModal && previewProject && (
                     <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-fade-in">
                         <div className="bg-surface w-full max-w-5xl h-[85vh] rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-scale-in">
-                            {/* Header */}
+                            { }
                             <div className="p-6 border-b border-white/5 flex justify-between items-start bg-background-dark/50">
                                 <div className="flex gap-4">
                                     <img
@@ -525,7 +494,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                                 </button>
                             </div>
 
-                            {/* Gallery Content */}
+                            { }
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-background/50">
                                 {previewProject.gallery && previewProject.gallery.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -558,7 +527,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                                 )}
                             </div>
 
-                            {/* Footer Actions */}
+                            { }
                             <div className="p-6 border-t border-white/5 bg-surface flex justify-end gap-4">
                                 <button
                                     onClick={() => setShowPreviewModal(false)}
@@ -588,14 +557,14 @@ function Search({ initialCategory, onCategoryConsumed }) {
                 )
             }
 
-            {/* Gallery Lightbox Slider */}
+            { }
             {
                 lightboxIndex !== -1 && previewProject && previewProject.gallery && (
                     <div
                         className="fixed inset-0 bg-black/95 z-[70] flex items-center justify-center animate-fade-in backdrop-blur-xl select-none"
                         onClick={() => setLightboxIndex(-1)}
                     >
-                        {/* Close Button */}
+                        { }
                         <button
                             className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50"
                             onClick={() => setLightboxIndex(-1)}
@@ -605,7 +574,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                             </svg>
                         </button>
 
-                        {/* Navigation Buttons */}
+                        { }
                         <button
                             className="absolute left-6 top-1/2 -translate-y-1/2 p-4 bg-black/50 hover:bg-white/10 rounded-full text-white transition-colors z-50 backdrop-blur-sm group"
                             onClick={handlePrevImage}
@@ -623,12 +592,12 @@ function Search({ initialCategory, onCategoryConsumed }) {
                             </svg>
                         </button>
 
-                        {/* Image Counter */}
+                        { }
                         <div className="absolute top-6 left-6 text-white font-bold bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
                             {lightboxIndex + 1} / {previewProject.gallery.length}
                         </div>
 
-                        {/* Main Image */}
+                        { }
                         <div
                             className="w-full h-full flex items-center justify-center p-4 md:p-20"
                             onClick={(e) => e.stopPropagation()}

@@ -27,7 +27,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                     .slice(0, 3);
                 setRecentInstances(recent);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) { }
     };
 
     return (
@@ -50,7 +50,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                             item.icon
                         )}
 
-                        {/* Tooltip */}
+                        { }
                         <div className="absolute left-full ml-2 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 shadow-2xl">
                             {item.label}
                             <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 border-4 border-transparent border-r-[#0d0d0d]"></div>
@@ -63,7 +63,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                         <>
                             <div className="w-8 h-[1px] bg-white/10 my-1"></div>
 
-                            {/* Recent Instances - right after Styling separator */}
+                            { }
                             {recentInstances.map((inst) => (
                                 <button
                                     key={inst.name}
@@ -78,7 +78,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                                         </svg>
                                     )}
 
-                                    {/* Tooltip */}
+                                    { }
                                     <div className="absolute left-full ml-2 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 shadow-2xl">
                                         {inst.name}
                                         <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 border-4 border-transparent border-r-[#0d0d0d]"></div>
@@ -86,12 +86,12 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                                 </button>
                             ))}
 
-                            {/* Separator before + */}
+                            { }
                             {recentInstances.length > 0 && (
                                 <div className="w-8 h-[1px] bg-white/10 my-1"></div>
                             )}
 
-                            {/* Create Instance Button */}
+                            { }
                             <button
                                 onClick={() => onCreateInstance && onCreateInstance()}
                                 className="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500 hover:text-primary hover:bg-primary/10 transition-all group relative border border-transparent hover:border-primary/20"
@@ -100,7 +100,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
 
-                                {/* Tooltip */}
+                                { }
                                 <div className="absolute left-full ml-2 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50 shadow-2xl">
                                     New Instance
                                     <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 border-4 border-transparent border-r-[#0d0d0d]"></div>
@@ -113,7 +113,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
 
             <div className="flex-1"></div>
 
-            {/* Settings */}
+            { }
             <button
                 onClick={() => setView('settings')}
                 className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all group relative ${currentView === 'settings'
@@ -133,7 +133,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
 
             <div className="w-8 h-[1px] bg-white/10 my-2"></div>
 
-            {/* Logout */}
+            { }
             <button
                 onClick={onLogout}
                 className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all group relative"

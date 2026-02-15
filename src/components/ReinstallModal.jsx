@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 function ReinstallModal({ instanceName, onClose, onConfirm }) {
-    const [type, setType] = useState('soft'); // 'soft' | 'hard'
+    const [type, setType] = useState('soft');
 
     const handleConfirm = () => {
         onConfirm(type);

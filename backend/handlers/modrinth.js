@@ -59,8 +59,6 @@ const installModInternal = async (win, { instanceName, projectId, versionId, fil
                 status: `Installed ${filename}`
             });
         }
-
-        // --- Auto-Shader Software Installation ---
         if (projectType === 'shader') {
             try {
                 const instanceJsonPath = path.join(instancesDir, instanceName, 'instance.json');
@@ -128,7 +126,7 @@ const installModInternal = async (win, { instanceName, projectId, versionId, fil
 
     } catch (e) {
         console.error("Modrinth Install Error:", e);
-        // Cleanup failed download
+
         if (dest && await fs.pathExists(dest)) {
             try { await fs.unlink(dest); } catch (delErr) { }
         }

@@ -16,21 +16,17 @@ function ServerConsole({ server, onClose, onServerAction }) {
     const logsEndRef = useRef(null);
     const consoleRef = useRef(null);
     const commandInputRef = useRef(null);
-
-    // Logs automatisch scrollen
     useEffect(() => {
         if (autoScroll && logsEndRef.current) {
             logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [logs, autoScroll]);
-
-    // Verbindung zum Server-Log herstellen
     useEffect(() => {
         if (!server) return;
 
         const setupLogListener = async () => {
             try {
-                // Vorhandene Logs laden (mit getServerConsole statt getServerLogs)
+
                 const existingLogs = await window.electronAPI.getServerConsole(server.name);
                 if (existingLogs && Array.isArray(existingLogs)) {
                     setLogs(existingLogs.map(line => ({
@@ -39,8 +35,6 @@ function ServerConsole({ server, onClose, onServerAction }) {
                         type: getLogType(line)
                     })));
                 }
-
-                // Echtzeit-Logs empfangen (mit onServerConsoleOutput statt onServerLog)
                 const removeListener = window.electronAPI.onServerConsoleOutput(({ serverName, log }) => {
                     if (serverName === server.name) {
                         setLogs(prev => [...prev, {
@@ -50,14 +44,10 @@ function ServerConsole({ server, onClose, onServerAction }) {
                         }]);
                     }
                 });
-
-                // Status-Updates empfangen
                 const removeStatusListener = window.electronAPI.onServerStatus(({ serverName, status }) => {
                     if (serverName === server.name) {
                         if (status === 'running') setIsConnected(true);
                         else if (status === 'stopped') setIsConnected(false);
-
-                        // Bei Statusänderung Log hinzufügen
                         if (status === 'starting') {
                             addLog('system', 'Server is starting...');
                         } else if (status === 'stopping') {
@@ -69,8 +59,6 @@ function ServerConsole({ server, onClose, onServerAction }) {
                         }
                     }
                 });
-
-                // Prüfen ob Server läuft
                 try {
                     const status = await window.electronAPI.getServerStatus?.(server.name);
                     setIsConnected(status === 'running');
@@ -89,18 +77,14 @@ function ServerConsole({ server, onClose, onServerAction }) {
         };
 
         setupLogListener();
-
-        // Stats-Interval (manuell, da es keinen onServerStats Event gibt)
         const statsInterval = setInterval(async () => {
             try {
-                // Hier könntest du regelmäßig Stats abfragen
-                // Da es keine direkte Stats-API gibt, simulieren wir etwas
                 if (isConnected) {
                     setStats(prev => ({
-                        cpu: Math.random() * 20 + 5, // 5-25%
-                        memory: Math.floor(Math.random() * 400 + 600), // 600-1000 MB
+                        cpu: Math.random() * 20 + 5,
+                        memory: Math.floor(Math.random() * 400 + 600),
                         uptime: prev.uptime + 2,
-                        tps: 19.5 + Math.random() * 0.8 // 19.5-20.3
+                        tps: 19.5 + Math.random() * 0.8
                     }));
                 }
             } catch (error) {
@@ -112,8 +96,6 @@ function ServerConsole({ server, onClose, onServerAction }) {
             clearInterval(statsInterval);
         };
     }, [server, isConnected]);
-
-    // Log-Typ bestimmen (für Syntax-Highlighting)
     const getLogType = (line) => {
         if (line.includes('[ERROR]') || line.includes('Exception') || line.includes('Error:')) return 'error';
         if (line.includes('[WARN]')) return 'warn';
@@ -121,8 +103,6 @@ function ServerConsole({ server, onClose, onServerAction }) {
         if (line.includes('Done') && line.includes('For help, type "help"')) return 'success';
         return 'default';
     };
-
-    // System-Nachricht hinzufügen
     const addLog = (type, content) => {
         setLogs(prev => [...prev, {
             timestamp: new Date().toLocaleTimeString(),
@@ -130,8 +110,6 @@ function ServerConsole({ server, onClose, onServerAction }) {
             type: type
         }]);
     };
-
-    // Befehl senden
     const handleSendCommand = async (e) => {
         e.preventDefault();
         if (!command.trim() || !isConnected) return;
@@ -140,27 +118,23 @@ function ServerConsole({ server, onClose, onServerAction }) {
         setCommand('');
 
         try {
-            // Befehl an Server senden (mit sendServerCommand)
+
             const result = await window.electronAPI.sendServerCommand(server.name, cmd);
 
             if (!result?.success) {
                 addLog('error', `Command failed: ${result?.error || 'Unknown error'}`);
             } else {
-                // Befehl auch lokal anzeigen
+
                 addLog('info', `> ${cmd}`);
             }
         } catch (error) {
             addLog('error', `Failed to send command: ${error.message}`);
         }
     };
-
-    // Console leeren
     const handleClear = () => {
         setLogs([]);
         addLog('system', 'Console cleared');
     };
-
-    // Server neu starten
     const handleRestart = async () => {
         try {
             await onServerAction('restart', server);
@@ -169,18 +143,14 @@ function ServerConsole({ server, onClose, onServerAction }) {
             addLog('error', `Failed to restart: ${error.message}`);
         }
     };
-
-    // Logs kopieren
     const handleCopyLogs = () => {
         const text = logs.map(log => `[${log.timestamp}] ${log.content}`).join('\n');
         navigator.clipboard.writeText(text);
         addLog('system', 'Logs copied to clipboard');
     };
-
-    // Logs speichern
     const handleSaveLogs = async () => {
         try {
-            // Da es keine saveServerLogs API gibt, erstellen wir einen Download
+
             const text = logs.map(log => `[${log.timestamp}] ${log.content}`).join('\n');
             const blob = new Blob([text], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
@@ -199,7 +169,7 @@ function ServerConsole({ server, onClose, onServerAction }) {
 
     return createPortal(
         <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
-            {/* Header */}
+            { }
             <div className="bg-surface border-b border-white/10 px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -214,7 +184,7 @@ function ServerConsole({ server, onClose, onServerAction }) {
                     </div>
                 </div>
 
-                {/* Server Stats */}
+                { }
                 <div className="flex items-center gap-6">
                     <div className="text-sm">
                         <span className="text-gray-400">CPU:</span>
@@ -233,7 +203,7 @@ function ServerConsole({ server, onClose, onServerAction }) {
                     </div>
                 </div>
 
-                {/* Controls */}
+                { }
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleRestart}
@@ -284,7 +254,7 @@ function ServerConsole({ server, onClose, onServerAction }) {
                 </div>
             </div>
 
-            {/* Console Output */}
+            { }
             <div
                 ref={consoleRef}
                 className="flex-1 overflow-y-auto p-4 font-mono text-sm bg-black/40 custom-scrollbar"
@@ -311,7 +281,7 @@ function ServerConsole({ server, onClose, onServerAction }) {
                 <div ref={logsEndRef} />
             </div>
 
-            {/* Command Input */}
+            { }
             <div className="bg-surface border-t border-white/10 p-4">
                 <form onSubmit={handleSendCommand} className="flex gap-2">
                     <div className="flex-1 flex items-center bg-background rounded-lg border border-white/10 focus-within:border-primary transition-colors">
@@ -339,7 +309,7 @@ function ServerConsole({ server, onClose, onServerAction }) {
                     </button>
                 </form>
 
-                {/* Auto-scroll Toggle und Quick Commands */}
+                { }
                 <div className="flex items-center gap-2 mt-2">
                     <button
                         onClick={() => setAutoScroll(!autoScroll)}
@@ -352,7 +322,7 @@ function ServerConsole({ server, onClose, onServerAction }) {
                         Auto-scroll {autoScroll ? 'ON' : 'OFF'}
                     </button>
 
-                    {/* Quick Commands */}
+                    { }
                     {isConnected && (
                         <div className="flex gap-1 ml-auto">
                             {['help', 'list', 'say Hello', 'gamemode creative @a', 'time set day'].map((cmd) => (

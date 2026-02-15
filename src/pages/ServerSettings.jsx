@@ -72,7 +72,7 @@ function ServerSettings() {
             </div>
 
             <div className="space-y-6 max-w-2xl">
-                {/* Paths */}
+                { }
                 <div className="bg-surface/40 backdrop-blur-sm border border-white/5 rounded-xl p-6">
                     <h2 className="text-lg font-bold text-white mb-4">Server Paths</h2>
 
@@ -121,7 +121,7 @@ function ServerSettings() {
                     </div>
                 </div>
 
-                {/* Backup Settings */}
+                { }
                 <div className="bg-surface/40 backdrop-blur-sm border border-white/5 rounded-xl p-6">
                     <h2 className="text-lg font-bold text-white mb-4">Backup Settings</h2>
 
@@ -173,7 +173,7 @@ function ServerSettings() {
                     </div>
                 </div>
 
-                {/* Default Server Settings */}
+                { }
                 <div className="bg-surface/40 backdrop-blur-sm border border-white/5 rounded-xl p-6">
                     <h2 className="text-lg font-bold text-white mb-4">Default Server Settings</h2>
 
@@ -222,7 +222,7 @@ function ServerSettings() {
                     </div>
                 </div>
 
-                {/* Save Button */}
+                { }
                 <div className="flex justify-end">
                     <button
                         onClick={handleSave}

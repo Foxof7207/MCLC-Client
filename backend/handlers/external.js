@@ -1,7 +1,7 @@
 const { ipcMain, shell } = require('electron');
 
 module.exports = (ipcMain) => {
-    // Open external links
+
     ipcMain.handle('open-external', async (event, url) => {
         try {
             await shell.openExternal(url);

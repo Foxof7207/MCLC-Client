@@ -24,24 +24,15 @@ async function calculateSha1(filePath) {
         stream.on('end', () => resolve(hash.digest('hex')));
     });
 }
-
-// Mod Loader Meta APIs
 const FABRIC_META = 'https://meta.fabricmc.net/v2';
 const QUILT_META = 'https://meta.quiltmc.org/v3';
 const FORGE_META = 'https://meta.modrinth.com/forge/v0';
 const NEOFORGE_META = 'https://meta.modrinth.com/neo/v0';
-
-// Global registry of active installation tasks
-const activeTasks = new Map(); // instanceName -> { abort: () => void }
-
-
-// Helper to download a file
+const activeTasks = new Map();
 async function downloadFile(url, destPath) {
     const response = await axios({ url, responseType: 'arraybuffer' });
     await fs.writeFile(destPath, response.data);
 }
-
-// Install Fabric loader
 async function installFabricLoader(instanceDir, mcVersion, loaderVersion, onProgress, logCallback) {
     const log = (msg) => {
         console.log(msg);
@@ -63,8 +54,6 @@ async function installFabricLoader(instanceDir, mcVersion, loaderVersion, onProg
 
         versionId = `fabric-loader-${versionToUse}-${mcVersion}`;
         log(`Using Fabric loader: ${versionToUse}`);
-
-        // Get the full profile JSON
         if (onProgress) onProgress(15, 'Downloading Fabric profile');
         log('Downloading Fabric profile...');
         const profileRes = await axios.get(`${FABRIC_META}/versions/loader/${mcVersion}/${versionToUse}/profile/json`);
@@ -83,8 +72,6 @@ async function installFabricLoader(instanceDir, mcVersion, loaderVersion, onProg
         return { success: false, error: e.message };
     }
 }
-
-// Install Quilt loader for a specific MC version
 async function installQuiltLoader(instanceDir, mcVersion, loaderVersion, onProgress, logCallback) {
     const log = (msg) => {
         console.log(msg);
@@ -106,8 +93,6 @@ async function installQuiltLoader(instanceDir, mcVersion, loaderVersion, onProgr
 
         versionId = `quilt-loader-${versionToUse}-${mcVersion}`;
         log(`Using Quilt loader: ${versionToUse}`);
-
-        // Get profile JSON
         if (onProgress) onProgress(15, 'Downloading Quilt profile');
         log('Downloading Quilt profile...');
         const profileRes = await axios.get(`${QUILT_META}/versions/loader/${mcVersion}/${versionToUse}/profile/json`);
@@ -126,20 +111,14 @@ async function installQuiltLoader(instanceDir, mcVersion, loaderVersion, onProgr
         return { success: false, error: e.message };
     }
 }
-
-// Helper to extract version.json from installer
 async function extractVersionUid(installerPath, filesToLookFor = ['version.json', 'install_profile.json']) {
     const AdmZip = require('adm-zip');
     const zip = new AdmZip(installerPath);
     const zipEntries = zip.getEntries();
-
-    // Look for version.json first (modern)
     let entry = zipEntries.find(e => e.entryName === 'version.json');
     if (entry) {
         return JSON.parse(entry.getData().toString('utf8'));
     }
-
-    // Fallback to install_profile.json (it often contains version info structure too)
     entry = zipEntries.find(e => e.entryName === 'install_profile.json');
     if (entry) {
         const profile = JSON.parse(entry.getData().toString('utf8'));
@@ -148,30 +127,24 @@ async function extractVersionUid(installerPath, filesToLookFor = ['version.json'
 
     return null;
 }
-
-// Fetch Maven Metadata to get versions
 async function fetchMavenVersions(metadataUrl) {
     try {
         const res = await axios.get(metadataUrl);
         const xml = res.data;
-        // Simple regex to parse versions from XML
+
         const versions = [];
         const regex = /<version>(.*?)<\/version>/g;
         let match;
         while ((match = regex.exec(xml)) !== null) {
             versions.push(match[1]);
         }
-        return versions.reverse(); // Newest first
+        return versions.reverse();
     } catch (e) {
         console.error(`Failed to fetch metadata from ${metadataUrl}`, e.message);
         return [];
     }
 }
-
-// Helper to run Java installer headlessly
 async function runInstaller(installerPath, instanceDir, onProgress, logCallback) {
-    // Forge/NeoForge installer requires a launcher_profiles.json to exist in the target directory
-    // even if we are not actually using the official launcher.
     const profilePath = path.join(instanceDir, 'launcher_profiles.json');
     if (!await fs.pathExists(profilePath)) {
         console.log('Creating dummy launcher_profiles.json for installer...');
@@ -206,8 +179,6 @@ async function runInstaller(installerPath, instanceDir, onProgress, logCallback)
         const { spawn } = require('child_process');
         console.log(`Running installer: java -jar "${installerPath}" --installClient "${instanceDir}"`);
         const child = spawn('java', ['-jar', installerPath, '--installClient', instanceDir]);
-
-        // Register this child process so it can be killed if needed
         const instanceName = path.basename(instanceDir);
         if (activeTasks.has(instanceName)) {
             activeTasks.get(instanceName).child = child;
@@ -217,7 +188,7 @@ async function runInstaller(installerPath, instanceDir, onProgress, logCallback)
             const str = data.toString();
             log(`[Installer]: ${str.trim()}`);
             if (onProgress) {
-                // Try to extract some meaningful status from installer output
+
                 if (str.includes('Downloading')) onProgress(null, 'Downloading libraries...');
                 if (str.includes('Extracting')) onProgress(null, 'Extracting files...');
                 if (str.includes('Processing')) onProgress(null, 'Processing JARs...');
@@ -231,8 +202,6 @@ async function runInstaller(installerPath, instanceDir, onProgress, logCallback)
         });
     });
 }
-
-// Install Forge loader using Official Installer
 async function installForgeLoader(instanceDir, mcVersion, loaderVersion, onProgress, logCallback) {
     const log = (msg) => {
         console.log(msg);
@@ -262,7 +231,7 @@ async function installForgeLoader(instanceDir, mcVersion, loaderVersion, onProgr
         if (onProgress) onProgress(30, 'Running Forge Installer (this may take a minute)');
         try {
             await runInstaller(installerPath, instanceDir, (p, s) => {
-                if (onProgress) onProgress(p || 50, s); // Keep at 50% during install if no p
+                if (onProgress) onProgress(p || 50, s);
             }, logCallback);
         } catch (e) {
             return { success: false, error: `Forge installation failed: ${e.message}` };
@@ -280,8 +249,6 @@ async function installForgeLoader(instanceDir, mcVersion, loaderVersion, onProgr
         const versionsDir = path.join(instanceDir, 'versions', versionId);
         await fs.ensureDir(versionsDir);
         await fs.writeJson(path.join(versionsDir, `${versionId}.json`), versionProfile, { spaces: 2 });
-
-        // Cleanup
         await fs.remove(installerPath);
 
         console.log(`Successfully installed Forge ${versionId}`);
@@ -292,10 +259,6 @@ async function installForgeLoader(instanceDir, mcVersion, loaderVersion, onProgr
         return { success: false, error: e.message };
     }
 }
-
-
-
-// Install NeoForge loader using Official Installer
 async function installNeoForgeLoader(instanceDir, mcVersion, loaderVersion, onProgress, logCallback) {
     const log = (msg) => {
         console.log(msg);
@@ -337,8 +300,6 @@ async function installNeoForgeLoader(instanceDir, mcVersion, loaderVersion, onPr
         const versionsDir = path.join(instanceDir, 'versions', versionId);
         await fs.ensureDir(versionsDir);
         await fs.writeJson(path.join(versionsDir, `${versionId}.json`), versionProfile, { spaces: 2 });
-
-        // Cleanup
         await fs.remove(installerPath);
 
         console.log(`Successfully installed NeoForge ${versionId}`);
@@ -394,8 +355,6 @@ module.exports = (ipcMain, win) => {
                     } else if (dirent.isFile()) {
                         try {
                             const hash = await calculateSha1(filePath);
-
-                            // Check if we have this hash in cache (legacy SHA1 keys)
                             if (modCache[hash]) {
                                 console.log(`[Instances:RP] Found legacy SHA1 cache for ${fileName}`);
                                 title = modCache[hash].title;
@@ -426,7 +385,7 @@ module.exports = (ipcMain, win) => {
 
                                 modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
                             }
-                        } catch (e) { /* silent metadata fail */ }
+                        } catch (e) { }
                     }
 
                     return {
@@ -491,8 +450,6 @@ module.exports = (ipcMain, win) => {
                     } else if (dirent.isFile()) {
                         try {
                             const hash = await calculateSha1(filePath);
-
-                            // Check if we have this hash in cache (legacy SHA1 keys)
                             if (modCache[hash]) {
                                 console.log(`[Instances:Shaders] Found legacy SHA1 cache for ${fileName}`);
                                 title = modCache[hash].title;
@@ -523,7 +480,7 @@ module.exports = (ipcMain, win) => {
 
                                 modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
                             }
-                        } catch (e) { /* silent metadata fail */ }
+                        } catch (e) { }
                     }
 
                     return {
@@ -550,15 +507,11 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-    // Background installation functions (Available to all handlers in this scope)
     const startBackgroundInstall = async (finalName, config, cleanInstall = false, isMigration = false) => {
         const dir = path.join(instancesDir, finalName);
         const { version, loader, loaderVersion: existingLoaderVer } = config;
 
         console.log(`[Background Install] Starting for ${finalName}, clean=${cleanInstall}, migration=${isMigration}`);
-
-        // Register task for abort capability
         activeTasks.set(finalName, {
             aborted: false,
             child: null,
@@ -574,14 +527,12 @@ module.exports = (ipcMain, win) => {
                 }
             }
         });
-
-        // Start background installation
         (async () => {
             const task = activeTasks.get(finalName);
             if (!task) return;
 
             try {
-                // Helper to append to logs
+
                 const logsPath = path.join(dir, 'install.log');
                 await fs.ensureDir(path.dirname(logsPath));
                 await fs.appendFile(logsPath, `\n--- ${isMigration ? 'Migration' : 'Installation'} Started: ${new Date().toLocaleString()} ---\n`);
@@ -622,8 +573,6 @@ module.exports = (ipcMain, win) => {
                         }
                     }
                 };
-
-                // Phase 0: Mod Migration (If migrating)
                 let modsToInstall = [];
                 if (isMigration) {
                     sendProgress(2, 'Analyzing current mods for migration...');
@@ -638,14 +587,10 @@ module.exports = (ipcMain, win) => {
                             try {
                                 const hash = await calculateSha1(jarPath);
                                 sendProgress(null, `Checking compatibility: ${jar}`);
-
-                                // Lookup mod on Modrinth
                                 try {
                                     const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`);
                                     const currentVersion = res.data;
                                     const projectId = currentVersion.project_id;
-
-                                    // Search for NEW version
                                     const loaders = [loader.toLowerCase()];
                                     const gameVersions = [version];
 
@@ -654,7 +599,7 @@ module.exports = (ipcMain, win) => {
                                     const availableVersions = versionsRes.data;
 
                                     if (availableVersions && availableVersions.length > 0) {
-                                        const bestVersion = availableVersions[0]; // Assuming newest first
+                                        const bestVersion = availableVersions[0];
                                         const primaryFile = bestVersion.files.find(f => f.primary) || bestVersion.files[0];
                                         modsToInstall.push({
                                             name: primaryFile.filename,
@@ -674,9 +619,6 @@ module.exports = (ipcMain, win) => {
                                 appendLog(`Failed to process ${jar}: ${e.message}`);
                             }
                         }
-
-                        // Clean up ALL jars initially if we are doing a fresh mod install phase
-                        // Actually, we already removed incompatible ones. Let's remove the ones we matched too to replace them.
                         for (const mod of modsToInstall) {
                             await fs.remove(path.join(modsDir, mod.oldJar));
                         }
@@ -685,8 +627,6 @@ module.exports = (ipcMain, win) => {
 
                 let result = { success: true };
                 const loaderType = (loader || 'vanilla').toLowerCase();
-
-                // Phase 1: Base Game Download
                 sendProgress(10, `Downloading Minecraft ${version} base files (Phase 1/3)...`);
                 try {
                     const versionManifestUrl = 'https://piston-meta.mojang.com/mc/game/version_manifest.json';
@@ -710,8 +650,6 @@ module.exports = (ipcMain, win) => {
                 } catch (e) {
                     appendLog(`Warning: Base game files check/download: ${e.message}`);
                 }
-
-                // Phase 2: Mod Loader Installation
                 if (loaderType !== 'vanilla') {
                     sendProgress(20, `Installing ${loader} loader (Phase 2/3)...`);
                     let targetLoaderVer = existingLoaderVer;
@@ -721,8 +659,6 @@ module.exports = (ipcMain, win) => {
                     else if (loaderType === 'neoforge') result = await installNeoForgeLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
 
                     if (!result || !result.success) throw new Error(result?.error || `${loader} installation failed`);
-
-                    // --- Auto-Fabric API Installation ---
                     if (loaderType === 'fabric') {
                         try {
                             sendProgress(35, 'Auto-installing Fabric API...');
@@ -758,11 +694,7 @@ module.exports = (ipcMain, win) => {
                     updatedConfig.versionId = result.versionId;
                     await fs.writeJson(configPath, updatedConfig, { spaces: 4 });
                 }
-
-                // Phase 3: Assets & Libraries
                 sendProgress(40, 'Finalizing game files...');
-                // ... (Existing Asset/Lib Logic) ...
-                // Note: Reusing existing logic but wrapped in this block
                 const baseProgressStart = 40;
                 try {
                     const sharedDir = path.join(app.getPath('userData'), 'common');
@@ -779,7 +711,7 @@ module.exports = (ipcMain, win) => {
                     let downloaded = 0;
                     for (const lib of libraries) {
                         if (task.aborted) break;
-                        // Skip complex rule parsing for brevity in this block, assume MCLC or similar logic
+
                         if (lib.downloads && lib.downloads.artifact) {
                             const art = lib.downloads.artifact;
                             const dest = path.join(librariesRoot, art.path);
@@ -792,8 +724,6 @@ module.exports = (ipcMain, win) => {
                         sendProgress(Math.round(baseProgressStart + (downloaded / libraries.length) * 30), `Syncing libraries...`);
                     }
                 } catch (e) { appendLog(`Library sync warning: ${e.message}`); }
-
-                // Phase 4: Install Migrated Mods
                 if (modsToInstall.length > 0) {
                     sendProgress(80, `Installing ${modsToInstall.length} migrated mods...`);
                     const modsDir = path.join(dir, 'mods');
@@ -826,8 +756,6 @@ module.exports = (ipcMain, win) => {
                 if (await fs.pathExists(configPath)) {
                     try {
                         const config = await fs.readJson(configPath);
-                        // Ensure name is consistent with folder if missing? 
-                        // Usually instance.json has the name.
                         instances.push(config);
                     } catch (e) {
                         console.error(`Failed to read instance config for ${dir}:`, e);
@@ -847,8 +775,6 @@ module.exports = (ipcMain, win) => {
             const instanceDir = path.join(instancesDir, instanceName);
             const logsDir = path.join(instanceDir, 'logs');
             const logFiles = [];
-
-            // Add install.log from root if it exists
             const installLogPath = path.join(instanceDir, 'install.log');
             if (await fs.pathExists(installLogPath)) {
                 const stats = await fs.stat(installLogPath);
@@ -912,7 +838,7 @@ module.exports = (ipcMain, win) => {
     ipcMain.handle('instance:get-log', async (_, instanceName, filename) => {
         try {
             const instanceDir = path.join(instancesDir, instanceName);
-            // install.log is in the root, others are in logs/
+
             const logPath = filename === 'install.log'
                 ? path.join(instanceDir, filename)
                 : path.join(instanceDir, 'logs', filename);
@@ -940,8 +866,6 @@ module.exports = (ipcMain, win) => {
             let finalName = name;
             let dir = path.join(instancesDir, finalName);
             let counter = 1;
-
-            // Auto-increment name if it exists
             while (await fs.pathExists(dir)) {
                 finalName = `${name} (${counter})`;
                 dir = path.join(instancesDir, finalName);
@@ -949,8 +873,6 @@ module.exports = (ipcMain, win) => {
             }
 
             await fs.ensureDir(dir);
-
-            // Copy settings from another instance if enabled
             try {
                 const settingsPath = path.join(appData, 'settings.json');
                 if (await fs.pathExists(settingsPath)) {
@@ -972,26 +894,21 @@ module.exports = (ipcMain, win) => {
             } catch (e) {
                 console.error('Failed to copy settings:', e);
             }
-
-            // ALL instances start with 'installing' status - including Vanilla
-            // This ensures consistent UI behavior across all loader types
             const config = {
                 name: finalName,
-                version, // e.g., "1.20.1"
+                version,
                 loader: loader || 'vanilla',
-                loaderVersion: null, // Will be updated after background install
-                versionId: version, // Initial fallback
+                loaderVersion: null,
+                versionId: version,
                 icon: icon || null,
                 created: Date.now(),
                 playtime: 0,
                 lastPlayed: null,
-                status: 'installing' // Always start as installing
+                status: 'installing'
             };
 
             await fs.writeJson(path.join(dir, 'instance.json'), config, { spaces: 4 });
             await fs.writeFile(path.join(dir, 'playtime.txt'), '0');
-
-            // Send immediate status update to UI
             console.log(`[Instance Create] Sending installing status for ${finalName}`);
             if (win && win.webContents) {
                 win.webContents.send('instance:status', { instanceName: finalName, status: 'installing' });
@@ -1000,11 +917,6 @@ module.exports = (ipcMain, win) => {
             } else {
                 console.error(`[Instance Create] win not available for ${finalName}!`);
             }
-
-
-            // ---------------------------------------------------------
-            // Instance Create with Refactored logic
-            // ---------------------------------------------------------
             await startBackgroundInstall(finalName, {
                 version,
                 loader,
@@ -1028,28 +940,18 @@ module.exports = (ipcMain, win) => {
             if (!await fs.pathExists(configPath)) return { success: false, error: 'Config missing' };
 
             const config = await fs.readJson(configPath);
-            // Ensure status is installing
+
             config.status = 'installing';
             await fs.writeJson(configPath, config, { spaces: 4 });
-
-            // Notify UI
             win.webContents.send('instance:status', { instanceName, status: 'installing' });
-
-            // Hard Reinstall: Delete everything in dir except instance.json 
             if (type === 'hard') {
                 console.log(`[Instance Reinstall] Performing HARD reinstall (wiping directory)`);
                 const files = await fs.readdir(dir);
                 for (const file of files) {
                     if (file === 'instance.json') continue;
-                    // Maybe keep screenshots/saves? User said "all files deleted".
-                    // Let's protect nothing else based on request "alle datein werden gelöscht".
                     await fs.remove(path.join(dir, file));
                 }
             }
-
-            // Start background install
-            // Pass existing config so it reinstalls the same versions
-
             await startBackgroundInstall(instanceName, config, type === 'hard');
 
             return { success: true };
@@ -1058,8 +960,6 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-
     ipcMain.handle('instance:get-loader-versions', async (_, loader, mcVersion) => {
         try {
             if (!loader || !mcVersion) return { success: false, error: 'Missing arguments' };
@@ -1072,32 +972,16 @@ module.exports = (ipcMain, win) => {
                 const res = await axios.get(`${QUILT_META}/versions/loader/${mcVersion}`);
                 return { success: true, versions: res.data.map(v => v.loader) };
             } else if (loaderName === 'forge') {
-                // Fetch from Official Maven Metadata to get ALL versions
-                // Using promotions_slim is faster but partial. Metadata is huge.
-                // Let's use the maven metadata XML
                 const versions = await fetchMavenVersions('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml');
-
-                // Filter by MC version
-                // Forge versions usually start with mcVersion-
-                // e.g. 1.18.1-39.1.2
                 const filtered = versions.filter(v => v.startsWith(mcVersion + '-'))
                     .map(v => {
-                        // extract the forge part: 1.18.1-39.1.2 -> 39.1.2
-                        // or just return the full thing?
-                        // The installer expects key logic.
-                        // Let's simpler filtering: v.replace(mcVersion + '-', '')
                         return v.replace(mcVersion + '-', '');
                     });
-
-                // Fallback to Modrinth if list is empty (maybe parsing failed?)
                 if (filtered.length === 0) {
-                    // ... fallback logic or return empty
-                    // Actually let's try promotions if metadata fails/is too big/format differs
-                    // Promotions: https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json
                     try {
                         const promoRes = await axios.get('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
                         const promos = promoRes.data.promos;
-                        // entries like "1.18.1-latest": "39.1.2"
+
                         const relevant = Object.entries(promos).filter(([k]) => k.startsWith(mcVersion + '-'));
                         return {
                             success: true,
@@ -1112,23 +996,11 @@ module.exports = (ipcMain, win) => {
                 };
 
             } else if (loaderName === 'neoforge') {
-                // Fetch from NeoForge Maven
+
                 const versions = await fetchMavenVersions('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml');
-
-                // NeoForge versioning: 
-                // Old: 1.20.1-47.1.3
-                // New: 20.2.5 (Matches MC version 1.20.2)
-
-                // We need to filter based on mcVersion.
-                // If mcVersion is 1.20.4, look for 20.4.x
-                // If mcVersion is 1.20.1, look for 1.20.1-x
-
                 const filtered = versions.filter(v => {
-                    if (v.startsWith(mcVersion + '-')) return true; // old style
-                    // New style: 1.20.4 -> 20.4
-                    // Remove "1." from mcVersion?
-                    // 1.20.4 -> 20.4
-                    const shortMc = mcVersion.replace(/^1\./, ''); // 20.4
+                    if (v.startsWith(mcVersion + '-')) return true;
+                    const shortMc = mcVersion.replace(/^1\./, '');
                     if (v.startsWith(shortMc + '.')) return true;
                     return false;
                 });
@@ -1158,16 +1030,13 @@ module.exports = (ipcMain, win) => {
                 const res = await axios.get(`${QUILT_META}/versions/game`);
                 res.data.forEach(v => supportedVersions.add(v.version));
             } else if (loaderName === 'forge') {
-                // Forge "game versions" are implicit in the artifact versions.
-                // We fetch the metadata again (cached ideally, but we'll fetch for now)
-                // and extract the MC version part.
                 const versions = await fetchMavenVersions('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml');
                 versions.forEach(v => {
-                    // 1.18.1-39.1.2 -> 1.18.1
+
                     const dashIndex = v.indexOf('-');
                     if (dashIndex !== -1) {
                         const mcVer = v.substring(0, dashIndex);
-                        // Basic validation to ensure it looks like a version
+
                         if (/^\d+\.\d+(\.\d+)?$/.test(mcVer)) {
                             supportedVersions.add(mcVer);
                         }
@@ -1180,39 +1049,27 @@ module.exports = (ipcMain, win) => {
                 }
 
                 versions.forEach(v => {
-                    // Old: 1.20.1-47.1.3
-                    // New: 20.4.123 -> matches 1.20.4
                     if (v.includes('-')) {
                         const dashIndex = v.indexOf('-');
                         const mcVer = v.substring(0, dashIndex);
-                        // Strict validation: MC versions must start with "1."
-                        // This prevents NeoForge versions like "21.1.1-beta" from being treated as MC versions
                         if (/^1\.\d+(\.\d+)?$/.test(mcVer)) {
                             supportedVersions.add(mcVer);
                         } else {
                             console.log(`[NeoForge Logic] Ignored (bad prefix): ${mcVer} from ${v}`);
                         }
                     } else {
-                        // Handle new versioning: 20.4.X -> 1.20.4
-                        // 21.0.X -> 1.21
                         const parts = v.split('.');
                         if (parts.length >= 2) {
                             const major = parseInt(parts[0]);
                             const minor = parseInt(parts[1]);
                             if (!isNaN(major) && !isNaN(minor)) {
                                 if (major >= 20) {
-                                    // 20.1 -> 1.20.1
-                                    // 20.4 -> 1.20.4
-                                    // 21.0 -> 1.21 ? Or 1.21.0
-                                    // Mapping logic: 1.{major}.{minor}
                                     let derivedVersion;
-                                    if (minor === 0 && major === 21) derivedVersion = `1.${major}`; // 1.21
+                                    if (minor === 0 && major === 21) derivedVersion = `1.${major}`;
                                     else if (minor === 1 && major === 21) derivedVersion = `1.${major}.1`;
                                     else derivedVersion = `1.${major}.${minor}`;
 
                                     supportedVersions.add(derivedVersion);
-
-                                    // Also manually add 1.21 for 21.x series if not sure
                                     if (major === 21) supportedVersions.add('1.21');
                                     if (major === 20 && minor === 6) supportedVersions.add('1.20.6');
                                 }
@@ -1221,11 +1078,7 @@ module.exports = (ipcMain, win) => {
                     }
                 });
             }
-
-            // Convert Set to sorted array (descending semver-ish)
             const sorted = Array.from(supportedVersions).sort((a, b) => {
-                // specific logic for semver sort if needed, or just let frontend handle it
-                // For now, let's reverse sort by string (works mostly for 1.20 vs 1.19)
                 return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
             });
 
@@ -1236,16 +1089,11 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-
-
     ipcMain.handle('instance:update', async (_, instanceName, newConfig) => {
         try {
             const configPath = path.join(instancesDir, instanceName, 'instance.json');
             if (await fs.pathExists(configPath)) {
                 const current = await fs.readJson(configPath);
-                // Merge, but ensure name/created match? Or just trust frontend
-                // For now, simple merge
                 const updated = { ...current, ...newConfig };
                 await fs.writeJson(configPath, updated, { spaces: 4 });
                 return { success: true };
@@ -1276,11 +1124,7 @@ module.exports = (ipcMain, win) => {
             if (await fs.pathExists(newPath)) {
                 return { success: false, error: 'An instance with that name already exists' };
             }
-
-            // Rename the folder
             await fs.rename(oldPath, newPath);
-
-            // Update the instance.json with the new name
             const configPath = path.join(newPath, 'instance.json');
             const config = await fs.readJson(configPath);
             config.name = newName;
@@ -1298,8 +1142,6 @@ module.exports = (ipcMain, win) => {
             if (!await fs.pathExists(sourcePath)) {
                 return { success: false, error: 'Instance not found' };
             }
-
-            // Find a unique name
             let newName = `${instanceName} (Copy)`;
             let counter = 2;
             while (await fs.pathExists(path.join(instancesDir, newName))) {
@@ -1308,11 +1150,7 @@ module.exports = (ipcMain, win) => {
             }
 
             const destPath = path.join(instancesDir, newName);
-
-            // Copy entire folder
             await fs.copy(sourcePath, destPath);
-
-            // Update the instance.json with new name
             const configPath = path.join(destPath, 'instance.json');
             if (await fs.pathExists(configPath)) {
                 const config = await fs.readJson(configPath);
@@ -1340,8 +1178,6 @@ module.exports = (ipcMain, win) => {
     });
 
     ipcMain.handle('instance:open-folder', async (_, instanceName) => {
-        // Remove redundant require
-        // const { shell } = require('electron'); 
         const instancePath = path.join(instancesDir, instanceName);
         if (await fs.pathExists(instancePath)) {
             await shell.openPath(instancePath);
@@ -1349,40 +1185,21 @@ module.exports = (ipcMain, win) => {
         }
         return { success: false, error: 'Instance folder not found' };
     });
-
-
-
     ipcMain.handle('instance:delete', async (_, name) => {
         try {
             console.log(`[Instance:Delete] Request to delete ${name}`);
-
-            // 1. Abort ongoing installation if any
             const task = activeTasks.get(name);
             if (task) {
                 console.log(`[Instance:Delete] Aborting installation for ${name}`);
                 task.abort();
                 activeTasks.delete(name);
             }
-
-            // 2. Kill running instance if any
-            // We invoke the launcher:kill handler logic directly or via IPC if mapped, 
-            // but since we are in main process, we can't easily call another handler's IPC *handler* directly without a helper.
-            // Ideally, launcher.js should export a kill function or we send a message.
-            // For now, let's assume the frontend calls launcher:kill BEFORE instance:delete. 
-            // BUT, to be safe, we should try to ensure it is stopped. 
-            // Since we don't have direct access to launcher's internal map here, we rely on the frontend 
-            // OR we could emit an event. 
-
-            // BETTER APPROACH: Wait for a moment to let processes die and file handles release.
-            // Windows file locking is aggressive.
             await new Promise(resolve => setTimeout(resolve, 500));
 
             const dir = path.join(instancesDir, name);
             if (!await fs.pathExists(dir)) {
-                return { success: true }; // Already gone
+                return { success: true };
             }
-
-            // 3. Robust Deletion with Retries
             const maxRetries = 5;
             for (let i = 0; i < maxRetries; i++) {
                 try {
@@ -1390,13 +1207,11 @@ module.exports = (ipcMain, win) => {
                     console.log(`[Instance:Delete] Successfully deleted ${name}`);
                     break;
                 } catch (err) {
-                    if (i === maxRetries - 1) throw err; // Re-throw on last attempt
+                    if (i === maxRetries - 1) throw err;
                     console.warn(`[Instance:Delete] Attempt ${i + 1} failed, retrying in 1s... (${err.message})`);
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
-
-            // Notify frontend to clear any remaining state
             win.webContents.send('instance:status', { instanceName: name, status: 'deleted' });
 
             return { success: true };
@@ -1405,17 +1220,10 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: `Failed to delete instance: ${e.message}` };
         }
     });
-
-    // Mod Management
-
-
-
     ipcMain.handle('instance:get-mods', async (_, instanceName) => {
         try {
             const modsDir = path.join(instancesDir, instanceName, 'mods');
             await fs.ensureDir(modsDir);
-
-            // Mod Cache
             const modCachePath = path.join(appData, 'mod_cache.json');
             let modCache = {};
             try {
@@ -1442,8 +1250,6 @@ module.exports = (ipcMain, win) => {
                     const filePath = path.join(modsDir, fileName);
                     const stats = await fs.stat(filePath);
                     const isEnabled = !fileName.endsWith('.disabled');
-
-                    // metadata lookup
                     let title = null;
                     let icon = null;
                     let version = null;
@@ -1454,11 +1260,9 @@ module.exports = (ipcMain, win) => {
                         icon = modCache[cacheKey].icon;
                         version = modCache[cacheKey].version;
                     } else {
-                        // Lookup Modrinth metadata
+
                         try {
                             const hash = await calculateSha1(filePath);
-
-                            // Check if we have this hash in cache (from Modpack Code Import legacy SHA1 keys)
                             if (modCache[hash]) {
                                 console.log(`[Instances] Found legacy SHA1 cache for ${fileName}`);
                                 title = modCache[hash].title;
@@ -1466,8 +1270,6 @@ module.exports = (ipcMain, win) => {
                                 version = modCache[hash].version;
                                 const projectId = modCache[hash].projectId;
                                 const versionId = modCache[hash].versionId;
-
-                                // Self-healing: Update to new key format
                                 const entry = { title, icon, version, projectId, versionId, hash };
                                 modCache[cacheKey] = entry;
                                 cacheUpdates[cacheKey] = entry;
@@ -1479,7 +1281,7 @@ module.exports = (ipcMain, win) => {
                                 const versionData = res.data;
 
                                 if (versionData && versionData.project_id) {
-                                    // Get project for icon
+
                                     const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${versionData.project_id}`, {
                                         headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
                                         timeout: 3000
@@ -1491,15 +1293,13 @@ module.exports = (ipcMain, win) => {
                                     version = versionData.version_number;
                                     const projectId = projectData.id;
                                     const versionId = versionData.id;
-
-                                    // Update cache
                                     const entry = { title, icon, version, hash, projectId, versionId };
                                     modCache[cacheKey] = entry;
                                     cacheUpdates[cacheKey] = entry;
                                 }
                             }
                         } catch (apiErr) {
-                            // Silently fail API lookups
+
                         }
                     }
 
@@ -1519,8 +1319,6 @@ module.exports = (ipcMain, win) => {
                     return null;
                 }
             }))).filter(m => m !== null);
-
-            // Save cache updates safely
             if (Object.keys(cacheUpdates).length > 0) {
                 try {
                     const currentDisk = await fs.readJson(modCachePath).catch(() => ({}));
@@ -1569,12 +1367,10 @@ module.exports = (ipcMain, win) => {
 
             if (!await fs.pathExists(modPath)) {
                 console.warn(`[Instance:Delete] Path does not exist: ${modPath}`);
-                return { success: true }; // Already "deleted"
+                return { success: true };
             }
 
             await fs.remove(modPath);
-
-            // Verify deletion
             if (await fs.pathExists(modPath)) {
                 console.error(`[Instance:Delete] FAILED: File still exists at ${modPath}`);
                 return { success: false, error: 'File could not be removed (is it locked?)' };
@@ -1589,7 +1385,7 @@ module.exports = (ipcMain, win) => {
     });
 
     ipcMain.handle('instance:check-updates', async (_, instanceName, contentList) => {
-        // contentList: [{ projectId: string, versionId: string, type: 'mod' | 'resourcepack' }]
+
         try {
             const configPath = path.join(instancesDir, instanceName, 'instance.json');
             const config = await fs.readJson(configPath);
@@ -1600,7 +1396,7 @@ module.exports = (ipcMain, win) => {
                 if (!item.projectId) return { ...item, hasUpdate: false };
 
                 try {
-                    // Fetch versions filtered by MC version and loader
+
                     const loaders = (item.type === 'resourcepack' || item.type === 'shader') ? [] : [loader];
                     const params = {
                         loaders: JSON.stringify(loaders),
@@ -1638,17 +1434,12 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-
-    // Export instance to custom .mcpack format (zip with JSON manifest)
     ipcMain.handle('instance:export', async (_, instanceName) => {
         try {
             const instancePath = path.join(instancesDir, instanceName);
             if (!await fs.pathExists(instancePath)) {
                 return { success: false, error: 'Instance not found' };
             }
-
-            // Show save dialog
             const { filePath } = await dialog.showSaveDialog({
                 title: 'Export Instance',
                 defaultPath: `${instanceName}.mcpack`,
@@ -1656,24 +1447,16 @@ module.exports = (ipcMain, win) => {
             });
 
             if (!filePath) return { success: false, error: 'Cancelled' };
-
-            // Create zip archive
             const archiver = require('archiver');
             const output = fs.createWriteStream(filePath);
             const archive = archiver('zip', { zlib: { level: 9 } });
 
             archive.pipe(output);
-
-            // Add instance.json
             archive.file(path.join(instancePath, 'instance.json'), { name: 'instance.json' });
-
-            // Add mods folder if exists
             const modsPath = path.join(instancePath, 'mods');
             if (await fs.pathExists(modsPath)) {
                 archive.directory(modsPath, 'mods');
             }
-
-            // Add config folder if exists
             const configPath = path.join(instancePath, 'config');
             if (await fs.pathExists(configPath)) {
                 archive.directory(configPath, 'config');
@@ -1689,8 +1472,6 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-    // Shared Modrinth Modpack Installer Logic
     const installMrPack = async (packPath, nameOverride = null) => {
         try {
             const AdmZip = require('adm-zip');
@@ -1701,8 +1482,6 @@ module.exports = (ipcMain, win) => {
 
             const index = JSON.parse(indexEntry.getData().toString('utf8'));
             let instanceName = nameOverride || index.name;
-
-            // Handle name collisions
             let targetDir = path.join(instancesDir, instanceName);
             let counter = 1;
             while (await fs.pathExists(targetDir)) {
@@ -1711,8 +1490,6 @@ module.exports = (ipcMain, win) => {
             }
 
             await fs.ensureDir(targetDir);
-
-            // Create initial instance.json
             const mcVersion = index.dependencies.minecraft;
             let loaderType = 'Vanilla';
             let loaderVersion = '';
@@ -1742,8 +1519,6 @@ module.exports = (ipcMain, win) => {
             };
 
             await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
-
-            // Start background download & extraction
             (async () => {
                 try {
                     const sendProgress = (progress, status) => {
@@ -1753,7 +1528,7 @@ module.exports = (ipcMain, win) => {
                     };
 
                     sendProgress(5, 'Extracting overrides...');
-                    // Extract overrides
+
                     const entries = zip.getEntries();
                     for (const entry of entries) {
                         if (entry.entryName.startsWith('overrides/')) {
@@ -1774,10 +1549,8 @@ module.exports = (ipcMain, win) => {
 
                     const totalFiles = index.files.length;
                     let downloaded = 0;
+                    const pLimit = require('p-limit');
 
-                    // Download in chunks of 5
-                    const pLimit = require('p-limit'); // Check if p-limit is available, else manual
-                    // Manual chunking if p-limit is missing
                     const chunks = [];
                     for (let i = 0; i < index.files.length; i += 5) {
                         chunks.push(index.files.slice(i, i + 5));
@@ -1795,9 +1568,6 @@ module.exports = (ipcMain, win) => {
                     }
 
                     sendProgress(90, 'Finalizing installation...');
-
-                    // Trigger standard install to ensure base game & loader files are present
-                    // We call startBackgroundInstall which will handle the rest
                     await startBackgroundInstall(instanceName, instanceConfig, false, false);
 
                 } catch (err) {
@@ -1813,8 +1583,6 @@ module.exports = (ipcMain, win) => {
             throw e;
         }
     };
-
-    // Import instance from .mrpack file (Modrinth modpack format)
     ipcMain.handle('instance:import-mrpack', async (_) => {
         try {
             const { filePaths } = await dialog.showOpenDialog({
@@ -1832,14 +1600,10 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-    // Install Modpack from URL (Modrinth App/Direct)
     ipcMain.handle('instance:install-modpack', async (_, url, name) => {
         try {
             console.log(`[Modpack:Install] URL: ${url}, Name: ${name}`);
             const tempPath = path.join(os.tmpdir(), `mclc-modpack-${Date.now()}.mrpack`);
-
-            // Send initial progress if possible, using a dummy name or the provided one
             if (win && win.webContents) {
                 win.webContents.send('install:progress', { instanceName: name, progress: 1, status: 'Downloading Modpack...' });
             }
@@ -1848,12 +1612,6 @@ module.exports = (ipcMain, win) => {
             console.log(`[Modpack:Install] Downloaded to ${tempPath}`);
 
             const result = await installMrPack(tempPath, name);
-
-            // Cleanup temp file
-            // Note: installMrPack reads it synchronously mostly but startBackgroundInstall is async. 
-            // The zip reading happens early in installMrPack so we should be safe to delete after it returns?
-            // installMrPack returns { success: true, instanceName } AFTER starting background work.
-            // The zip object in installMrPack is not persistent.
             await fs.remove(tempPath);
 
             return result;
@@ -1862,11 +1620,9 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-    // Import instance from custom .mcpack format
     ipcMain.handle('instance:import', async (_) => {
         try {
-            // Show open dialog
+
             const { filePaths } = await dialog.showOpenDialog({
                 title: 'Import Instance',
                 filters: [{ name: 'Modpack', extensions: ['mcpack', 'zip'] }],
@@ -1880,8 +1636,6 @@ module.exports = (ipcMain, win) => {
             const packPath = filePaths[0];
             const AdmZip = require('adm-zip');
             const zip = new AdmZip(packPath);
-
-            // Read instance.json from zip
             const instanceJsonEntry = zip.getEntry('instance.json');
             if (!instanceJsonEntry) {
                 return { success: false, error: 'Invalid modpack: missing instance.json' };
@@ -1889,20 +1643,14 @@ module.exports = (ipcMain, win) => {
 
             const instanceConfig = JSON.parse(instanceJsonEntry.getData().toString('utf8'));
             let instanceName = instanceConfig.name || path.basename(packPath, path.extname(packPath));
-
-            // Check if name exists, append number if so
             let targetDir = path.join(instancesDir, instanceName);
             let counter = 1;
             while (await fs.pathExists(targetDir)) {
                 instanceName = `${instanceConfig.name || 'Imported'} (${counter++})`;
                 targetDir = path.join(instancesDir, instanceName);
             }
-
-            // Extract to instance directory
             await fs.ensureDir(targetDir);
             zip.extractAllTo(targetDir, true);
-
-            // Update instance.json with new name
             instanceConfig.name = instanceName;
             instanceConfig.imported = Date.now();
             await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
@@ -1921,11 +1669,7 @@ module.exports = (ipcMain, win) => {
 
             const currentConfig = await fs.readJson(configPath);
             const finalConfig = { ...currentConfig, ...newConfig, status: 'installing' };
-
-            // Save initial change to status
             await fs.writeJson(configPath, finalConfig, { spaces: 4 });
-
-            // Start background migration flow
             startBackgroundInstall(instanceName, finalConfig, false, true);
 
             return { success: true };
@@ -1933,8 +1677,6 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-    // Install a local file (JAR or ZIP) as a mod or resource pack
     ipcMain.handle('instance:install-local-mod', async (_, instanceName, filePath, projectType = 'mod') => {
         try {
             const folder = projectType === 'resourcepack' ? 'resourcepacks' : 'mods';
@@ -1943,8 +1685,6 @@ module.exports = (ipcMain, win) => {
 
             const fileName = path.basename(filePath);
             const destPath = path.join(destDir, fileName);
-
-            // Copy file to instance folder
             await fs.copy(filePath, destPath);
 
             console.log(`[Content:InstallLocal] Copied ${projectType}: ${fileName} to ${instanceName}`);
@@ -1954,9 +1694,6 @@ module.exports = (ipcMain, win) => {
             return { success: false, error: e.message };
         }
     });
-
-
-
     ipcMain.handle('instance:update-file', async (_, data) => {
         console.log(`Updating file for ${data.instanceName}: ${data.oldFileName} -> ${data.newFileName}`);
         try {
@@ -1976,8 +1713,6 @@ module.exports = (ipcMain, win) => {
             await downloadFile(data.url, newPath);
 
             const modCachePath = path.join(appData, 'mod_cache.json');
-
-
             return { success: true };
         } catch (e) {
             console.error('Update failed:', e);

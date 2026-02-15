@@ -4,15 +4,13 @@ const path = require('path');
 const crypto = require('crypto');
 const { app } = require('electron');
 const { installModInternal } = require('./modrinth');
-
-// WICHTIG: http:// hinzufügen!
 const SERVER_URL = 'https://mclc.pluginhub.de';
 
 console.log('[ModpackCode-Handler] 🔧 Modul wird geladen...');
 
 /**
  * Calculates SHA1 hash of a file
- * @param {string} filePath 
+ * @param {string} filePath
  * @returns {Promise<string>}
  */
 function calculateSha1(filePath) {
@@ -30,14 +28,10 @@ module.exports = (ipcMain, win) => {
 
     const appData = app.getPath('userData');
     const instancesDir = path.join(appData, 'instances');
-
-    // Export modpack as code
     ipcMain.handle('modpack:export-code', async (event, data) => {
         console.log('[ModpackCode-Handler] 📤 Export handler AUFGERUFEN', data);
         try {
             const { name, mods, resourcePacks, shaders, instanceVersion, instanceLoader, instanceName } = data;
-
-            // Read keybinds (options.txt) if instanceName is provided
             let optionsContent = null;
             if (instanceName) {
                 const optionsPath = path.join(instancesDir, instanceName, 'options.txt');
@@ -46,8 +40,6 @@ module.exports = (ipcMain, win) => {
                     console.log('[ModpackCode-Handler] ✅ Keybinds (options.txt) included in export');
                 }
             }
-
-            // Prepare data for server
             const exportData = {
                 name: name || 'My Modpack',
                 mods: mods?.map(m => ({
@@ -75,8 +67,6 @@ module.exports = (ipcMain, win) => {
                 instanceLoader,
                 keybinds: optionsContent
             };
-
-            // Send to server
             const response = await axios.post(`${SERVER_URL}/api/modpack/save`, exportData, {
                 timeout: 10000,
                 headers: { 'Content-Type': 'application/json' }
@@ -98,8 +88,6 @@ module.exports = (ipcMain, win) => {
             };
         }
     });
-
-    // Import modpack from code (metadata fetch)
     ipcMain.handle('modpack:import-code', async (event, code) => {
         try {
             if (!code || code.length !== 8) {
@@ -122,33 +110,25 @@ module.exports = (ipcMain, win) => {
             };
         }
     });
-
-    // Background installation process for imports
     ipcMain.handle('modpack:install-shared-content', async (event, { instanceName, modpackData }) => {
         console.log(`[ModpackCode-Handler] Starting background install for: ${instanceName}`);
 
         const totalItems = (modpackData.mods?.length || 0) +
             (modpackData.resourcePacks?.length || 0) +
             (modpackData.shaders?.length || 0);
-
-        // Send immediate start event to ensure UI shows "Installing" state
         win.webContents.send('install:progress', {
             instanceName: instanceName,
             progress: 0,
             status: 'Preparing installation...'
         });
-
-        // Accumulate new cache entries locally
         const localModCache = {};
-
-        // Helper to safely update the global cache file
         const saveModCache = async () => {
             try {
                 let currentCache = {};
                 if (await fs.pathExists(modCachePath)) {
                     try {
                         currentCache = await fs.readJson(modCachePath);
-                    } catch (e) { /* ignore read error */ }
+                    } catch (e) { }
                 }
                 const merged = { ...currentCache, ...localModCache };
                 await fs.writeJson(modCachePath, merged);
@@ -169,7 +149,7 @@ module.exports = (ipcMain, win) => {
         let installedCount = 0;
 
         const reportProgress = (status, individualProgress = null) => {
-            // Overall modpack progress
+
             const overallProgress = Math.round((installedCount / totalItems) * 100);
 
             win.webContents.send('install:progress', {
@@ -180,7 +160,7 @@ module.exports = (ipcMain, win) => {
         };
 
         try {
-            // Update status to installing persistently
+
             try {
                 const instanceJsonPath = path.join(instancesDir, instanceName, 'instance.json');
                 if (await fs.pathExists(instanceJsonPath)) {
@@ -191,15 +171,11 @@ module.exports = (ipcMain, win) => {
             } catch (e) {
                 console.error('[ModpackCode-Handler] Failed to set instance status:', e);
             }
-
-            // Restore Keybinds first
             if (modpackData.keybinds) {
                 const optionsPath = path.join(instancesDir, instanceName, 'options.txt');
                 await fs.writeFile(optionsPath, modpackData.keybinds);
                 console.log('[ModpackCode-Handler] Keybinds restored.');
             }
-
-            // Helper to resolve actual download URL from Modrinth API
             const resolveModrinthDownloadUrl = async (versionId, expectedFileName) => {
                 try {
                     const versionRes = await axios.get(`https://api.modrinth.com/v2/version/${versionId}`, {
@@ -218,12 +194,8 @@ module.exports = (ipcMain, win) => {
                     return null;
                 }
             };
-
-            // Install Mods
             for (const mod of modpackData.mods || []) {
                 reportProgress(`Downloading mod: ${mod.title}`);
-
-                // Resolve actual download URL from Modrinth
                 const resolved = await resolveModrinthDownloadUrl(mod.versionId, mod.fileName);
                 if (!resolved) {
                     console.error(`[ModpackCode-Handler] Skipping mod ${mod.title}: could not resolve download URL`);
@@ -265,8 +237,6 @@ module.exports = (ipcMain, win) => {
                 installedCount++;
                 reportProgress();
             }
-
-            // Install Resource Packs
             for (const pack of modpackData.resourcePacks || []) {
                 reportProgress(`Downloading pack: ${pack.title}`);
 
@@ -311,8 +281,6 @@ module.exports = (ipcMain, win) => {
                 installedCount++;
                 reportProgress();
             }
-
-            // Install Shaders
             for (const shader of modpackData.shaders || []) {
                 reportProgress(`Downloading shader: ${shader.title}`);
 
@@ -360,8 +328,6 @@ module.exports = (ipcMain, win) => {
 
             await saveModCache();
             reportProgress('Installation complete!', 100);
-
-            // Reset status to ready persistently
             try {
                 const instanceJsonPath = path.join(instancesDir, instanceName, 'instance.json');
                 if (await fs.pathExists(instanceJsonPath)) {
@@ -376,8 +342,6 @@ module.exports = (ipcMain, win) => {
             return { success: true };
         } catch (error) {
             console.error('[ModpackCode-Handler] Background install failed:', error);
-
-            // Reset status on error
             try {
                 const instanceJsonPath = path.join(instancesDir, instanceName, 'instance.json');
                 if (await fs.pathExists(instanceJsonPath)) {
@@ -385,7 +349,7 @@ module.exports = (ipcMain, win) => {
                     config.status = 'ready';
                     await fs.writeJson(instanceJsonPath, config);
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) { }
 
             win.webContents.send('install:progress', {
                 instanceName: instanceName,

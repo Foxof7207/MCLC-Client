@@ -6,20 +6,15 @@ const Store = require('electron-store');
 const store = new Store();
 
 module.exports = (ipcMain, mainWindow) => {
-    // Track running instances in memory: name -> startTime
-    const runningInstances = new Map();
-    const liveLogs = new Map(); // name -> array of strings
-    const childProcesses = new Map(); // name -> ChildProcess object
-    const activeLaunches = new Map(); // name -> { cancelled: boolean }
 
-    // Helper to set window title on Windows (Ultra High Performance / C# Injection)
+    const runningInstances = new Map();
+    const liveLogs = new Map();
+    const childProcesses = new Map();
+    const activeLaunches = new Map();
     function setWindowTitle(pid, title) {
         if (process.platform !== 'win32') return;
 
         const { exec } = require('child_process');
-
-        // Wir kompilieren C# Code "on-the-fly". Das läuft fast so schnell wie eine native .exe
-        // Es prüft den Titel alle 10ms (100x pro Sekunde) ohne CPU-Last.
         const script = `
 $code = @"
 using System;
@@ -41,10 +36,10 @@ public class TitleFixer {
     public static void Run(int pid, string targetTitle) {
         Process p = null;
         try { p = Process.GetProcessById(pid); } catch { return; }
-        
+
         IntPtr handle = IntPtr.Zero;
         StringBuilder sb = new StringBuilder(512);
-        
+
         while (!p.HasExited) {
             try {
                 // Handle holen oder aktualisieren, falls Fenster neu erstellt wurde (z.B. Fullscreen Toggle)
@@ -56,12 +51,12 @@ public class TitleFixer {
                 if (handle != IntPtr.Zero) {
                     sb.Clear();
                     GetWindowText(handle, sb, sb.Capacity);
-                    
+
                     string current = sb.ToString();
                     if (current != targetTitle && !string.IsNullOrEmpty(current)) {
                         // Minecraft detected!
                         SetWindowText(handle, targetTitle);
-                        
+
                         // Wait a bit to avoid fighting in the same frame
                         Thread.Sleep(200);
                     }
@@ -69,7 +64,7 @@ public class TitleFixer {
             } catch {
                 // Fehler ignorieren
             }
-            
+
             // Check every 200ms when idle
             Thread.Sleep(200);
         }
@@ -168,8 +163,6 @@ Add-Type -TypeDefinition $code -Language CSharp
                     console.error("Failed to load settings for launch", e);
                 }
             }
-
-
             // Apply instance-specific overrides if they exist
             if (config.javaPath) settings.javaPath = config.javaPath;
             if (config.minMemory) settings.minMemory = config.minMemory;
@@ -381,9 +374,6 @@ Add-Type -TypeDefinition $code -Language CSharp
 
             // Initialize live logs buffer for this instance
             liveLogs.set(instanceName, []);
-
-
-
             // Execute pre-launch hook if configured
             if (config.preLaunchHook && config.preLaunchHook.trim()) {
                 try {

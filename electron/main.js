@@ -3,13 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 const dns = require('dns');
-
-// Fix for IPv6 connection timeouts (ETIMEDOUT) on some networks
 if (dns.setDefaultResultOrder) {
     dns.setDefaultResultOrder('ipv4first');
 }
-
-// MUST be called before app.whenReady
 protocol.registerSchemesAsPrivileged([
     {
         scheme: 'app-media',
@@ -31,25 +27,23 @@ function createWindow() {
         minWidth: 900,
         minHeight: 600,
         title: 'MCLC',
-        frame: false, // Custom titlebar support
-        icon: path.join(__dirname, '../resources/icon.png'), // Set App Icon
+        frame: false,
+        icon: path.join(__dirname, '../resources/icon.png'),
         backgroundColor: '#121212',
         webPreferences: {
             preload: path.join(__dirname, '../backend/preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: false // Required for some heavy node modules if needed, but try keep true if possible
+            sandbox: false
         },
     });
 
     console.log('[Main] Preload script configured.');
-
-    // Load the backend handlers
     console.log('[Main] Registering handlers...');
     console.log('[Main] Registering auth handler...');
     require('../backend/handlers/auth')(ipcMain, mainWindow);
     console.log('[Main] Registering instances handler...');
-    require('../backend/handlers/instances')(ipcMain, mainWindow); // Load instances logic
+    require('../backend/handlers/instances')(ipcMain, mainWindow);
     console.log('[Main] Registering launcher handler...');
     require('../backend/handlers/launcher')(ipcMain, mainWindow);
     require('../backend/handlers/servers')(ipcMain, mainWindow);
@@ -66,8 +60,6 @@ function createWindow() {
     } catch (e) {
         console.error('[Main] Failed to register skins handler:', e);
     }
-
-    // Modpack Code Handler
     console.log('[Main] Registering modpack code handler...');
     try {
         require('../backend/handlers/modpackCode')(ipcMain, mainWindow);
@@ -78,11 +70,7 @@ function createWindow() {
 
     require('../backend/handlers/java')(ipcMain);
     const discord = require('../backend/handlers/discord');
-
-    // Initialize Discord RPC
     discord.initRPC();
-
-    // In production, load the built index.html. In dev, load localhost.
     const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
     if (isDev) {
         mainWindow.loadURL('http://localhost:3000');
@@ -90,40 +78,28 @@ function createWindow() {
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     }
-
-    // Window controls
     ipcMain.on('window-minimize', () => mainWindow.minimize());
     ipcMain.on('window-maximize', () => {
         if (mainWindow.isMaximized()) mainWindow.unmaximize();
         else mainWindow.maximize();
     });
     ipcMain.on('window-close', () => mainWindow.close());
-
-    // Notify renderer of window state changes
     mainWindow.on('maximize', () => mainWindow.webContents.send('window-state', true));
     mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-state', false));
 }
 
 app.whenReady().then(() => {
-    // Register custom protocol for local media
-    // Use app-media:///C:/... format
     protocol.handle('app-media', (request) => {
         try {
             const url = new URL(request.url);
-            // pathname will be /C:/Users/... or /Users/...
-            let decodedPath = decodeURIComponent(url.pathname);
 
-            // Normalize path for Windows: /C:/ -> C:/
+            let decodedPath = decodeURIComponent(url.pathname);
             if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(decodedPath)) {
                 decodedPath = decodedPath.slice(1);
             }
-
-            // Defensive: Check if file exists to avoid ERR_FILE_NOT_FOUND crash
             if (!decodedPath || decodedPath === '/' || !fs.existsSync(decodedPath)) {
                 return new Response('Not Found', { status: 404 });
             }
-
-            // Ensure we are using a valid absolute path
             return net.fetch(pathToFileURL(decodedPath).toString());
         } catch (e) {
             console.error('Protocol error:', e);

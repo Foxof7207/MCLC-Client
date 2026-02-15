@@ -74,8 +74,6 @@ function Styling() {
     root.style.setProperty("--glass-opacity", t.glassOpacity);
     root.style.setProperty("--console-opacity", t.consoleOpacity || 0.8);
     root.style.setProperty("--border-radius", `${t.borderRadius || 12}px`);
-
-    // Helper to adjust colors
     const adjustColor = (hex, pct) => {
       const n = parseInt(hex.replace("#", ""), 16);
       const a = Math.round(2.55 * pct);
@@ -103,8 +101,6 @@ function Styling() {
       "--background-dark-color",
       adjustColor(t.backgroundColor, -20),
     );
-
-    // RGB for glass visibility
     const hexToRgb = (hex) => {
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
@@ -166,7 +162,7 @@ function Styling() {
       </header>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Left: Basic Colors & Presets */}
+        { }
         <div className="xl:col-span-1 space-y-8">
           <section className="bg-surface/50 backdrop-blur-md p-6 rounded-2xl border border-white/5">
             <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-6">
@@ -244,7 +240,7 @@ function Styling() {
           </section>
         </div>
 
-        {/* Right: Advanced Effects & Background */}
+        { }
         <div className="xl:col-span-2 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <section className="bg-surface/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 flex flex-col justify-between">
@@ -382,7 +378,7 @@ function Styling() {
                   <button
                     onClick={async () => {
                       if (theme.bgMedia.url) {
-                        // Try to delete the file physically if it's a local file
+
                         await window.electronAPI.deleteBackgroundMedia(
                           theme.bgMedia.url,
                         );

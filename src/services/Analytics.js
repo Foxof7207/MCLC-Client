@@ -1,16 +1,12 @@
 import { io } from "socket.io-client";
-
-// MCLC Client Analytics Service
 class AnalyticsService {
     constructor() {
         this.socket = null;
-        this.serverUrl = 'https://mclc.pluginhub.de'; // Production URL
+        this.serverUrl = 'https://mclc.pluginhub.de';
         this.clientVersion = '1.3.3';
         this.os = 'win32';
         this.userProfile = null;
     }
-
-    // Default to localhost for debugging, switch to 'https://mclc.pluginhub.de' for production
     init(serverUrl = 'https://mclc.pluginhub.de') {
         if (this.socket) return;
 
@@ -23,7 +19,7 @@ class AnalyticsService {
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             timeout: 20000,
-            transports: ['polling', 'websocket'] // Prioritize polling because host blocks WS
+            transports: ['polling', 'websocket']
         });
 
         this.socket.on("connect", () => {
@@ -42,7 +38,7 @@ class AnalyticsService {
 
     setProfile(profile) {
         this.userProfile = profile;
-        this.register(); // Re-register with new profile data
+        this.register();
     }
 
     register() {
@@ -69,7 +65,7 @@ class AnalyticsService {
             instance: instanceName,
             software: metadata.loader,
             gameVersion: metadata.version,
-            mode: metadata.mode // 'client' or 'server'
+            mode: metadata.mode
         });
     }
 
@@ -105,7 +101,7 @@ class AnalyticsService {
 
     trackDownload(type, name, id) {
         if (!this.socket) return;
-        // console.log('[Analytics] Track Download:', type, name);
+
         this.socket.emit('track-download', {
             type,
             name,

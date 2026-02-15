@@ -4,12 +4,12 @@ import { useNotification } from '../context/NotificationContext';
 function ModpackCodeModal({
     isOpen,
     onClose,
-    mode, // 'export' or 'import'
-    instanceData = null, // For export: current instance data
-    mods = [], // For export: selected mods
-    resourcePacks = [], // For export: selected resource packs
-    shaders = [], // For export: selected shaders
-    onImportComplete // Callback when import is ready
+    mode,
+    instanceData = null,
+    mods = [],
+    resourcePacks = [],
+    shaders = [],
+    onImportComplete
 }) {
     const [code, setCode] = useState('');
     const [modpackName, setModpackName] = useState('');
@@ -22,9 +22,6 @@ function ModpackCodeModal({
     });
 
     const { addNotification } = useNotification();
-
-    // In ModpackCodeModal.js, die handleExport Funktion:
-
     const handleExport = async () => {
         console.log('[ModpackCodeModal] handleExport gestartet');
 
@@ -99,7 +96,7 @@ function ModpackCodeModal({
     return (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
             <div className="bg-surface-dark w-full max-w-md rounded-2xl border border-white/10 shadow-2xl animate-scale-in">
-                {/* Header */}
+                { }
                 <div className="p-6 border-b border-white/5 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-white">
                         {mode === 'export' ? 'Export as Code' : 'Import from Code'}
@@ -114,7 +111,7 @@ function ModpackCodeModal({
                     </button>
                 </div>
 
-                {/* Content */}
+                { }
                 <div className="p-6">
                     {mode === 'export' ? (
                         <>
@@ -237,7 +234,7 @@ function ModpackCodeModal({
                             )}
                         </>
                     ) : (
-                        // Import mode
+
                         <>
                             <div className="mb-6">
                                 <label className="block text-sm font-bold text-gray-400 mb-2">

@@ -34,8 +34,6 @@ module.exports = (ipcMain, mainWindow) => {
             if (!name || !uuid || !accessToken) {
                 throw new Error("Missing required auth fields");
             }
-
-            // Save the refresh token for later use
             const refreshToken = xboxManager.save();
 
             const profile = {
@@ -43,10 +41,8 @@ module.exports = (ipcMain, mainWindow) => {
                 uuid,
                 access_token: accessToken,
                 refresh_token: refreshToken,
-                exp: token.exp // Store the expiration time
+                exp: token.exp
             };
-
-            // Manage multiple accounts
             let accounts = store.get('accounts') || [];
             const existingIndex = accounts.findIndex(a => a.uuid === uuid);
             if (existingIndex !== -1) {
@@ -56,7 +52,7 @@ module.exports = (ipcMain, mainWindow) => {
             }
 
             store.set('accounts', accounts);
-            store.set('user_profile', profile); // Set as current
+            store.set('user_profile', profile);
 
             mainWindow.webContents.send('auth:success', { name, uuid });
             return { success: true, profile: { name, uuid } };
@@ -71,11 +67,11 @@ module.exports = (ipcMain, mainWindow) => {
         if (!profile || !profile.access_token) return { success: false, error: 'Not logged in' };
 
         try {
-            // Check if current token is valid. Pass object with exp to avoid 'in' operator error on string
+
             const isLocalValid = mcTokenToolbox.validate({ exp: profile.exp });
 
             if (isLocalValid) {
-                // Proactively check with Mojang to be 100% sure (helps with revoked tokens)
+
                 try {
                     const { getCachedProfile } = require('../utils/profileCache');
                     await getCachedProfile(profile.access_token);
@@ -83,15 +79,13 @@ module.exports = (ipcMain, mainWindow) => {
                 } catch (e) {
                     if (e.response?.status === 401) {
                         console.log("Token locally valid but rejected by Mojang, needing refresh.");
-                        // Fall through to refresh logic
+
                     } else {
-                        // Network error or Mojang down? Assume valid for now if local check passed
+
                         return { success: true };
                     }
                 }
             }
-
-            // If not valid, try refreshing
             if (profile.refresh_token) {
                 console.log("Session expired, attempting refresh for", profile.name);
                 const xboxManager = await authManager.refresh(profile.refresh_token);
@@ -106,16 +100,12 @@ module.exports = (ipcMain, mainWindow) => {
                     refresh_token: newRefreshToken,
                     exp: token.exp
                 };
-
-                // Update in accounts list
                 let accounts = store.get('accounts') || [];
                 const idx = accounts.findIndex(a => a.uuid === profile.uuid);
                 if (idx !== -1) {
                     accounts[idx] = updatedProfile;
                     store.set('accounts', accounts);
                 }
-
-                // Update current
                 store.set('user_profile', updatedProfile);
                 console.log("Refresh successful for", profile.name);
                 return { success: true, refreshed: true };
@@ -124,7 +114,7 @@ module.exports = (ipcMain, mainWindow) => {
             throw new Error("Session expired and no refresh token available");
         } catch (e) {
             console.error("Validation/Refresh failed:", e.message);
-            // On failure, logout
+
             store.delete('user_profile');
             return { success: false, error: 'Session expired', loggedOut: true };
         }
@@ -136,7 +126,7 @@ module.exports = (ipcMain, mainWindow) => {
 
     ipcMain.handle('auth:get-accounts', () => {
         const accounts = store.get('accounts') || [];
-        // Return only public info
+
         return accounts.map(a => ({ name: a.name, uuid: a.uuid }));
     });
 
@@ -154,8 +144,6 @@ module.exports = (ipcMain, mainWindow) => {
         let accounts = store.get('accounts') || [];
         accounts = accounts.filter(a => a.uuid !== uuid);
         store.set('accounts', accounts);
-
-        // If removed the current one, logout
         const current = store.get('user_profile');
         if (current && current.uuid === uuid) {
             store.delete('user_profile');

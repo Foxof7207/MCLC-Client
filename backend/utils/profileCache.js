@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-const cache = new Map(); // token -> { data, timestamp }
-const CACHE_TTL = 60 * 1000; // 60 seconds
+const cache = new Map();
+const CACHE_TTL = 60 * 1000;
 
 async function getCachedProfile(token) {
     if (!token) return null;
@@ -28,8 +28,6 @@ async function getCachedProfile(token) {
 
         return res.data;
     } catch (e) {
-        // If it's a 429, and we have a stale cache, maybe return it?
-        // But for now, just let it throw or handle it
         if (e.response?.status === 429 && cached) {
             console.warn('[ProfileCache] 429 hit, returning stale cache');
             return cached.data;
@@ -37,8 +35,6 @@ async function getCachedProfile(token) {
         throw e;
     }
 }
-
-// Clear cache on logout if needed (optional)
 function clearCache(token) {
     if (token) cache.delete(token);
     else cache.clear();

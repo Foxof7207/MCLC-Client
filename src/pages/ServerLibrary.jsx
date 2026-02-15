@@ -11,8 +11,6 @@ function ServerLibrary() {
     const [isLoadingVersions, setIsLoadingVersions] = useState(false);
     const [downloading, setDownloading] = useState(null);
     const [installedSoftware, setInstalledSoftware] = useState({});
-
-    // Platform icons und Beschreibungen
     const platformDetails = {
         vanilla: { icon: '🌱', name: 'Vanilla', description: 'Official Minecraft server', color: 'from-green-500/20' },
         paper: { icon: '📄', name: 'Paper', description: 'High-performance fork of Spigot', color: 'from-blue-500/20' },
@@ -33,11 +31,9 @@ function ServerLibrary() {
     const loadPlatforms = async () => {
         setIsLoading(true);
         try {
-            // Use MCUtils API to get platforms
+
             const response = await fetch('https://mcutils.com/api/server-jars');
             const data = await response.json();
-
-            // Filter nur die Plattformen, die wir unterstützen wollen
             const supportedPlatforms = ['vanilla', 'paper', 'purpur', 'spigot', 'bukkit', 'forge', 'fabric', 'neoforge', 'folia'];
             const filteredPlatforms = data.filter(p => supportedPlatforms.includes(p.key));
 
@@ -45,8 +41,6 @@ function ServerLibrary() {
         } catch (error) {
             console.error('Failed to load platforms:', error);
             addNotification('Failed to load server platforms', 'error');
-
-            // Fallback zu manuellen Plattformen wenn API fehlschlägt
             setPlatforms([
                 { key: 'vanilla', name: 'Vanilla' },
                 { key: 'paper', name: 'Paper' },
@@ -81,7 +75,7 @@ function ServerLibrary() {
     const loadInstalledSoftware = async () => {
         try {
             const servers = await window.electronAPI.getServers();
-            // Zähle wie oft jede Software installiert ist
+
             const counts = {};
             servers.forEach(server => {
                 counts[server.software] = (counts[server.software] || 0) + 1;
@@ -95,12 +89,8 @@ function ServerLibrary() {
     const handleDownload = async (platform, version) => {
         try {
             setDownloading(`${platform.key}-${version.version}`);
-
-            // Get download URL from MCUtils
             const response = await fetch(`https://mcutils.com/api/server-jars/${platform.key}/${version.version}`);
             const data = await response.json();
-
-            // Download the server jar
             const result = await window.electronAPI.downloadServerSoftware({
                 platform: platform.key,
                 version: version.version,
@@ -156,7 +146,7 @@ function ServerLibrary() {
 
                     return (
                         <div key={platform.key} className="space-y-2">
-                            {/* Platform Card */}
+                            { }
                             <div
                                 onClick={() => handleSelectPlatform(platform)}
                                 className={`bg-surface/40 backdrop-blur-sm border ${isSelected ? 'border-primary/50' : 'border-white/5'} rounded-xl overflow-hidden hover:border-primary/50 transition-all cursor-pointer group`}
@@ -196,7 +186,7 @@ function ServerLibrary() {
                                 </div>
                             </div>
 
-                            {/* Versions List */}
+                            { }
                             {isSelected && (
                                 <div className="pl-24 pr-6 pb-4 space-y-2 animate-in slide-in-from-top-2 duration-200">
                                     {isLoadingVersions ? (
@@ -226,8 +216,8 @@ function ServerLibrary() {
                                                             onClick={() => handleDownload(platform, version)}
                                                             disabled={isDownloading}
                                                             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isDownloading
-                                                                    ? 'bg-primary/20 text-primary cursor-wait'
-                                                                    : 'bg-primary/20 text-primary hover:bg-primary/30'
+                                                                ? 'bg-primary/20 text-primary cursor-wait'
+                                                                : 'bg-primary/20 text-primary hover:bg-primary/30'
                                                                 }`}
                                                         >
                                                             {isDownloading ? (

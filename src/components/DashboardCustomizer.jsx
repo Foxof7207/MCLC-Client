@@ -40,7 +40,7 @@ function DashboardCustomizer({ settings, onUpdate, onClose, onEnterEditor }) {
                 </div>
 
                 <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-                    {/* Visual Editor Button */}
+                    { }
                     <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex flex-col gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-black">
@@ -60,7 +60,7 @@ function DashboardCustomizer({ settings, onUpdate, onClose, onEnterEditor }) {
                         </button>
                     </div>
 
-                    {/* Welcome Message */}
+                    { }
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Welcome Message</label>
                         <input
@@ -72,7 +72,7 @@ function DashboardCustomizer({ settings, onUpdate, onClose, onEnterEditor }) {
                         />
                     </div>
 
-                    {/* Section Visibility */}
+                    { }
                     <div className="space-y-4">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">Toggle Sections</label>
 

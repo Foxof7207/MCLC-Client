@@ -1,8 +1,6 @@
 const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
-
-// Configuration
 const REPO = 'Fernsehheft/MCLC-Client';
 const DOWNLOAD_DIR = path.join(__dirname, 'download');
 const VERSION_FILE = path.join(__dirname, 'version.json');
@@ -11,8 +9,6 @@ const EXE_NAME = 'MCLC-Setup.exe';
 async function syncRelease() {
     try {
         console.log(`[Sync] Checking for latest release in ${REPO}...`);
-
-        // 1. Get latest release from GitHub
         const response = await axios.get(`https://api.github.com/repos/${REPO}/releases/latest`, {
             headers: { 'User-Agent': 'MCLC-Sync-Agent' }
         });
@@ -20,8 +16,6 @@ async function syncRelease() {
         const release = response.data;
         const version = release.tag_name;
         console.log(`[Sync] Found version: ${version}`);
-
-        // 2. Find the .exe asset
         const asset = release.assets.find(a => a.name.endsWith('.exe'));
         if (!asset) {
             throw new Error('No .exe asset found in the latest release.');
@@ -29,12 +23,8 @@ async function syncRelease() {
 
         const downloadUrl = asset.browser_download_url;
         console.log(`[Sync] Downloading ${asset.name} from ${downloadUrl}...`);
-
-        // 3. Ensure download directory exists
         await fs.ensureDir(DOWNLOAD_DIR);
         const targetPath = path.join(DOWNLOAD_DIR, EXE_NAME);
-
-        // 4. Download the file
         const downloadResponse = await axios({
             url: downloadUrl,
             method: 'GET',
@@ -50,8 +40,6 @@ async function syncRelease() {
         });
 
         console.log(`[Sync] Successfully downloaded to ${targetPath}`);
-
-        // 5. Update version.json
         const versionData = {
             version: version,
             lastSynced: new Date().toISOString(),

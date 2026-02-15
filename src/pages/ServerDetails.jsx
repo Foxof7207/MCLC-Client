@@ -13,7 +13,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         memory: 0,
         players: [],
         uptime: 0,
-        // Für Charts
+
         history: {
             cpu: [],
             memory: [],
@@ -22,15 +22,11 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         }
     });
     const [currentStatus, setCurrentStatus] = useState(server.status || 'stopped');
-    const [activeTab, setActiveTab] = useState('console'); // 'console', 'publicity', 'charts', 'players'
-
-    // Publicity State
+    const [activeTab, setActiveTab] = useState('console');
     const [playitCode, setPlayitCode] = useState(null);
     const [playitChecked, setPlayitChecked] = useState(false);
     const [playitAvailable, setPlayitAvailable] = useState(false);
     const [playitChecking, setPlayitChecking] = useState(false);
-
-    // Player Management State
     const [offlinePlayers, setOfflinePlayers] = useState([]);
     const [playerStats, setPlayerStats] = useState({});
     const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -54,8 +50,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
     const commandInputRef = useRef(null);
     const statsInterval = useRef(null);
     const chartsCanvasRef = useRef(null);
-
-    // Extract Playit code from log line
     const extractPlayitCode = (line) => {
         const match = line.match(/https:\/\/playit\.gg\/claim\/([a-zA-Z0-9]+)/);
         if (match && match[1]) {
@@ -63,26 +57,20 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         }
         return null;
     };
-
-    // Extract player join/leave events
     const extractPlayerEvents = (line) => {
-        // Join event
+
         const joinMatch = line.match(/\[([^\]]+)\]: (.+) joined the game/);
         if (joinMatch) {
             const playerName = joinMatch[2];
             handlePlayerJoin(playerName);
             return;
         }
-
-        // Leave event
         const leaveMatch = line.match(/\[([^\]]+)\]: (.+) left the game/);
         if (leaveMatch) {
             const playerName = leaveMatch[2];
             handlePlayerLeave(playerName);
             return;
         }
-
-        // Player list from /list command
         const listMatch = line.match(/There are (\d+) of a max of (\d+) players online: (.+)/);
         if (listMatch) {
             const onlinePlayers = listMatch[3].split(', ').filter(p => p.trim());
@@ -90,8 +78,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             return;
         }
     };
-
-    // Handle player join
     const handlePlayerJoin = (playerName) => {
         setOfflinePlayers(prev => prev.filter(p => p.name !== playerName));
 
@@ -113,8 +99,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             };
         });
     };
-
-    // Handle player leave
     const handlePlayerLeave = (playerName) => {
         setOfflinePlayers(prev => {
             if (!prev.find(p => p.name === playerName)) {
@@ -127,21 +111,15 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             return prev;
         });
     };
-
-    // Update online players
     const updateOnlinePlayers = (players) => {
         setServerStats(prev => ({
             ...prev,
             players: players
         }));
     };
-
-    // Calculate playtime for a player
     const calculatePlaytime = (playerName) => {
         return 0;
     };
-
-    // Load offline players from file
     const loadOfflinePlayers = async () => {
         try {
             if (window.electronAPI.getOfflinePlayers) {
@@ -152,8 +130,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             console.error('Failed to load offline players:', error);
         }
     };
-
-    // Load player stats
     const loadPlayerStats = async () => {
         try {
             if (window.electronAPI.getPlayerStats) {
@@ -164,8 +140,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             console.error('Failed to load player stats:', error);
         }
     };
-
-    // Player selection functions
     const togglePlayerSelection = (player) => {
         setSelectedPlayers(prev =>
             prev.includes(player)
@@ -181,8 +155,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
     const clearSelection = () => {
         setSelectedPlayers([]);
     };
-
-    // Player Commands
     const sendPlayerCommand = async (player, commandType, ...args) => {
         let cmd = '';
 
@@ -263,8 +235,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             addNotification(`Failed: ${error.message}`, 'error');
         }
     };
-
-    // Bulk player operations
     const handleBulkAction = (action, value) => {
         if (selectedPlayers.length === 0) {
             addNotification('No players selected', 'warning');
@@ -285,8 +255,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         setShowXpMenu(false);
         setShowGamemodeMenu(false);
     };
-
-    // Parse duration string (e.g., "1h", "2d", "30m")
     const parseDuration = (duration) => {
         const value = parseInt(duration);
         if (duration.includes('d')) return `${value}d`;
@@ -294,8 +262,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         if (duration.includes('m')) return `${value}m`;
         return `${value}m`;
     };
-
-    // Check if Playit plugin is available
     const checkPlayitAvailability = async () => {
         if (!server || playitChecked) return;
 
@@ -315,8 +281,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             setPlayitChecked(true);
         }
     };
-
-    // Manually install Playit plugin
     const installPlayitPlugin = async () => {
         setIsLoading(true);
         try {
@@ -338,8 +302,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             setIsLoading(false);
         }
     };
-
-    // Open Playit claim page
     const openPlayitClaim = () => {
         if (playitCode) {
             const url = `https://playit.gg/claim/${playitCode}`;
@@ -386,14 +348,10 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             if (serverName === server.name) {
                 setConsoleLog(prev => {
                     const newLog = [...prev, log];
-
-                    // Check for Playit code
                     const code = extractPlayitCode(log);
                     if (code) {
                         setPlayitCode(code);
                     }
-
-                    // Extract player events
                     extractPlayerEvents(log);
 
                     if (newLog.length > 500) {
@@ -409,8 +367,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 setServerStats(prev => {
                     const now = Date.now();
                     const timestamp = new Date().toLocaleTimeString();
-
-                    // Update history for charts (keep last 60 points = 2 minutes at 2s interval)
                     const newHistory = {
                         cpu: [...prev.history.cpu, cpu || 0].slice(-60),
                         memory: [...prev.history.memory, memory || 0].slice(-60),
@@ -470,22 +426,16 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             }
         };
     }, [server.name]);
-
-    // Auto-scroll console
     useEffect(() => {
         if (consoleRef.current && activeTab === 'console') {
             consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
         }
     }, [consoleLog, activeTab]);
-
-    // Draw charts when active tab is charts
     useEffect(() => {
         if (activeTab === 'charts' && chartsCanvasRef.current) {
             drawCharts();
         }
     }, [activeTab, serverStats.history]);
-
-    // Scan for Playit code
     useEffect(() => {
         if (consoleLog.length > 0 && !playitCode) {
             for (const line of consoleLog) {
@@ -518,8 +468,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             const log = await window.electronAPI.getServerLogs(server.name);
             if (Array.isArray(log)) {
                 setConsoleLog(log.slice(-500));
-
-                // Check for Playit code and player events
                 for (const line of log) {
                     const code = extractPlayitCode(line);
                     if (code) {
@@ -557,22 +505,16 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         const ctx = canvas.getContext('2d');
         const width = canvas.width;
         const height = canvas.height;
-
-        // Clear canvas
         ctx.clearRect(0, 0, width, height);
 
         const { cpu, memory, playerCount, timestamps } = serverStats.history;
 
         if (cpu.length < 2) return;
-
-        // Helper function to draw a chart
         const drawChart = (data, color, yOffset, chartHeight, maxValue) => {
             const points = data.map((value, index) => ({
                 x: (index / (data.length - 1)) * width,
                 y: yOffset + chartHeight - (value / maxValue) * chartHeight
             }));
-
-            // Draw line
             ctx.beginPath();
             ctx.strokeStyle = color;
             ctx.lineWidth = 2;
@@ -583,16 +525,12 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
             }
 
             ctx.stroke();
-
-            // Draw fill
             ctx.lineTo(points[points.length - 1].x, yOffset + chartHeight);
             ctx.lineTo(points[0].x, yOffset + chartHeight);
             ctx.closePath();
 
             ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
             ctx.fill();
-
-            // Draw points
             points.forEach(point => {
                 ctx.beginPath();
                 ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
@@ -602,8 +540,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 ctx.lineWidth = 1;
                 ctx.stroke();
             });
-
-            // Draw labels
             ctx.fillStyle = '#9CA3AF';
             ctx.font = '10px Inter, sans-serif';
             ctx.textAlign = 'center';
@@ -614,20 +550,14 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 }
             });
         };
-
-        // Draw CPU chart (top)
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '12px Inter, sans-serif';
         ctx.fillText('CPU Usage (%)', 10, 25);
         drawChart(cpu, 'rgb(59, 130, 246)', 30, 120, 100);
-
-        // Draw Memory chart (middle)
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '12px Inter, sans-serif';
         ctx.fillText('Memory Usage (MB)', 10, 185);
         drawChart(memory, 'rgb(16, 185, 129)', 170, 120, Math.max(...memory, 1024));
-
-        // Draw Player chart (bottom)
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '12px Inter, sans-serif';
         ctx.fillText('Active Players', 10, 340);
@@ -797,8 +727,6 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
     const isStarting = currentStatus === 'starting';
     const isStopping = currentStatus === 'stopping';
     const isRestarting = currentStatus === 'restarting';
-
-    // Filter players based on search
     const filteredOnlinePlayers = serverStats.players.filter(p =>
         p.toLowerCase().includes(playerSearch.toLowerCase())
     );
@@ -811,7 +739,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         <div className="h-full flex flex-col bg-background">
             {isLoading && <LoadingOverlay message="Processing..." />}
 
-            {/* EULA Dialog */}
+            { }
             {showEulaDialog && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
@@ -832,7 +760,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                     }
                                 }}
                             >
-                                https://aka.ms/MinecraftEULA
+                                https:
                             </a>).
                         </p>
                         <div className="flex gap-3 justify-end">
@@ -853,7 +781,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 </div>
             )}
 
-            {/* Player Action Dialogs */}
+            { }
             {showBanDialog && selectedPlayer && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-surface rounded-xl p-6 max-w-md w-full mx-4">
@@ -1073,7 +1001,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 </div>
             )}
 
-            {/* Header */}
+            { }
             <div className="flex items-center justify-between p-6 border-b border-white/5">
                 <div className="flex items-center gap-4">
                     <button
@@ -1150,7 +1078,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 </div>
             </div>
 
-            {/* Stats Grid */}
+            { }
             <div className="grid grid-cols-4 gap-4 p-6 border-b border-white/5">
                 <div className="bg-surface/40 rounded-xl p-4">
                     <div className="text-gray-400 text-sm mb-1">Players</div>
@@ -1181,7 +1109,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 </div>
             </div>
 
-            {/* Tabs */}
+            { }
             <div className="flex gap-1 px-6 pt-4 border-b border-white/5">
                 <button
                     onClick={() => setActiveTab('console')}
@@ -1221,10 +1149,10 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 </button>
             </div>
 
-            {/* Tab Content */}
+            { }
             <div className="flex-1 p-6 overflow-auto">
                 {activeTab === 'console' && (
-                    /* Console Tab */
+
                     <>
                         <div className="flex items-center justify-between mb-3">
                             <h2 className="text-lg font-bold text-white">Console</h2>
@@ -1292,10 +1220,10 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 )}
 
                 {activeTab === 'publicity' && (
-                    /* Publicity Tab */
+
                     <div className="flex flex-col items-center justify-center h-full">
                         <div className="max-w-md w-full text-center">
-                            {/* Playit Logo/Icon */}
+                            { }
                             <div className="mb-6">
                                 <svg className="w-20 h-20 mx-auto text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 4.034a2.5 2.5 0 0 1 3.62 0l3.156 3.156a2.5 2.5 0 0 1 0 3.62l-8.96 8.96a2.5 2.5 0 0 1-3.62 0L3.37 12.81a2.5 2.5 0 0 1 0-3.62l3.156-3.156a2.5 2.5 0 0 1 3.62 0L12 5.439l1.19-1.405z" />
@@ -1385,7 +1313,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 )}
 
                 {activeTab === 'charts' && (
-                    /* Charts Tab */
+
                     <div className="flex flex-col h-full">
                         <h2 className="text-lg font-bold text-white mb-4">Server Performance</h2>
 
@@ -1422,9 +1350,9 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 )}
 
                 {activeTab === 'players' && (
-                    /* Players Tab */
+
                     <div className="flex flex-col h-full">
-                        {/* Header with actions */}
+                        { }
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-lg font-bold text-white">Player Management</h2>
 
@@ -1448,7 +1376,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                             </div>
                         </div>
 
-                        {/* Bulk Actions */}
+                        { }
                         {selectedPlayers.length > 0 && (
                             <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-4 flex items-center justify-between">
                                 <span className="text-primary text-sm">
@@ -1468,7 +1396,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                         Clear
                                     </button>
 
-                                    {/* Gamemode Menu */}
+                                    { }
                                     <div className="relative">
                                         <button
                                             onClick={() => setShowGamemodeMenu(!showGamemodeMenu)}
@@ -1494,7 +1422,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                         )}
                                     </div>
 
-                                    {/* XP Menu */}
+                                    { }
                                     <div className="relative">
                                         <button
                                             onClick={() => setShowXpMenu(!showXpMenu)}
@@ -1562,9 +1490,9 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                             </div>
                         )}
 
-                        {/* Players Lists */}
+                        { }
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            {/* Online Players */}
+                            { }
                             <div className="mb-6">
                                 <h3 className="text-md font-semibold text-white mb-3">
                                     Online ({filteredOnlinePlayers.length})
@@ -1695,7 +1623,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                 </div>
                             </div>
 
-                            {/* Offline Players */}
+                            { }
                             <div>
                                 <h3 className="text-md font-semibold text-white mb-3">
                                     Recently Online ({filteredOfflinePlayers.length})

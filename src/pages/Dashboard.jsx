@@ -8,8 +8,6 @@ import { Analytics } from '../services/Analytics';
 import ModpackCodeModal from '../components/ModpackCodeModal';
 
 const DEFAULT_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E";
-
-// Format playtime from milliseconds to readable string
 const formatPlaytime = (ms) => {
     if (!ms || ms <= 0) return '0h';
     const hours = Math.floor(ms / 3600000);
@@ -22,19 +20,15 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
     const { addNotification } = useNotification();
     const [instances, setInstances] = useState([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
-
-    // Handle external create trigger from sidebar + button
     useEffect(() => {
         if (triggerCreate) {
             setShowCreateModal(true);
             if (onCreateHandled) onCreateHandled();
         }
     }, [triggerCreate]);
-    const [contextMenu, setContextMenu] = useState(null); // { x, y, instance }
+    const [contextMenu, setContextMenu] = useState(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [instanceToDelete, setInstanceToDelete] = useState(null);
-
-    // Create Instance State
     const [newInstanceName, setNewInstanceName] = useState('');
     const [selectedVersion, setSelectedVersion] = useState('');
     const [selectedLoader, setSelectedLoader] = useState('Vanilla');
@@ -44,30 +38,24 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
     const [loadingVersions, setLoadingVersions] = useState(false);
 
     const [isCreating, setIsCreating] = useState(false);
-    const [isLoading, setIsLoading] = useState(false); // Global loading state for overlay
-
-    // Multi-step creation
+    const [isLoading, setIsLoading] = useState(false);
     const [creationStep, setCreationStep] = useState(1);
     const [loaderVersions, setLoaderVersions] = useState([]);
     const [selectedLoaderVersion, setSelectedLoaderVersion] = useState('');
     const [availableLoaders, setAvailableLoaders] = useState({ Vanilla: true, Fabric: true, Forge: true, NeoForge: true, Quilt: true });
     const [checkingLoaders, setCheckingLoaders] = useState(false);
-    const [pendingLaunches, setPendingLaunches] = useState({}); // { [name]: boolean }
-    const [installProgress, setInstallProgress] = useState({}); // { [name]: { progress, status } }
+    const [pendingLaunches, setPendingLaunches] = useState({});
+    const [installProgress, setInstallProgress] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortMethod, setSortMethod] = useState('playtime'); // name, version, playtime
-    const [groupMethod, setGroupMethod] = useState('version'); // none, version, loader
+    const [sortMethod, setSortMethod] = useState('playtime');
+    const [groupMethod, setGroupMethod] = useState('version');
 
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const [showModalImportMenu, setShowModalImportMenu] = useState(false);
     const [showCodeModal, setShowCodeModal] = useState(false);
     const createMenuRef = useRef(null);
     const internalImportMenuRef = useRef(null);
-
-    // File Input Ref
     const fileInputRef = useRef(null);
-
-    // Handle clicks outside the dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (createMenuRef.current && !createMenuRef.current.contains(event.target)) {
@@ -85,28 +73,24 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
         addNotification(`Starting background import for "${modpackData.name}"...`, 'info');
 
         try {
-            // First create the instance
+
             const createRes = await window.electronAPI.createInstance(
                 modpackData.name,
                 modpackData.instanceVersion || modpackData.version,
                 modpackData.instanceLoader || modpackData.loader,
-                null // Default icon
+                null
             );
 
             if (createRes.success) {
                 const instanceName = createRes.instanceName;
-
-                // Initialize install progress immediately
                 setInstallProgress(prev => ({
                     ...prev,
                     [instanceName]: { progress: 0, status: 'Starting import...' }
                 }));
-
-                // Trigger background installation of mods, packs, shaders, and keybinds
                 window.electronAPI.installSharedContent(instanceName, modpackData);
 
                 addNotification(`Instance "${instanceName}" created. Download starting in the background.`, 'success');
-                loadInstances(); // Refresh the list
+                loadInstances();
             } else {
                 addNotification(`Failed to create instance: ${createRes.error}`, 'error');
             }
@@ -118,8 +102,6 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
 
     useEffect(() => {
         loadInstances();
-
-        // Installation Progress Listener
         const removeInstallListener = window.electronAPI.onInstallProgress((data) => {
             setInstallProgress(prev => {
                 if (data.progress >= 100) {
@@ -129,13 +111,11 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                 }
                 return { ...prev, [data.instanceName]: data };
             });
-            // Also refresh list if complete
+
             if (data.progress >= 100) {
                 loadInstances();
             }
         });
-
-        // Also refresh when instance status changes (e.g., install completes)
         const removeListener = window.electronAPI.onInstanceStatus(({ instanceName, status }) => {
             if (status === 'stopped' || status === 'ready' || status === 'error' || status === 'deleted') {
                 loadInstances();
@@ -161,8 +141,6 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
             setAvailableLoaders({ Vanilla: true, Fabric: true, Forge: true, NeoForge: true, Quilt: true });
         }
     }, [showCreateModal]);
-
-    // Fetch versions when Modal opens or Loader changes
     const [showSnapshots, setShowSnapshots] = useState(false);
 
     useEffect(() => {
@@ -174,7 +152,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                 if (selectedLoader === 'Vanilla') {
                     const res = await window.electronAPI.getVanillaVersions();
                     if (res.success) {
-                        // Filter based on showSnapshots
+
                         const versions = res.versions.filter(v => showSnapshots ? true : v.type === 'release');
                         setAvailableVersions(versions);
 
@@ -183,18 +161,14 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                         }
                     }
                 } else {
-                    // Modded Loader
+
                     const res = await window.electronAPI.getSupportedGameVersions(selectedLoader);
                     if (res.success) {
                         let versions = res.versions;
-
-                        // Filter invalid/snapshot versions if toggle is off
                         if (!showSnapshots) {
                             versions = versions.filter(v => /^\d+\.\d+(\.\d+)?$/.test(v));
                         }
-
-                        // Convert to object array
-                        const versionObjs = versions.map(v => ({ id: v, type: 'release' })); // Type is dummy here
+                        const versionObjs = versions.map(v => ({ id: v, type: 'release' }));
                         setAvailableVersions(versionObjs);
 
                         if (versionObjs.length > 0 && (!selectedVersion || !versionObjs.find(v => v.id === selectedVersion))) {
@@ -204,7 +178,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                         }
                     } else {
                         addNotification(`Failed to get versions for ${selectedLoader}: ${res.error}`, 'error');
-                        setAvailableVersions([]); // clear
+                        setAvailableVersions([]);
                     }
                 }
             } catch (e) {
@@ -227,7 +201,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
         const res = await window.electronAPI.getVanillaVersions();
         setLoadingVersions(false);
         if (res.success) {
-            // Only show release versions, no snapshots
+
             const versions = res.versions.filter(v => v.type === 'release');
             setAvailableVersions(versions);
             if (versions.length > 0) setSelectedVersion(versions[0].id);
@@ -239,8 +213,6 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
         if (isCreating) return;
 
         const loaderForApi = selectedLoader.toLowerCase();
-
-        // Step 1: If Modded and not yet on step 2, go to Step 2
         if (creationStep === 1 && loaderForApi !== 'vanilla') {
             if (!selectedVersion) {
                 addNotification('Please select a Minecraft version', 'error');
@@ -254,13 +226,13 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
 
                 if (res.success && res.versions && res.versions.length > 0) {
                     setLoaderVersions(res.versions);
-                    // Usually first one is latest, extract the version string
+
                     setSelectedLoaderVersion(res.versions[0].version);
                     setCreationStep(2);
-                    return; // Stop here, wait for user to confirm step 2
+                    return;
                 } else {
                     addNotification('No specific loader versions found, using latest.', 'info');
-                    // Proceed to create with default (null loaderVersion)
+
                 }
             } catch (err) {
                 setLoadingVersions(false);
@@ -287,12 +259,10 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
             );
 
             if (result.success) {
-                // Modal closes immediately, background install happens
+
                 setShowCreateModal(false);
                 await loadInstances();
                 addNotification(`Started creating: ${result.instanceName || nameToUse}`, 'success');
-
-                // Track in Analytics
                 Analytics.trackInstanceCreation(loaderForApi, selectedVersion);
             } else {
                 addNotification(`Failed to create instance: ${result.error}`, 'error');
@@ -314,19 +284,13 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
             reader.readAsDataURL(file);
         }
     };
-
-    // Handle context menu
     const handleContextMenu = (e, instance) => {
         e.preventDefault();
         e.stopPropagation();
-
-        // Calculate position with boundary checks
         const menuWidth = 180;
         const menuHeight = 280;
         let x = e.clientX;
         let y = e.clientY;
-
-        // Prevent menu from going off-screen
         if (x + menuWidth > window.innerWidth) {
             x = window.innerWidth - menuWidth - 10;
         }
@@ -389,7 +353,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
 
         setIsLoading(true);
         try {
-            // Stop the instance if it's running
+
             const status = runningInstances[instanceToDelete.name];
             if (status) {
                 await window.electronAPI.killGame(instanceToDelete.name);
@@ -406,15 +370,11 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
             setInstanceToDelete(null);
         }
     };
-
-    // Close context menu on click outside
     useEffect(() => {
         const handleClick = () => setContextMenu(null);
         window.addEventListener('click', handleClick);
         return () => window.removeEventListener('click', handleClick);
     }, []);
-
-    // Prepare dropdown options
     const versionOptions = availableVersions.map(v => ({
         value: v.id,
         label: v.id
@@ -439,25 +399,19 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
         { value: 'version', label: 'Group by: Game version' },
         { value: 'loader', label: 'Group by: Loader' }
     ];
-
-    // 1. Filter
     const filteredInstances = instances.filter(inst =>
         inst.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         inst.version.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-    // 2. Sort
     const sortedInstances = [...filteredInstances].sort((a, b) => {
         if (sortMethod === 'name') return a.name.localeCompare(b.name);
         if (sortMethod === 'playtime') return (b.playtime || 0) - (a.playtime || 0);
         if (sortMethod === 'version') {
-            // Simple version sort (reverse release order usually)
+
             return b.version.localeCompare(a.version, undefined, { numeric: true, sensitivity: 'base' });
         }
         return 0;
     });
-
-    // 3. Group
     const groupedData = [];
     if (groupMethod === 'none') {
         groupedData.push({ title: null, items: sortedInstances });
@@ -468,8 +422,6 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
             if (!groups[key]) groups[key] = [];
             groups[key].push(inst);
         });
-
-        // Sort keys for consistent display
         const sortedKeys = Object.keys(groups).sort((a, b) => {
             if (groupMethod === 'version') return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
             return a.localeCompare(b);
@@ -507,7 +459,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                             <Dropdown options={groupOptions} value={groupMethod} onChange={setGroupMethod} />
                         </div>
 
-                        {/* New Instance Dropdown */}
+                        { }
                         <div className="relative" ref={createMenuRef}>
                             <button
                                 onClick={() => setShowCreateMenu(!showCreateMenu)}
@@ -590,16 +542,11 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                             )}
                             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-8">
                                 {group.items.map((instance) => {
-                                    // Use runningInstances from props first, fallback to persisted status
+
                                     const liveStatus = runningInstances[instance.name];
                                     const persistedStatus = instance.status;
-
-                                    // Case-insensitive lookup for install progress to prevent casing mismatch issues
                                     const installStateKey = Object.keys(installProgress).find(k => k.toLowerCase() === instance.name.toLowerCase());
                                     const installState = installStateKey ? installProgress[installStateKey] : null;
-
-                                    // liveStatus takes priority, but if not present, check if instance is still installing
-                                    // installState ensures we catch the transient installing state even if not persisted yet
                                     const status = liveStatus || (installState || persistedStatus === 'installing' ? 'installing' : null);
                                     const isRunning = status === 'running';
                                     const isLaunching = status === 'launching';
@@ -614,7 +561,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                                         >
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-40 transition-opacity"></div>
 
-                                            {/* 3-dot menu button */}
+                                            { }
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -754,7 +701,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                         <form onSubmit={handleCreate} className="space-y-6">
                             {creationStep === 1 && (
                                 <>
-                                    {/* Icon Selection */}
+                                    { }
                                     <div className="flex flex-col items-center gap-4">
                                         <div className="w-24 h-24 bg-background rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative group cursor-pointer hover:border-primary/50 transition-colors"
                                             onClick={() => fileInputRef.current?.click()}>
@@ -933,12 +880,12 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                 </div>
             )}
 
-            {/* Import from Code Modal */}
+            { }
             {showCodeModal && (
                 <ModpackCodeModal
                     isOpen={showCodeModal}
                     mode="import"
-                    instance={null} // Not needed for import
+                    instance={null}
                     onClose={() => setShowCodeModal(false)}
                     onImportComplete={handleCodeImportComplete}
                 />

@@ -66,14 +66,12 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
             const res = await window.electronAPI.getSettings();
             if (res.success && res.settings.dashboard) {
                 let settings = res.settings.dashboard;
-                // Migration logic: convert old boolean settings to layout array
+
                 if (!settings.layout) {
                     const newLayout = [];
                     if (settings.showRecentInstances !== false) newLayout.push({ id: 'recent-instances', visible: true, width: 12 });
                     if (settings.showRecentWorlds !== false) newLayout.push({ id: 'recent-worlds', visible: true, width: 12 });
                     if (settings.showModpacks !== false) newLayout.push({ id: 'modpacks', visible: true, width: 12 });
-
-                    // Add missing ones as hidden if they weren't in old settings
                     const existingIds = newLayout.map(i => i.id);
                     if (!existingIds.includes('recent-instances')) newLayout.push({ id: 'recent-instances', visible: false, width: 12 });
                     if (!existingIds.includes('recent-worlds')) newLayout.push({ id: 'recent-worlds', visible: false, width: 12 });
@@ -83,8 +81,6 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                     delete settings.showRecentInstances;
                     delete settings.showRecentWorlds;
                     delete settings.showModpacks;
-
-                    // Save the migrated settings
                     await window.electronAPI.saveSettings({
                         ...res.settings,
                         dashboard: settings
@@ -116,8 +112,6 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
     const loadInstances = async () => {
         const list = await window.electronAPI.getInstances();
         setInstances(list || []);
-
-        // Load worlds for recently played instances
         if (list && list.length > 0) {
             const recentInsts = [...list]
                 .filter(inst => inst.lastPlayed || inst.playtime > 0)
@@ -139,9 +133,9 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                             });
                         }
                     }
-                } catch (e) { /* ignore */ }
+                } catch (e) { }
             }
-            // Sort all worlds by lastPlayed and take top 3
+
             allWorlds.sort((a, b) => new Date(b.lastPlayed) - new Date(a.lastPlayed));
             setRecentWorlds(allWorlds.slice(0, 3));
         }
@@ -172,7 +166,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
         .slice(0, 5);
 
     const handleLaunch = async (e, instance) => {
-        // ... (unchanged)
+
     };
 
     const handleDragStart = (e, index) => {
@@ -245,7 +239,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                     </div>
                 )}
 
-                {/* Content based on ID */}
+                { }
                 {section.id === 'recent-instances' && recentInstances.length > 0 && (
                     <div className="mb-10">
                         <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Jump back in</h2>
@@ -414,7 +408,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
 
     return (
         <div className="p-8 h-full flex flex-col overflow-y-auto custom-scrollbar">
-            {/* Header */}
+            { }
             <div className="mb-8 flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-1">
@@ -451,12 +445,12 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                 </div>
             )}
 
-            {/* Render Sections Dynamically */}
+            { }
             <div className="grid grid-cols-12 gap-x-6 gap-y-2">
                 {dashSettings.layout.map(section => renderSection(section))}
             </div>
 
-            {/* No recent activity fallback (only show if sections are visible but empty) */}
+            { }
             {dashSettings.layout.find(s => s.id === 'recent-instances')?.visible && recentInstances.length === 0 && !isEditing && (
                 <div className="mb-10 p-8 border-2 border-dashed border-white/10 rounded-2xl text-center">
                     <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -467,7 +461,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                 </div>
             )}
 
-            {/* Recent Worlds */}
+            { }
             {dashSettings.showRecentWorlds && recentWorlds.length > 0 && (
                 <div className="mb-10">
                     <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Recent Worlds</h2>
@@ -507,7 +501,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                             <span>{formatTimeAgo(new Date(world.lastPlayed).getTime())}</span>
                                         </div>
 
-                                        {/* Play button */}
+                                        { }
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -564,7 +558,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                 </div>
             )}
 
-            {/* Discover a modpack */}
+            { }
             {dashSettings.showModpacks && (
                 <div className="mb-8">
                     <button
@@ -638,7 +632,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                 </div>
             )}
 
-            {/* Modpack Detail Modal */}
+            { }
             {selectedModpack && (
                 <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
@@ -648,7 +642,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                         className="bg-surface border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Modal Header with Cover */}
+                        { }
                         <div className="relative">
                             {selectedModpack.gallery && selectedModpack.gallery.length > 0 ? (
                                 <img
@@ -669,7 +663,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
 
-                            {/* Close button */}
+                            { }
                             <button
                                 onClick={() => setSelectedModpack(null)}
                                 className="absolute top-3 right-3 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
@@ -680,7 +674,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                             </button>
                         </div>
 
-                        {/* Modal Body */}
+                        { }
                         <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
                             <div className="flex items-start gap-4 mb-4">
                                 {selectedModpack.icon_url && (
@@ -692,7 +686,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                 </div>
                             </div>
 
-                            {/* Stats */}
+                            { }
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="flex items-center gap-1.5 text-sm text-gray-400">
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" /></svg>
@@ -711,7 +705,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                 )}
                             </div>
 
-                            {/* Description */}
+                            { }
                             <div className="mb-6">
                                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Description</h3>
                                 <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
@@ -719,7 +713,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                 </p>
                             </div>
 
-                            {/* Gallery */}
+                            { }
                             {selectedModpack.gallery && selectedModpack.gallery.length > 1 && (
                                 <div className="mb-6">
                                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Gallery</h3>
@@ -731,7 +725,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                 </div>
                             )}
 
-                            {/* Versions / Game Versions */}
+                            { }
                             {selectedModpack.versions && selectedModpack.versions.length > 0 && (
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Supported Versions</h3>
@@ -744,7 +738,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                             )}
                         </div>
 
-                        {/* Modal Footer */}
+                        { }
                         <div className="p-4 border-t border-white/5 flex items-center justify-between">
                             <a
                                 href={`https://modrinth.com/modpack/${selectedModpack.slug}`}

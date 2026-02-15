@@ -47,17 +47,17 @@ function App() {
     const logoRef = useRef(null);
 
     useEffect(() => {
-        Analytics.init(); // Uses default URL (https://mclc.pluginhub.de)
+        Analytics.init();
 
         const checkSession = async () => {
-            // Get startup page preference
+
             let startPage = 'dashboard';
             try {
                 const settingsRes = await window.electronAPI.getSettings();
                 if (settingsRes.success && settingsRes.settings.startPage) {
                     startPage = settingsRes.settings.startPage;
                 }
-            } catch (e) { /* use default */ }
+            } catch (e) { }
 
             if (window.electronAPI.validateSession) {
                 const res = await window.electronAPI.validateSession();
@@ -251,7 +251,7 @@ function App() {
             if (settingsRes.success && settingsRes.settings.startPage) {
                 startPage = settingsRes.settings.startPage;
             }
-        } catch (e) { /* use default */ }
+        } catch (e) { }
         setCurrentView(startPage);
         setCurrentMode('client');
     };
@@ -304,7 +304,7 @@ function App() {
     return (
         <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-white font-sans selection:bg-primary selection:text-black relative">
 
-            {/* Background Layer */}
+            { }
             {userProfile && theme?.bgMedia?.url && theme.bgMedia.url.trim() !== '' && (
                 <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                     {theme.bgMedia.type === 'video' ? (
@@ -330,7 +330,7 @@ function App() {
                 </div>
             )}
 
-            {/* Title Bar */}
+            { }
             <div
                 className="h-16 w-full titlebar z-[60] flex justify-between items-center pl-6 pr-6 bg-surface/30 border-b border-white/5 flex-none relative"
                 style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
@@ -383,7 +383,7 @@ function App() {
                 </div>
 
                 <div className="flex items-center gap-4 no-drag h-full">
-                    {/* Running Instances Indicator */}
+                    { }
                     <div className="relative h-full flex items-center" ref={sessionsRef}>
                         <button
                             onClick={() => setShowSessions(!showSessions)}
@@ -421,7 +421,7 @@ function App() {
                         )}
                     </div>
 
-                    {/* Downloads Indicator */}
+                    { }
                     <div className="relative h-full flex items-center" ref={downloadsRef}>
                         <button
                             onClick={() => setShowDownloads(!showDownloads)}
@@ -461,7 +461,7 @@ function App() {
                         )}
                     </div>
 
-                    {/* Custom Window Controls */}
+                    { }
                     <div className="flex gap-1 border-l border-white/5 pl-4">
                         <button onClick={() => window.electronAPI.minimize()} className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
@@ -486,7 +486,7 @@ function App() {
 
             {userProfile ? (
                 <div className="flex flex-1 overflow-hidden">
-                    {/* Dynamische Sidebar basierend auf Mode */}
+                    { }
                     {currentMode === 'client' ? (
                         <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} onInstanceClick={handleInstanceClick} onCreateInstance={() => { setCurrentView('library'); setTriggerCreateInstance(true); }} />
                     ) : (
@@ -497,7 +497,7 @@ function App() {
                         style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
                     >
                         <div className="flex-1 overflow-hidden bg-surface/20 rounded-2xl relative flex flex-col">
-                            {/* Client Views */}
+                            { }
                             {currentMode === 'client' && (
                                 <>
                                     {currentView === 'dashboard' && <Home onInstanceClick={handleInstanceClick} runningInstances={runningInstances} onNavigateSearch={(category) => { setSearchCategory(category); setCurrentView('search'); }} />}
@@ -512,7 +512,7 @@ function App() {
                                 </>
                             )}
 
-                            {/* Server Views */}
+                            { }
                             {currentMode === 'server' && (
                                 <>
                                     {currentView === 'server-dashboard' && <ServerDashboard onServerClick={handleServerClick} runningInstances={runningInstances} />}

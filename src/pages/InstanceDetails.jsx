@@ -1,22 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Dropdown from '../components/Dropdown';
 import InstanceSettingsModal from '../components/InstanceSettingsModal';
-import ModpackCodeModal from '../components/ModpackCodeModal'; // Import the new component
+import ModpackCodeModal from '../components/ModpackCodeModal';
 import { useNotification } from '../context/NotificationContext';
 import { Analytics } from '../services/Analytics';
 
 function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate }) {
     const [activeTab, setActiveTab] = useState('content');
-
-    // Content Tab State
-    const [contentView, setContentView] = useState('mods'); // 'mods' | 'resourcepacks' | 'search'
-    const [searchCategory, setSearchCategory] = useState('mod'); // 'mod' | 'resourcepack'
+    const [contentView, setContentView] = useState('mods');
+    const [searchCategory, setSearchCategory] = useState('mod');
     const [mods, setMods] = useState([]);
     const [resourcePacks, setResourcePacks] = useState([]);
     const [loadingResourcePacks, setLoadingResourcePacks] = useState(false);
     const [shaders, setShaders] = useState([]);
     const [loadingShaders, setLoadingShaders] = useState(false);
-    const [installationStatus, setInstallationStatus] = useState({}); // productId -> 'installing' | 'success' | 'failed'
+    const [installationStatus, setInstallationStatus] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
@@ -25,21 +23,11 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     const [searchOffset, setSearchOffset] = useState(0);
     const [totalHits, setTotalHits] = useState(0);
     const limit = 10;
-
-    // Code Export/Import State
     const [showCodeModal, setShowCodeModal] = useState(false);
-    const [codeModalMode, setCodeModalMode] = useState('export'); // 'export' or 'import'
-
-    // Installed Mods Search
+    const [codeModalMode, setCodeModalMode] = useState('export');
     const [localSearchQuery, setLocalSearchQuery] = useState('');
-
-    // Worlds Tab State
     const [worlds, setWorlds] = useState([]);
-
-    // Drag-and-drop state
     const [isDragging, setIsDragging] = useState(false);
-
-    // Logs Tab State
     const [log, setLog] = useState('');
     const [logFiles, setLogFiles] = useState([]);
     const [selectedLog, setSelectedLog] = useState('latest.log');
@@ -51,36 +39,20 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     });
     const [autoScroll, setAutoScroll] = useState(true);
     const logContainerRef = useRef(null);
-
-    // Launch Handling
     const status = runningInstances[instance.name];
     const isRunning = status === 'running';
     const isLaunching = status === 'launching';
     const isInstalling = status === 'installing';
-
-    // Settings Modal
     const [showSettings, setShowSettings] = useState(false);
-
-    // Modrinth Project Detail Modal
     const [selectedProject, setSelectedProject] = useState(null);
     const [projectVersions, setProjectVersions] = useState([]);
     const [loadingVersions, setLoadingVersions] = useState(false);
-
-    // Header Menu State
     const [showMenu, setShowMenu] = useState(false);
-
-    // Initial Launch Pending State
     const [localPending, setLocalPending] = useState(false);
-
-    // Confirmation Modal State
     const [modToDelete, setModToDelete] = useState(null);
-
-    // Update States
-    const [updates, setUpdates] = useState({}); // projectId -> updateData
+    const [updates, setUpdates] = useState({});
     const [checkingUpdates, setCheckingUpdates] = useState(false);
-    const [updatingMod, setUpdatingMod] = useState(null); // projectId being updated
-
-    // Preview & Lightbox State
+    const [updatingMod, setUpdatingMod] = useState(null);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [previewProject, setPreviewProject] = useState(null);
     const [lightboxIndex, setLightboxIndex] = useState(-1);
@@ -98,8 +70,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             setLightboxIndex((prev) => (prev - 1 + previewProject.gallery.length) % previewProject.gallery.length);
         }
     };
-
-    // Keyboard navigation for lightbox
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (lightboxIndex === -1) return;
@@ -133,7 +103,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     };
 
     const handleSettingsSave = (newConfig) => {
-        // Update parent state so UI reflects changes immediately
+
         if (onInstanceUpdate) {
             onInstanceUpdate(newConfig);
         }
@@ -152,8 +122,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             loadLog();
         }
     }, [activeTab, contentView, instance, selectedLog]);
-
-    // Track which project IDs are already installed to show "Installed" in search
     useEffect(() => {
         const installedIds = {};
         mods.forEach(m => { if (m.projectId) installedIds[m.projectId] = 'success'; });
@@ -165,30 +133,24 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             ...installedIds
         }));
     }, [mods, resourcePacks, shaders]);
-
-    // Trigger search when sort or offset changes
     useEffect(() => {
         if (activeTab === 'content' && contentView === 'search') {
             handleSearch();
         }
     }, [sortMethod, searchOffset]);
-
-    // Auto-scroll when log changes
     useEffect(() => {
         if (autoScroll && logContainerRef.current) {
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
     }, [log, autoScroll]);
-
-    // Debounced instant search
     useEffect(() => {
         if (contentView !== 'search') return;
         if (searchTimeout) clearTimeout(searchTimeout);
 
         const timeout = setTimeout(() => {
-            setSearchOffset(0); // Reset to page 1 on new query
+            setSearchOffset(0);
             handleSearch(null, true);
-        }, 300); // 300ms debounce
+        }, 300);
 
         setSearchTimeout(timeout);
         return () => clearTimeout(timeout);
@@ -233,14 +195,14 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     const loadLogFiles = async () => {
         const res = await window.electronAPI.getLogFiles(instance.name);
         if (res.success) {
-            // Backend returns objects, we need names
+
             const names = res.files.map(f => f.name);
             setLogFiles(names);
         }
     };
 
     const loadLog = async () => {
-        // If selecting latest.log and instance is running, prefer live logs
+
         if (selectedLog === 'latest.log' && isRunning) {
             const live = await window.electronAPI.getLiveLogs(instance.name);
             setLog(live.join('\n'));
@@ -249,10 +211,8 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             if (res.success) setLog(res.content);
         }
     };
-
-    // Live Log Subscription and Auto-select
     useEffect(() => {
-        // Auto-select install.log if installing and no specific log selected yet
+
         if (isInstalling && selectedLog === 'latest.log') {
             setSelectedLog('install.log');
         }
@@ -269,11 +229,9 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             };
         }
     }, [activeTab, isRunning, isLaunching, isInstalling, selectedLog]);
-
-    // Auto-switch to Logs tab on launch
     const prevStatusRef = useRef(status);
     useEffect(() => {
-        // If we transitioned from 'stopped' (or undefined) to 'launching'/'installing', switch to logs
+
         const wasStopped = !prevStatusRef.current || prevStatusRef.current === 'stopped';
         const isStarting = status === 'launching' || status === 'installing';
 
@@ -295,8 +253,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             addNotification("Failed to copy log", 'error');
         });
     };
-
-    // --- Mod Management ---
     const handleToggleMod = async (fileName) => {
         await window.electronAPI.toggleMod(instance.name, fileName);
         loadMods();
@@ -359,11 +315,9 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             setCheckingUpdates(false);
         }
     };
-
-    // Auto-check updates when content is loaded
     useEffect(() => {
         if (activeTab === 'content' && (mods.length > 0 || resourcePacks.length > 0)) {
-            // Check if we already have updates (simple debounce/cache check)
+
             if (Object.keys(updates).length === 0 && !checkingUpdates) {
                 handleCheckUpdates(true);
             }
@@ -383,13 +337,13 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
 
             if (res.success) {
                 addNotification(`Updated ${updateData.filename}!`, 'success');
-                // Remove from updates list
+
                 setUpdates(prev => {
                     const next = { ...prev };
                     delete next[updateData.projectId];
                     return next;
                 });
-                // Reload lists
+
                 if (updateData.type === 'mod') loadMods();
                 else loadResourcePacks();
             } else {
@@ -408,31 +362,22 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
         if (updateList.length === 0) return;
 
         addNotification(`Updating ${updateList.length} item(s)...`, 'info');
-
-        // Use sequential updates to be safe with file operations and UI feedback
         for (const updateData of updateList) {
             await handleUpdateMod(updateData);
         }
 
         addNotification("All updates completed!", 'success');
     };
-
-    // --- Search & Install ---
     const handleSearch = async (e, isAuto = false) => {
         if (e) e.preventDefault();
         setSearching(true);
-        // Filter by instance version and loader
+
         const facets = [
             [`versions:${instance.version}`]
         ];
-
-        // Only add loader facet for mods, resource packs are usually loader-independent or have their own logic
         if (searchCategory === 'mod' && instance.loader && instance.loader.toLowerCase() !== 'vanilla') {
             facets.push([`categories:${instance.loader.toLowerCase()}`]);
         }
-
-        // If auto search (empty query), use relevance or popular
-        // Modrinth Sort Options: relevance, downloads, newest, updated
         const index = sortMethod;
 
         const res = await window.electronAPI.searchModrinth(searchQuery, facets, {
@@ -521,9 +466,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     const handleInstall = async (project) => {
         try {
             setInstallationStatus(prev => ({ ...prev, [project.project_id]: 'installing' }));
-
-            // 1. Get versions - API returns { success: true, versions: [...] }
-            // If it's a resourcepack or shader, don't filter by loader because packs are usually loader-independent
             const loaders = (searchCategory === 'resourcepack' || searchCategory === 'shader' || !instance.loader || instance.loader.toLowerCase() === 'vanilla')
                 ? []
                 : [instance.loader.toLowerCase()];
@@ -534,8 +476,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 setInstallationStatus(prev => ({ ...prev, [project.project_id]: 'failed' }));
                 return;
             }
-
-            // 2. Install top version
             const targetVersion = res.versions[0];
             const file = targetVersion.files.find(f => f.primary) || targetVersion.files[0];
 
@@ -552,7 +492,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 addNotification(`Installed ${project.title}!`, 'success');
                 setInstallationStatus(prev => ({ ...prev, [project.project_id]: 'success' }));
                 Analytics.trackDownload(searchCategory, project.title, project.project_id);
-                // Reload lists if on installed view
+
                 if (contentView === 'mods') loadMods();
                 if (contentView === 'resourcepacks') loadResourcePacks();
             } else {
@@ -571,8 +511,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
         setProjectVersions([]);
         setLoadingVersions(true);
         try {
-            // Fetch versions filtered by game version and loader
-            // Relax loader filter for resource packs and shaders
             const loaders = (project.project_type === 'resourcepack' || project.project_type === 'shader' || !instance.loader || instance.loader.toLowerCase() === 'vanilla')
                 ? []
                 : [instance.loader.toLowerCase()];
@@ -633,24 +571,20 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             setLocalPending(false);
         }
     };
-
-    // Handle code import completion
     const handleCodeImportComplete = async (modpackData) => {
         addNotification(`Starting background import for "${modpackData.name}"...`, 'info');
 
         try {
-            // First create the instance
+
             const createRes = await window.electronAPI.createInstance(
                 modpackData.name,
                 modpackData.instanceVersion || modpackData.version,
                 modpackData.instanceLoader || modpackData.loader,
-                null // Default icon
+                null
             );
 
             if (createRes.success) {
                 const instanceName = createRes.instanceName;
-
-                // Trigger background installation of mods, packs, shaders, and keybinds
                 window.electronAPI.installSharedContent(instanceName, modpackData);
 
                 addNotification(`Instance "${instanceName}" created. Mods are being downloaded in the background.`, 'success');
@@ -662,9 +596,6 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             addNotification(`Error during import: ${error.message}`, 'error');
         }
     };
-
-
-    // Log Filtering Logic
     const getFilteredLog = () => {
         if (!log) return [];
         const lines = log.replace(/\r\n/g, '\n').split('\n');
@@ -683,13 +614,11 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     };
 
     const TAB_CLASSES = (id) => `px-6 py-2 font-bold transition-all border-b-2 ${activeTab === id ? 'border-primary text-white' : 'border-transparent text-gray-400 hover:text-gray-200'}`;
-
-    // Helper for version display
     const getModVersion = (fileName) => {
-        // Improved version parsing
+
         const parts = fileName.replace('.jar', '').replace('.disabled', '').split('-');
         if (parts.length > 1) {
-            // Try to find a part that looks like a version number
+
             for (let i = parts.length - 1; i >= 0; i--) {
                 if (/\d/.test(parts[i]) && parts[i].includes('.')) return 'v' + parts[i];
             }
@@ -697,15 +626,13 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
         }
         return '';
     };
-
-    // Helper to get mod name from filename if no metadata
     const getModName = (fileName) => {
         return fileName.replace('.jar', '').replace('.disabled', '').split('-')[0].replace(/_/g, ' ');
     };
 
     return (
         <div className="h-full flex flex-col bg-transparent">
-            {/* Header */}
+            { }
             <div className="p-8 pb-0 flex items-center gap-6">
                 <div className="w-32 h-32 bg-surface rounded-2xl flex items-center justify-center text-6xl shadow-2xl border border-white/10 overflow-hidden">
                     {instance.icon && instance.icon.startsWith('data:') ? (
@@ -729,7 +656,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    {/* Play/Stop Button */}
+                    { }
                     {isRunning ? (
                         <button
                             onClick={() => window.electronAPI.killGame(instance.name)}
@@ -769,12 +696,12 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                         </button>
                     )}
 
-                    {/* Settings Button */}
+                    { }
                     <button onClick={() => setShowSettings(true)} className="p-3 rounded-xl bg-surface hover:bg-white/10 text-white font-bold border border-white/5 transition-colors" title="Settings">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     </button>
 
-                    {/* 3-Dot Menu Button */}
+                    { }
                     <div className="relative">
                         <button
                             onClick={() => setShowMenu(!showMenu)}
@@ -816,7 +743,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                 <button
                                     onClick={async () => {
                                         addNotification('Preparing export...', 'info');
-                                        // Force load all content for export to ensure we have everything
+
                                         try {
                                             const [modsRes, packsRes, shadersRes] = await Promise.all([
                                                 window.electronAPI.getMods(instance.name),
@@ -860,14 +787,14 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 </div>
             </div>
 
-            {/* Tabs Nav */}
+            { }
             <div className="px-8 mt-8 flex gap-2 border-b border-white/5">
                 <button onClick={() => setActiveTab('content')} className={TAB_CLASSES('content')}>Content</button>
                 <button onClick={() => setActiveTab('worlds')} className={TAB_CLASSES('worlds')}>Worlds</button>
                 <button onClick={() => setActiveTab('logs')} className={TAB_CLASSES('logs')}>Logs</button>
             </div>
 
-            {/* Tab Content */}
+            { }
             <div className="flex-1 overflow-hidden p-8">
                 {activeTab === 'content' && (
                     <div className="h-full flex flex-col">
@@ -1269,7 +1196,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                     )}
                                 </div>
 
-                                {/* Pagination Controls */}
+                                { }
                                 <div className="flex justify-between items-center bg-surface p-2 rounded-xl border border-white/5 shrink-0 mt-4 mb-2">
                                     <button
                                         onClick={handlePrevPage}
@@ -1326,7 +1253,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                             className="flex flex-col h-full bg-background-dark rounded-xl border border-white/5 overflow-hidden shadow-inner"
                             style={{ backgroundColor: 'rgba(var(--background-dark-color-rgb, 17, 17, 17), var(--console-opacity, 0.8))' }}
                         >
-                            {/* Controls */}
+                            { }
                             <div className="flex items-center justify-between p-2 bg-surface/50 border-b border-white/5">
                                 <div className="relative w-48">
                                     <Dropdown
@@ -1376,7 +1303,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                 </div>
                             </div>
 
-                            {/* Log Display */}
+                            { }
                             <div ref={logContainerRef} className="flex-1 overflow-y-auto p-4 font-mono text-xs text-gray-300 custom-scrollbar">
                                 {getFilteredLog().length > 0 ? getFilteredLog().map((line, i) => (
                                     <div key={i} className={`whitespace-pre-wrap leading-relaxed py-0.5 border-b border-transparent hover:bg-white/5 ${line.toLowerCase().includes('error') ? 'text-red-400 font-bold' : line.toLowerCase().includes('warn') ? 'text-yellow-400' : 'text-gray-400'}`}>
@@ -1391,7 +1318,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 }
             </div >
 
-            {/* Modals */}
+            { }
             {
                 showSettings && (
                     <InstanceSettingsModal
@@ -1403,7 +1330,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 )
             }
 
-            {/* Code Export/Import Modal */}
+            { }
             {showCodeModal && (
                 <ModpackCodeModal
                     isOpen={showCodeModal}
@@ -1417,12 +1344,12 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 />
             )}
 
-            {/* Modrinth Project Versions Modal */}
+            { }
             {
                 selectedProject && (
                     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-8 backdrop-blur-sm" onClick={() => setSelectedProject(null)}>
                         <div className="bg-background-dark w-full max-w-3xl max-h-[80vh] rounded-xl border border-white/10 flex flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                            {/* Header */}
+                            { }
                             <div className="p-6 border-b border-white/5 flex items-center gap-4">
                                 <img src={selectedProject.icon_url || 'https://cdn.modrinth.com/placeholder.svg'} alt="" className="w-16 h-16 rounded-xl bg-surface" />
                                 <div className="flex-1">
@@ -1434,7 +1361,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                 </button>
                             </div>
 
-                            {/* Versions List */}
+                            { }
                             <div className="flex-1 overflow-y-auto p-4">
                                 {loadingVersions ? (
                                     <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
@@ -1478,12 +1405,12 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 )
             }
 
-            {/* Preview Modal */}
+            { }
             {
                 showPreviewModal && previewProject && (
                     <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
                         <div className="bg-surface w-full max-w-5xl h-[85vh] rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-scale-in">
-                            {/* Header */}
+                            { }
                             <div className="p-6 border-b border-white/5 flex justify-between items-start bg-background-dark/50">
                                 <div className="flex gap-4">
                                     <img
@@ -1506,7 +1433,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                 </button>
                             </div>
 
-                            {/* Gallery Content */}
+                            { }
                             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-background/50">
                                 {previewProject.gallery && previewProject.gallery.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1539,7 +1466,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                 )}
                             </div>
 
-                            {/* Footer Actions */}
+                            { }
                             <div className="p-6 border-t border-white/5 bg-surface flex justify-end gap-4">
                                 <button
                                     onClick={() => setShowPreviewModal(false)}
@@ -1569,14 +1496,14 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 )
             }
 
-            {/* Gallery Lightbox Slider */}
+            { }
             {
                 lightboxIndex !== -1 && previewProject && previewProject.gallery && (
                     <div
                         className="fixed inset-0 bg-black/95 z-[210] flex items-center justify-center animate-fade-in backdrop-blur-xl select-none"
                         onClick={() => setLightboxIndex(-1)}
                     >
-                        {/* Close Button */}
+                        { }
                         <button
                             className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50"
                             onClick={() => setLightboxIndex(-1)}
@@ -1586,7 +1513,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                             </svg>
                         </button>
 
-                        {/* Navigation Buttons */}
+                        { }
                         <button
                             className="absolute left-6 top-1/2 -translate-y-1/2 p-4 bg-black/50 hover:bg-white/10 rounded-full text-white transition-colors z-50 backdrop-blur-sm group"
                             onClick={handlePrevImage}
@@ -1604,12 +1531,12 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                             </svg>
                         </button>
 
-                        {/* Image Counter */}
+                        { }
                         <div className="absolute top-6 left-6 text-white font-bold bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
                             {lightboxIndex + 1} / {previewProject.gallery.length}
                         </div>
 
-                        {/* Main Image */}
+                        { }
                         <div
                             className="w-full h-full flex items-center justify-center p-4 md:p-20"
                             onClick={(e) => e.stopPropagation()}
@@ -1629,7 +1556,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 )
             }
 
-            {/* Delete Confirmation Modal */}
+            { }
             {
                 modToDelete && (
                     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">

@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SkinViewer, WalkingAnimation, IdleAnimation } from 'skinview3d';
 import { useNotification } from '../context/NotificationContext';
-
-// Helper Components for Previews
 const SkinPreview = ({ src, className, model = 'classic' }) => {
     const canvasRef = useRef(null);
 
@@ -11,8 +9,6 @@ const SkinPreview = ({ src, className, model = 'classic' }) => {
             const canvas = canvasRef.current;
             if (!canvas || !src) return;
             const ctx = canvas.getContext('2d');
-
-            // Scaling factor for "High Quality"
             const scale = 8;
             canvas.width = 16 * scale;
             canvas.height = 32 * scale;
@@ -25,8 +21,6 @@ const SkinPreview = ({ src, className, model = 'classic' }) => {
 
                 const isSlim = model === 'slim';
                 const armWidth = isSlim ? 3 : 4;
-
-                // Function to draw a part with optional shadow/depth
                 const drawPart = (sx, sy, sw, sh, dx, dy, dw, dh, shadow = false) => {
                     if (shadow) {
                         ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -34,12 +28,8 @@ const SkinPreview = ({ src, className, model = 'classic' }) => {
                     }
                     ctx.drawImage(img, sx, sy, sw, sh, dx * scale, dy * scale, dw * scale, dh * scale);
                 };
-
-                // --- Base Body (Inner) ---
-                // Legs
-                // Right Leg (Viewer Left)
                 drawPart(4, 20, 4, 12, 4, 20, 4, 12);
-                // Left Leg (Viewer Right)
+
                 if (img.height === 64) drawPart(20, 52, 4, 12, 8, 20, 4, 12);
                 else {
                     ctx.save();
@@ -47,14 +37,9 @@ const SkinPreview = ({ src, className, model = 'classic' }) => {
                     drawPart(4, 20, 4, 12, -12, 20, 4, 12);
                     ctx.restore();
                 }
-
-                // Body
                 drawPart(20, 20, 8, 12, 4, 8, 8, 12);
-
-                // Arms
-                // Right Arm Front (Viewer Left)
                 drawPart(44, 20, armWidth, 12, 4 - armWidth, 8, armWidth, 12);
-                // Left Arm Front (Viewer Right)
+
                 if (img.height === 64) drawPart(36, 52, armWidth, 12, 12, 8, armWidth, 12);
                 else {
                     ctx.save();
@@ -62,22 +47,18 @@ const SkinPreview = ({ src, className, model = 'classic' }) => {
                     drawPart(44, 20, 4, 12, -16, 8, 4, 12);
                     ctx.restore();
                 }
-
-                // Head
                 drawPart(8, 8, 8, 8, 4, 0, 8, 8, true);
-
-                // --- Outer Layers ---
                 if (img.height === 64) {
-                    // Pants
-                    drawPart(4, 36, 4, 12, 4, 20, 4, 12); // Right
-                    drawPart(4, 52, 4, 12, 8, 20, 4, 12); // Left
-                    // Jacket
+
+                    drawPart(4, 36, 4, 12, 4, 20, 4, 12);
+                    drawPart(4, 52, 4, 12, 8, 20, 4, 12);
+
                     drawPart(20, 36, 8, 12, 4, 8, 8, 12);
-                    // Sleeves
-                    drawPart(44, 36, armWidth, 12, 4 - armWidth, 8, armWidth, 12); // Right
-                    drawPart(52, 52, armWidth, 12, 12, 8, armWidth, 12); // Left
+
+                    drawPart(44, 36, armWidth, 12, 4 - armWidth, 8, armWidth, 12);
+                    drawPart(52, 52, armWidth, 12, 12, 8, armWidth, 12);
                 }
-                // Hat (Always there even in 64x32)
+
                 drawPart(40, 8, 8, 8, 4, 0, 8, 8);
             };
         };
@@ -105,15 +86,7 @@ const CapePreview = ({ src, className }) => {
             img.src = src;
             img.onload = () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Determine scale based on image width (standard is 64x32)
                 const s = img.width / 64;
-
-                // Cape layout in 64x32:
-                // Back Face: (1, 1) size (10, 16)
-                // Front Face: (12, 1) size (10, 16)
-                // Previous code used 12, 1 (Front), which is why it looked wrong.
-                // We should show the Back face (1, 1).
                 ctx.drawImage(img, 1 * s, 1 * s, 10 * s, 16 * s, 0, 0, 10 * scale, 16 * scale);
             };
         };
@@ -127,20 +100,14 @@ function Skins({ onLogout, onProfileUpdate }) {
     const { addNotification } = useNotification();
     const canvasRef = useRef(null);
     const skinViewerRef = useRef(null);
-
-    // State
-    const [currentSkinUrl, setCurrentSkinUrl] = useState(null); // The one on the character (Mojang)
+    const [currentSkinUrl, setCurrentSkinUrl] = useState(null);
     const [localSkins, setLocalSkins] = useState([]);
-
-    // We track "selected" state for applying.
-    // If from local file: {type: 'local', ...skinObj }
-    // If from default URL: {type: 'url', url: '...', model: '...' }
     const [pendingSkin, setPendingSkin] = useState(null);
 
-    const [variant, setVariant] = useState('classic'); // classic (Steve) or slim (Alex)
+    const [variant, setVariant] = useState('classic');
     const [isAnimating, setIsAnimating] = useState(true);
-    const [isLoading, setIsLoading] = useState(false); // Global loading (e.g. uploading)
-    const [isSkinLoaded, setIsSkinLoaded] = useState(false); // Valid skin loaded in viewer?
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSkinLoaded, setIsSkinLoaded] = useState(false);
 
     const [editingSkinId, setEditingSkinId] = useState(null);
     const [editName, setEditName] = useState('');
@@ -150,8 +117,6 @@ function Skins({ onLogout, onProfileUpdate }) {
     const [capes, setCapes] = useState([]);
     const [activeCapeId, setActiveCapeId] = useState(null);
     const [showCapeModal, setShowCapeModal] = useState(false);
-
-    // Initialize Viewer
     useEffect(() => {
         if (!canvasRef.current) return;
 
@@ -159,17 +124,14 @@ function Skins({ onLogout, onProfileUpdate }) {
             canvas: canvasRef.current,
             width: 300,
             height: 400,
-            skin: null // Start empty to avoid Steve flash
+            skin: null
         });
 
         viewer.fov = 70;
         viewer.zoom = 0.9;
         viewer.animation = new WalkingAnimation();
-        viewer.autoRotate = false; // Disable rotation as requested
+        viewer.autoRotate = false;
         viewer.autoRotateSpeed = 0.5;
-
-        // Quality settings
-        // Force pixelated rendering for crisp skins
         if (canvasRef.current) {
             canvasRef.current.style.imageRendering = "pixelated";
         }
@@ -181,25 +143,19 @@ function Skins({ onLogout, onProfileUpdate }) {
             viewer.dispose();
         };
     }, []);
-
-    // Load Data
     useEffect(() => {
         loadProfileAndSkin();
         loadLocalSkins();
     }, []);
-
-    // Handle Resize
     useEffect(() => {
         const handleResize = () => {
             if (skinViewerRef.current && canvasRef.current) {
-                // Resize logic if needed
+
             }
         };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-
-    // Toggle Animation
     useEffect(() => {
         if (skinViewerRef.current) {
             skinViewerRef.current.animation = isAnimating ? new WalkingAnimation() : new IdleAnimation();
@@ -210,16 +166,12 @@ function Skins({ onLogout, onProfileUpdate }) {
         if (!skinViewerRef.current) return;
         try {
             await skinViewerRef.current.loadSkin(url, { model: model?.toLowerCase() || 'classic' });
-
-            // Ensure all layers are always visible
             ["head", "body", "rightArm", "leftArm", "rightLeg", "leftLeg"].forEach(part => {
                 if (skinViewerRef.current.playerObject.skin[part]) {
                     skinViewerRef.current.playerObject.skin[part].innerLayer.visible = true;
                     skinViewerRef.current.playerObject.skin[part].outerLayer.visible = true;
                 }
             });
-
-            // Restore cape
             const activeCape = capes.find(c => c.id === activeCapeId);
             if (activeCape) skinViewerRef.current.loadCape(activeCape.url);
 
@@ -233,8 +185,6 @@ function Skins({ onLogout, onProfileUpdate }) {
         setIsLoading(true);
         try {
             if (!window.electronAPI?.getProfile) return;
-
-            // 1. Validate Session first
             if (window.electronAPI.validateSession) {
                 const val = await window.electronAPI.validateSession();
                 if (!val.success) {
@@ -275,7 +225,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                             return;
                         }
                         addNotification(`Skin error: ${res.error}`, 'info');
-                        setIsSkinLoaded(true); // Still allow showing guest if no skin
+                        setIsSkinLoaded(true);
                     }
                 } catch (e) {
                     console.error("Failed to load skin", e);
@@ -347,14 +297,14 @@ function Skins({ onLogout, onProfileUpdate }) {
             if (pendingSkin.type === 'local') {
                 res = await window.electronAPI.uploadSkin(userProfile.access_token, pendingSkin.path, variant);
             } else if (pendingSkin.type === 'url') {
-                // New backend handler for URL uploads
+
                 res = await window.electronAPI.uploadSkinFromUrl(userProfile.access_token, pendingSkin.url, variant);
             }
 
             if (res.success) {
                 addNotification('Skin uploaded! It may take a minute to update.', 'success');
                 setPendingSkin(null);
-                // Reload to sync everything
+
                 loadProfileAndSkin();
             } else {
                 if (res.authError) {
@@ -403,7 +353,7 @@ function Skins({ onLogout, onProfileUpdate }) {
             addNotification('Skin deleted', 'info');
             if (pendingSkin?.id === id) {
                 setPendingSkin(null);
-                // Revert to current actual skin
+
                 if (skinViewerRef.current && currentSkinUrl) {
                     await updateSkinInViewer(currentSkinUrl, variant);
                 }
@@ -431,7 +381,7 @@ function Skins({ onLogout, onProfileUpdate }) {
 
     return (
         <div className="h-full flex overflow-hidden relative">
-            {/* Cape Selection Modal */}
+            { }
             {showCapeModal && (
                 <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center p-8 backdrop-blur-sm">
                     <div className="bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-2xl max-h-full flex flex-col">
@@ -445,7 +395,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto custom-scrollbar p-1">
-                            {/* No Cape Option */}
+                            { }
                             <div
                                 onClick={() => handleSetCape(null)}
                                 className={`aspect-[3/4] rounded-xl border-2 flex flex-col items-center justify-center cursor-pointer transition-all ${activeCapeId === null ? 'border-primary bg-primary/10' : 'border-white/10 hover:border-white/30 bg-black/20'}`}
@@ -475,7 +425,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                 </div>
             )}
 
-            {/* Left Panel: 3D Preview */}
+            { }
             <div className="w-1/3 min-w-[300px] bg-background-dark border-r border-white/5 flex flex-col items-center justify-center relative p-6">
                 <div className="absolute top-4 left-4 bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                     Beta
@@ -489,7 +439,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                     <canvas ref={canvasRef} className="cursor-move outline-none" />
                 </div>
 
-                {/* Fallback Loader while Skin is loading */}
+                { }
                 {!isSkinLoaded && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -515,7 +465,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                         onClick={() => {
                             const newVariant = variant === 'classic' ? 'slim' : 'classic';
                             setVariant(newVariant);
-                            // If we have a pending skin, reload that
+
                             const url = pendingSkin?.url || pendingSkin?.data || currentSkinUrl;
                             if (skinViewerRef.current && url) {
                                 updateSkinInViewer(url, newVariant);
@@ -536,7 +486,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                 </div>
             </div>
 
-            {/* Right Panel: Skin Library */}
+            { }
             <div className="flex-1 bg-background p-8 overflow-y-auto custom-scrollbar">
                 <div className="flex justify-between items-center mb-6">
                     <div>
@@ -554,11 +504,11 @@ function Skins({ onLogout, onProfileUpdate }) {
                     )}
                 </div>
 
-                {/* Local Skins Grid */}
+                { }
                 <div>
                     <h3 className="text-lg font-bold text-gray-300 mb-4">Saved Skins</h3>
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {/* Add Skin Button */}
+                        { }
                         <div
                             onClick={handleImportSkin}
                             className="aspect-[3/4] bg-white/5 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-white/10 transition-all group"
@@ -571,7 +521,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                             <span className="text-sm font-medium text-gray-400 group-hover:text-white">Add a skin</span>
                         </div>
 
-                        {/* Saved Skins */}
+                        { }
                         {localSkins.map((skin) => (
                             <div
                                 key={skin.id}
@@ -623,7 +573,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                                     )}
                                 </div>
 
-                                {/* Delete Button */}
+                                { }
                                 <button
                                     onClick={(e) => handleDeleteSkin(e, skin.id)}
                                     className="absolute top-2 right-2 bg-red-500/80 p-1.5 rounded-lg text-white opacity-0 group-hover:opacity-100 hover:bg-red-500 transition-all"
@@ -637,7 +587,7 @@ function Skins({ onLogout, onProfileUpdate }) {
                     </div>
                 </div>
 
-                {/* Default Skins */}
+                { }
                 <div className="mt-8">
                     <h3 className="text-lg font-bold text-gray-300 mb-4">Default Skins</h3>
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

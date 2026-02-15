@@ -4,12 +4,10 @@ import Dropdown from '../components/Dropdown';
 import { useNotification } from '../context/NotificationContext';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ConfirmationModal from '../components/ConfirmationModal';
-import ServerConsole from '../components/ServerConsole'; // Neue Import
+import ServerConsole from '../components/ServerConsole';
 import { Analytics } from '../services/Analytics';
 
 const DEFAULT_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='8' y1='9' x2='16' y2='9'%3E%3C/line%3E%3Cline x1='8' y1='13' x2='16' y2='13'%3E%3C/line%3E%3Cline x1='8' y1='17' x2='12' y2='17'%3E%3C/line%3E%3C/svg%3E";
-
-// Format uptime from seconds to readable string
 const formatUptime = (seconds) => {
     if (!seconds || seconds <= 0) return 'Offline';
     const days = Math.floor(seconds / 86400);
@@ -28,12 +26,8 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
     const [contextMenu, setContextMenu] = useState(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [serverToDelete, setServerToDelete] = useState(null);
-
-    // Console State
     const [selectedServer, setSelectedServer] = useState(null);
     const [showConsole, setShowConsole] = useState(false);
-
-    // Create Server State
     const [newServerName, setNewServerName] = useState('');
     const [selectedVersion, setSelectedVersion] = useState('');
     const [selectedSoftware, setSelectedSoftware] = useState('vanilla');
@@ -48,11 +42,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
 
     const [isCreating, setIsCreating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-
-    // File Input Ref
     const fileInputRef = useRef(null);
-
-    // Available server software (mit MCUtils Keys)
     const serverSoftware = [
         { value: 'vanilla', label: 'Vanilla' },
         { value: 'paper', label: 'Paper' },
@@ -64,8 +54,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         { value: 'neoforge', label: 'NeoForge' },
         { value: 'folia', label: 'Folia' }
     ];
-
-    // Memory options
     const memoryOptions = [
         { value: '4096', label: '4 GB' },
         { value: '6144', label: '6 GB' },
@@ -83,8 +71,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
             if (status === 'stopped' || status === 'ready' || status === 'error' || status === 'deleted') {
                 loadServers();
             }
-
-            // Console aktualisieren wenn geöffnet
             if (selectedServer?.name === serverName && status === 'stopped') {
                 addNotification(`Server ${serverName} stopped`, 'info');
             }
@@ -181,7 +167,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         const nameToUse = newServerName.trim() || "New Server";
 
         try {
-            // First, get the download URL from MCUtils
+
             console.log(`Fetching version info for ${selectedSoftware}/${selectedVersion}`);
             const versionResponse = await fetch(`https://mcutils.com/api/server-jars/${selectedSoftware}/${selectedVersion}`);
 
@@ -198,8 +184,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                 console.error('No downloadUrl in response:', versionData);
                 throw new Error('No download URL provided in response');
             }
-
-            // Prepare server data as a single object
             const serverData = {
                 name: nameToUse,
                 version: selectedVersion,
@@ -219,8 +203,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                 setShowCreateModal(false);
                 await loadServers();
                 addNotification(`Started creating server: ${result.serverName || nameToUse}`, 'success');
-
-                // Track creation in Analytics
                 Analytics.trackServerCreation(selectedSoftware, selectedVersion);
             } else {
                 const errorMsg = result?.error || 'Unknown error occurred';
@@ -319,8 +301,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
             addNotification(`Action failed: ${error.message}`, 'error');
         }
     };
-
-    // Server Action Handler für Console
     const handleServerAction = async (action, server) => {
         try {
             switch (action) {
@@ -353,7 +333,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
             if (status === 'running') {
                 await window.electronAPI.stopServer(serverToDelete.name);
                 addNotification(`Stopped ${serverToDelete.name}`, 'info');
-                // Small delay to ensure stop completes
+
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
@@ -362,8 +342,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
             if (result && result.success) {
                 addNotification(`Deleted server: ${serverToDelete.name}`, 'info');
                 await loadServers();
-
-                // Console schließen wenn der gelöschte Server gerade offen war
                 if (selectedServer?.name === serverToDelete.name) {
                     setShowConsole(false);
                     setSelectedServer(null);
@@ -386,8 +364,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         window.addEventListener('click', handleClick);
         return () => window.removeEventListener('click', handleClick);
     }, []);
-
-    // Handle Escape Key für Console
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape' && showConsole) {
@@ -407,7 +383,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
     const handleServerClick = (server) => {
         setSelectedServer(server);
         setShowConsole(true);
-        // Original onServerClick beibehalten für Kompatibilität
+
         if (onServerClick) {
             onServerClick(server);
         }
@@ -449,7 +425,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                         >
                             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-40 transition-opacity"></div>
 
-                            {/* 3-dot menu button */}
+                            { }
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -603,13 +579,13 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                 document.body
             )}
 
-            {/* Create Server Modal */}
+            { }
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-surface border border-white/10 rounded-2xl w-full max-w-2xl p-8 shadow-2xl transform transition-all scale-100 max-h-[90vh] overflow-y-auto custom-scrollbar">
                         <h2 className="text-2xl font-bold mb-6 text-white text-center">Create New Server</h2>
                         <form onSubmit={handleCreate} className="space-y-6">
-                            {/* Icon Selection */}
+                            { }
                             <div className="flex flex-col items-center gap-4">
                                 <div className="w-24 h-24 bg-background rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden relative group cursor-pointer hover:border-primary/50 transition-colors"
                                     onClick={() => fileInputRef.current?.click()}>
@@ -752,7 +728,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                 </div>
             )}
 
-            {/* Confirmation Modal */}
+            { }
             {showDeleteModal && (
                 <ConfirmationModal
                     title="Delete Server"
@@ -767,7 +743,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                 />
             )}
 
-            {/* Console Modal */}
+            { }
             {showConsole && selectedServer && (
                 <ServerConsole
                     server={selectedServer}

@@ -40,16 +40,10 @@ module.exports = (ipcMain) => {
 
     ipcMain.handle('settings:save', async (_, newSettings) => {
         try {
-            // merge with existing to avoid data loss if partial update? 
-            // For now UI sends full object.
             await fs.writeJson(settingsPath, newSettings, { spaces: 4 });
-
-            // Notify all windows that theme has changed
             BrowserWindow.getAllWindows().forEach(win => {
                 win.webContents.send('theme:updated', newSettings.theme);
             });
-
-            // Notify backend handlers of settings change
             app.emit('settings-updated', newSettings);
 
             return { success: true };
@@ -82,14 +76,11 @@ module.exports = (ipcMain) => {
             const destPath = path.join(backgroundsDir, destName);
 
             await fs.copy(srcPath, destPath);
-
-            // Return a normalized path that works with app-media:// protocol
-            // We need forward slashes for the URL
             const normalizedPath = destPath.replace(/\\/g, '/');
 
             return {
                 success: true,
-                url: normalizedPath, // This will be appended to app-media:///
+                url: normalizedPath,
                 type: type
             };
         } catch (error) {
@@ -104,8 +95,6 @@ module.exports = (ipcMain) => {
 
             const backgroundsDir = path.join(app.getPath('userData'), 'backgrounds');
             const normalize = (p) => path.normalize(p).toLowerCase();
-
-            // Security check: ensure file is inside backgrounds directory
             if (!normalize(filePath).startsWith(normalize(backgroundsDir))) {
                 console.error('Attempted to delete file outside backgrounds directory:', filePath);
                 return { success: false, error: 'Invalid file path' };

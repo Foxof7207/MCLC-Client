@@ -17,22 +17,19 @@
 @layer base {
   body {
     @apply antialiased text-gray-100 bg-background select-none overflow-hidden;
-    /* Modern dark theme base */
+
   }
 
-  /* Universal Border Radius helper */
   .rounded-custom {
     border-radius: var(--border-radius);
   }
 
-  /* Glassmorphism utility */
   .glass-panel {
     background-color: rgba(var(--surface-color-rgb, 28, 28, 28), var(--panel-opacity));
     backdrop-filter: blur(var(--glass-blur));
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
   }
@@ -51,7 +48,6 @@
   }
 }
 
-/* Titlebar drag region */
 .titlebar {
   -webkit-app-region: drag;
 }
