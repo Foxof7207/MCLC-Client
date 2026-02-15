@@ -44,11 +44,14 @@ module.exports = (ipcMain, win) => {
 
     ipcMain.handle('modrinth:install', async (_, { instanceName, projectId, versionId, filename, url, projectType }) => {
         try {
-            const folder = projectType === 'resourcepack' ? 'resourcepacks' : 'mods';
-            const modsDir = path.join(instancesDir, instanceName, folder);
-            await fs.ensureDir(modsDir);
+            let folder = 'mods';
+            if (projectType === 'resourcepack') folder = 'resourcepacks';
+            if (projectType === 'shader') folder = 'shaderpacks';
 
-            const dest = path.join(modsDir, filename);
+            const contentDir = path.join(instancesDir, instanceName, folder);
+            await fs.ensureDir(contentDir);
+
+            const dest = path.join(contentDir, filename);
 
             const writer = fs.createWriteStream(dest);
             const response = await axios({
@@ -75,21 +78,89 @@ module.exports = (ipcMain, win) => {
 
             response.data.pipe(writer);
 
-            return new Promise((resolve, reject) => {
+            await new Promise((resolve, reject) => {
                 writer.on('finish', resolve);
                 writer.on('error', reject);
-            }).then(() => {
-                if (win) {
-                    win.webContents.send('install:progress', {
-                        instanceName,
-                        progress: 100,
-                        status: `Installed ${filename}`
-                    });
-                }
-                return { success: true };
             });
 
+            if (win) {
+                win.webContents.send('install:progress', {
+                    instanceName,
+                    progress: 100,
+                    status: `Installed ${filename}`
+                });
+            }
+
+            // --- Auto-Shader Software Installation ---
+            if (projectType === 'shader') {
+                try {
+                    const instanceJsonPath = path.join(instancesDir, instanceName, 'instance.json');
+                    if (await fs.pathExists(instanceJsonPath)) {
+                        const instance = await fs.readJson(instanceJsonPath);
+                        const loader = instance.loader ? instance.loader.toLowerCase() : 'vanilla';
+                        const version = instance.version;
+
+                        const softwares = [];
+
+                        if (loader === 'fabric' || loader === 'quilt' || loader === 'neoforge') {
+                            softwares.push({ id: 'iris', name: 'Iris Shaders' });
+                            softwares.push({ id: 'sodium', name: 'Sodium' });
+                        } else if (loader === 'forge') {
+                            softwares.push({ id: 'oculus', name: 'Oculus' });
+                        }
+
+                        for (const sw of softwares) {
+                            try {
+                                // Check if already installed
+                                const modsDir = path.join(instancesDir, instanceName, 'mods');
+                                await fs.ensureDir(modsDir);
+                                const currentFiles = await fs.readdir(modsDir);
+
+                                const res = await axios.get(`${MODRINTH_API}/project/${sw.id}/version`, {
+                                    params: {
+                                        loaders: JSON.stringify([loader]),
+                                        game_versions: JSON.stringify([version])
+                                    },
+                                    headers: {
+                                        'User-Agent': 'Antigravity/MinecraftLauncher/1.0 (fernsehheft@pluginhub.de)'
+                                    }
+                                });
+
+                                if (res.data && res.data.length > 0) {
+                                    const latest = res.data[0];
+                                    const file = latest.files.find(f => f.primary) || latest.files[0];
+
+                                    if (!currentFiles.includes(file.filename)) {
+                                        console.log(`[Modrinth] Auto-installing ${sw.name} for shader dependency.`);
+                                        const softwareDest = path.join(modsDir, file.filename);
+                                        const swWriter = fs.createWriteStream(softwareDest);
+                                        const swRes = await axios({ url: file.url, method: 'GET', responseType: 'stream' });
+                                        swRes.data.pipe(swWriter);
+                                        await new Promise((resolve) => swWriter.on('finish', resolve));
+
+                                        if (win) {
+                                            win.webContents.send('install:progress', {
+                                                instanceName,
+                                                progress: 100,
+                                                status: `Auto-installed ${sw.name} for shader support`
+                                            });
+                                        }
+                                    }
+                                }
+                            } catch (swErr) {
+                                console.error(`[Modrinth] Error auto-installing ${sw.name}:`, swErr.message);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error("[Modrinth] Error auto-installing shader software:", err);
+                }
+            }
+
+            return { success: true };
+
         } catch (e) {
+            console.error("Modrinth Install Error:", e);
             return { success: false, error: e.message };
         }
     });

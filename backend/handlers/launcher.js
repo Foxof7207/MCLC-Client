@@ -238,30 +238,90 @@ Add-Type -TypeDefinition $code -Language CSharp
                 opts.javaPath = jPath;
             }
 
-            const javaToCheck = opts.javaPath || 'java';
-            try {
-                const { execSync } = require('child_process');
-                // Use -version to check if it exists and runs
-                // Use -version to check if it exists and runs, and check for 64-bit
-                const output = execSync(`"${javaToCheck}" -version 2>&1`, { encoding: 'utf8' });
+            const { installJava } = require('../utils/java-utils');
 
-                // Check for 32-bit Java with high memory
-                const is64Bit = output.includes('64-Bit');
-                const maxMem = parseInt(opts.memory.max) || 4096;
+            function getRequiredJavaVersion(mcVersion) {
+                // Simplified version parsing
+                const v = mcVersion.split('.');
+                const major = parseInt(v[0]);
+                const minor = parseInt(v[1]);
+                const patch = parseInt(v[2] || 0);
 
-                if (!is64Bit && maxMem > 1536) {
-                    return {
-                        success: false,
-                        error: `You are using 32-bit Java with ${maxMem}MB memory. 32-bit Java has a limit of ~1.5GB. Please install 64-bit Java or reduce memory.`
-                    };
+                if (minor >= 21) return 21; // Actually 1.20.5+ but minor 21 is safe for future 1.21
+                if (minor === 20 && patch >= 5) return 21;
+                if (minor >= 17) return 17;
+                return 8;
+            }
+
+            let javaToCheck = opts.javaPath || 'java';
+            let javaValid = false;
+            let javaOutput = '';
+
+            const performJavaCheck = (p) => {
+                try {
+                    const { execSync } = require('child_process');
+                    javaOutput = execSync(`"${p}" -version 2>&1`, { encoding: 'utf8' });
+                    return true;
+                } catch (e) {
+                    return false;
                 }
-            } catch (e) {
-                console.error(`[Launcher] Java check failed for ${javaToCheck}:`, e);
+            };
+
+            javaValid = performJavaCheck(javaToCheck);
+
+            // If invalid or missing, try auto-install
+            if (!javaValid) {
+                const reqVersion = getRequiredJavaVersion(config.version);
+                console.log(`[Launcher] Java not found or invalid. Attempting auto-install of Java ${reqVersion}...`);
+
+                mainWindow.webContents.send('install:progress', {
+                    instanceName,
+                    progress: 0,
+                    status: `Installing Java ${reqVersion} (required for MC ${config.version})...`
+                });
+
+                const runtimesDir = path.join(app.getPath('userData'), 'runtimes');
+                const installRes = await installJava(reqVersion, runtimesDir, (step, progress) => {
+                    mainWindow.webContents.send('install:progress', {
+                        instanceName,
+                        progress,
+                        status: step
+                    });
+                });
+
+                if (installRes.success) {
+                    javaToCheck = installRes.path;
+                    opts.javaPath = javaToCheck;
+                    javaValid = performJavaCheck(javaToCheck);
+
+                    // Also update settings so it's remembered if not overridden
+                    if (!config.javaPath) {
+                        try {
+                            const newSettings = { ...settings, javaPath: javaToCheck };
+                            await fs.writeJson(settingsPath, newSettings, { spaces: 4 });
+                            app.emit('settings-updated', newSettings);
+                        } catch (e) { console.error("Failed to save auto-installed java path", e); }
+                    }
+                }
+            }
+
+            if (!javaValid) {
                 runningInstances.delete(instanceName);
                 activeLaunches.delete(instanceName);
                 return {
                     success: false,
-                    error: `Java not found or invalid: ${javaToCheck}. Please install Java or check your settings.`
+                    error: `Java not found or invalid even after attempted installation. Please check your settings.`
+                };
+            }
+
+            // Check for 64-bit Java with high memory
+            const is64Bit = javaOutput.includes('64-Bit');
+            const maxMem = parseInt(opts.memory.max) || 4096;
+
+            if (!is64Bit && maxMem > 1536) {
+                return {
+                    success: false,
+                    error: `You are using 32-bit Java with ${maxMem}MB memory. 32-bit Java has a limit of ~1.5GB. Please install 64-bit Java or reduce memory.`
                 };
             }
 

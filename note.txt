@@ -1,0 +1,46 @@
+To Do Liste:
+
+Schon Implementiert:
+- Skin/Cape Editor
+- Group Instance
+- News System
+- Instance System
+- Multi Version/Software Support
+- Custom Style/Custom Backgrounds
+- Auto Updater
+- Modrinth Support
+- Custom Launcher Arguments
+- Custom Java Installer
+- Discord RPC
+- MCLOGS Support
+- Copy Key Settings to other Instances
+- Multi Account Support
+- Modrinth Instances Support
+- Dev Version Support
+- Shader Tab Support/Shader Modrinth Support (Auto Installing of Iris/Sodium)
+- Fabric Api Sofort Instalieren bei Fabric Instance Creation!
+
+
+Noch offen:
+- Analytics for Player Software Version etc im Admin Panel
+- Code Sharing Instances System
+- Server System (Server Erstellen)
+- Modpacks from Modrinth Support
+- Focus Mode (Maybe)
+- Server-Side Mod-Prüfung
+- Auto-Java-Downloader
+- Shader-Vorschau
+- Mod-Kompatibilitäts-Matrix
+- Minimal-Mode (System Tray) (Über Settings dann)
+- Quick-Server-Join
+- Adding Home Panel
+
+Additional Features (Maybe Machen):
+- Scripting-Support
+- Log-Analyse-Tool
+- Cloud-Sync für Welten/Configs (Google Drive/Dropbox/OneDrive)
+- Abhängigkeits-Check (Dependencies)
+- App for Panel on Mobile
+
+Optional (Vielleicht später mal): 
+- CLI-Support 

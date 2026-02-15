@@ -29,8 +29,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Instance Details
     getMods: (instanceName) => ipcRenderer.invoke('instance:get-mods', instanceName),
     getResourcePacks: (instanceName) => ipcRenderer.invoke('instance:get-resourcepacks', instanceName),
+    getShaders: (instanceName) => ipcRenderer.invoke('instance:get-shaders', instanceName),
     toggleMod: (instanceName, fileName) => ipcRenderer.invoke('instance:toggle-mod', instanceName, fileName),
-    deleteMod: (instanceName, fileName) => ipcRenderer.invoke('instance:delete-mod', instanceName, fileName),
+    deleteMod: (instanceName, fileName, type) => ipcRenderer.invoke('instance:delete-mod', instanceName, fileName, type),
     getWorlds: (instanceName) => ipcRenderer.invoke('instance:get-worlds', instanceName),
     getLogFiles: (instanceName) => ipcRenderer.invoke('instance:get-log-files', instanceName),
     getLog: (instanceName, filename) => ipcRenderer.invoke('instance:get-log', instanceName, filename),

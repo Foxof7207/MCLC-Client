@@ -441,6 +441,90 @@ module.exports = (ipcMain, win) => {
         }
     });
 
+    ipcMain.handle('instance:get-shaders', async (_, instanceName) => {
+        console.log(`[Instances:Shaders] Getting shaders for: ${instanceName}`);
+        try {
+            const shaderDir = path.join(instancesDir, instanceName, 'shaderpacks');
+            await fs.ensureDir(shaderDir);
+
+            const modCachePath = path.join(appData, 'mod_cache.json');
+            let modCache = {};
+            try {
+                if (await fs.pathExists(modCachePath)) {
+                    modCache = await fs.readJson(modCachePath);
+                }
+            } catch (e) { console.error('Failed to load cache for shaders', e); }
+
+            const files = await fs.readdir(shaderDir, { withFileTypes: true });
+
+            const shaderObjects = (await Promise.all(files.map(async (dirent) => {
+                try {
+                    const fileName = dirent.name;
+                    const filePath = path.join(shaderDir, fileName);
+
+                    const isShader = dirent.isDirectory() ||
+                        fileName.toLowerCase().endsWith('.zip');
+
+                    if (!isShader) return null;
+
+                    const stats = await fs.stat(filePath);
+                    let title = null, icon = null, version = null;
+
+                    const cacheKey = `${fileName}-${stats.size}`;
+                    if (modCache[cacheKey] && modCache[cacheKey].projectId) {
+                        title = modCache[cacheKey].title;
+                        icon = modCache[cacheKey].icon;
+                        version = modCache[cacheKey].version;
+                    } else if (dirent.isFile()) {
+                        try {
+                            const hash = await calculateSha1(filePath);
+                            const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
+                                headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                                timeout: 3000
+                            });
+                            const versionData = res.data;
+                            const versionId = versionData.id;
+                            const projectId = versionData.project_id;
+
+                            const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${projectId}`, {
+                                headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                                timeout: 3000
+                            });
+                            const projectData = projectRes.data;
+
+                            title = projectData.title;
+                            icon = projectData.icon_url;
+                            version = versionData.version_number;
+
+                            modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
+                        } catch (e) { /* silent metadata fail */ }
+                    }
+
+                    return {
+                        name: fileName,
+                        title: title || fileName,
+                        icon,
+                        version,
+                        projectId: modCache[cacheKey]?.projectId,
+                        versionId: modCache[cacheKey]?.versionId,
+                        size: stats.size,
+                        enabled: true
+                    };
+                } catch (e) {
+                    console.error(`Error processing shader:`, e);
+                    return null;
+                }
+            }))).filter(p => p !== null);
+
+            await fs.writeJson(modCachePath, modCache).catch(() => { });
+
+            return { success: true, shaders: shaderObjects };
+        } catch (e) {
+            console.error('Failed to get shaders', e);
+            return { success: false, error: e.message };
+        }
+    });
+
     // Background installation functions (Available to all handlers in this scope)
     const startBackgroundInstall = async (finalName, config, cleanInstall = false, isMigration = false) => {
         const dir = path.join(instancesDir, finalName);
@@ -611,6 +695,36 @@ module.exports = (ipcMain, win) => {
                     else if (loaderType === 'neoforge') result = await installNeoForgeLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
 
                     if (!result || !result.success) throw new Error(result?.error || `${loader} installation failed`);
+
+                    // --- Auto-Fabric API Installation ---
+                    if (loaderType === 'fabric') {
+                        try {
+                            sendProgress(35, 'Auto-installing Fabric API...');
+                            const fabricApiId = 'P7dR8mSH';
+                            const fapiRes = await axios.get(`https://api.modrinth.com/v2/project/${fabricApiId}/version`, {
+                                params: {
+                                    loaders: JSON.stringify(['fabric']),
+                                    game_versions: JSON.stringify([version])
+                                }
+                            });
+
+                            if (fapiRes.data && fapiRes.data.length > 0) {
+                                const latest = fapiRes.data[0];
+                                const file = latest.files.find(f => f.primary) || latest.files[0];
+                                const modsDir = path.join(dir, 'mods');
+                                await fs.ensureDir(modsDir);
+                                const dest = path.join(modsDir, file.filename);
+
+                                if (!await fs.pathExists(dest)) {
+                                    appendLog(`Downloading Fabric API compatible with ${version}...`);
+                                    await downloadFile(file.url, dest);
+                                    appendLog(`Fabric API installed: ${file.filename}`);
+                                }
+                            }
+                        } catch (fapiErr) {
+                            appendLog(`Warning: Failed to auto-install Fabric API: ${fapiErr.message}`);
+                        }
+                    }
 
                     const configPath = path.join(dir, 'instance.json');
                     const updatedConfig = await fs.readJson(configPath);
@@ -1389,13 +1503,35 @@ module.exports = (ipcMain, win) => {
         }
     });
 
-    ipcMain.handle('instance:delete-mod', async (_, instanceName, modFileName) => {
+    ipcMain.handle('instance:delete-mod', async (_, instanceName, modFileName, projectType = 'mod') => {
         try {
-            const modsDir = path.join(instancesDir, instanceName, 'mods');
-            const modPath = path.join(modsDir, modFileName);
+            let folder = 'mods';
+            if (projectType === 'resourcepack') folder = 'resourcepacks';
+            if (projectType === 'shader') folder = 'shaderpacks';
+
+            const contentDir = path.join(instancesDir, instanceName, folder);
+            const modPath = path.join(contentDir, modFileName);
+
+            console.log(`[Instance:Delete] Request: ${instanceName} / ${folder} / ${modFileName}`);
+            console.log(`[Instance:Delete] Target Path: ${modPath}`);
+
+            if (!await fs.pathExists(modPath)) {
+                console.warn(`[Instance:Delete] Path does not exist: ${modPath}`);
+                return { success: true }; // Already "deleted"
+            }
+
             await fs.remove(modPath);
+
+            // Verify deletion
+            if (await fs.pathExists(modPath)) {
+                console.error(`[Instance:Delete] FAILED: File still exists at ${modPath}`);
+                return { success: false, error: 'File could not be removed (is it locked?)' };
+            }
+
+            console.log(`[Instance:Delete] SUCCESS: Deleted ${modPath}`);
             return { success: true };
         } catch (e) {
+            console.error(`[Instance:Delete] Error deleting ${modFileName}:`, e);
             return { success: false, error: e.message };
         }
     });
@@ -1413,7 +1549,7 @@ module.exports = (ipcMain, win) => {
 
                 try {
                     // Fetch versions filtered by MC version and loader
-                    const loaders = item.type === 'resourcepack' ? [] : [loader];
+                    const loaders = (item.type === 'resourcepack' || item.type === 'shader') ? [] : [loader];
                     const params = {
                         loaders: JSON.stringify(loaders),
                         game_versions: JSON.stringify([mcVersion])
