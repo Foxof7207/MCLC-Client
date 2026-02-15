@@ -71,7 +71,8 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         { value: '6144', label: '6 GB' },
         { value: '8192', label: '8 GB' },
         { value: '10240', label: '10 GB' },
-        { value: '16384', label: '16 GB' }
+        { value: '16384', label: '16 GB' },
+        { value: '32768', label: '32 GB' }
     ];
 
     useEffect(() => {
