@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCLC - Premium Minecraft Launcher</title>
+    <meta name="description"
+        content="MCLC is a high-performance, modern Minecraft launcher with integrated mod support, skin viewing, and advanced instance management.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1bd96a',
+                        'primary-dark': '#14a34f',
+                        surface: '#121212',
+                        background: '#080808',
+                        'accent-dark': '#0f0f0f',
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'primary-glow': '0 0 30px rgba(27, 217, 106, 0.25)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-background text-gray-200 selection:bg-primary/30 antialiased overflow-x-hidden">
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-[100] transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-6 lg:px-12 py-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-primary-glow">
+                    <svg class="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <span class="text-2xl font-extrabold tracking-tighter text-white">MCLC</span>
+            </div>
+
+            <div class="hidden md:flex items-center gap-10 text-sm font-semibold tracking-wide uppercase text-gray-400">
+                <a href="#home" class="hover:text-primary transition-colors">Home</a>
+                <a href="#features" class="hover:text-primary transition-colors">Features</a>
+                <a href="#support" class="hover:text-primary transition-colors">Support</a>
+                <a href="https://github.com/Fernsehheft/MCLC-Client" class="hover:text-primary transition-colors"
+                    target="_blank">GitHub</a>
+            </div>
+
+            <a href="https://mclc.pluginhub.de/download/MCLC-Setup.exe"
+                class="bg-primary hover:bg-primary-dark text-black px-8 py-3 rounded-xl font-bold transition-all shadow-primary-glow transform hover:scale-105 active:scale-95">
+                Download
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <!-- Background Gradient -->
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(27,217,106,0.12),transparent_60%)]">
+        </div>
+        <div class="absolute inset-0 bg-[#080808]"></div>
+
+        <!-- Animated Background Circles -->
+        <div
+            class="absolute top-[20%] left-[10%] w-[30vw] h-[30vw] bg-primary/5 rounded-full blur-[100px] animate-pulse">
+        </div>
+        <div
+            class="absolute bottom-[20%] right-[10%] w-[40vw] h-[40vw] bg-primary/2 rounded-full blur-[120px] animate-pulse animate-delay-2000">
+        </div>
+
+        <div class="relative z-10 max-w-5xl mx-auto px-6 text-center pt-20">
+            <div
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-primary text-xs font-bold uppercase tracking-widest mb-8 animate-fade-in">
+                <span class="relative flex h-2 w-2">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-2 rounded-full bg-primary opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                Now v1.3.3 is live
+            </div>
+
+            <h1 class="text-6xl md:text-8xl font-black text-white tracking-tight leading-[0.95] mb-8 reveal">
+                REDESIGNING <br> <span class="text-primary italic">MINECRAFT</span>
+            </h1>
+
+            <p
+                class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed reveal animate-delay-200">
+                Experience Minecraft like never before. High performance, premium UI, and seamless instance management
+                built exclusively for Windows.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6 reveal animate-delay-400">
+                <a href="https://mclc.pluginhub.de/download/MCLC-Setup.exe"
+                    class="w-full sm:w-auto bg-primary hover:bg-primary-dark text-black px-12 py-5 rounded-2xl font-black text-lg transition-all shadow-primary-glow flex items-center justify-center gap-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download for Windows
+                </a>
+                <a href="https://github.com/Fernsehheft/MCLC-Client" target="_blank"
+                    class="w-full sm:w-auto bg-white/5 hover:bg-white/10 border border-white/10 text-white px-10 py-5 rounded-2xl font-bold text-lg transition-all backdrop-blur-md">
+                    View Source
+                </a>
+            </div>
+
+            <div class="mt-20 flex flex-wrap justify-center gap-8 md:gap-16 opacity-40 reveal animate-delay-600">
+                <div class="flex items-center gap-2">
+                    <svg class="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M0 3.449L9.75 2.1V11.7H0V3.449zm0 9.151h9.75v9.6L0 20.551V12.6zm10.55 0h13.45v10.8L10.55 21.3v-8.7zm0-10.5L24 0v11.7H10.55V2.1z" />
+                    </svg>
+                    <span class="font-bold text-xl uppercase tracking-widest text-white">Full Windows Support</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-32 relative bg-accent-dark">
+        <div class="max-w-7xl mx-auto px-6 lg:px-12">
+            <div class="text-center mb-24">
+                <h2 class="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">Everything you need.</h2>
+                <p class="text-gray-400 max-w-xl mx-auto text-lg">MCLC packs powerful tools into a beautiful,
+                    lightweight interface that stays out of your way.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div
+                    class="bg-surface/50 border border-white/5 p-10 rounded-[2.5rem] hover:bg-surface/80 transition-all group overflow-hidden relative">
+                    <div
+                        class="absolute top-0 right-0 p-8 text-primary opacity-10 group-hover:opacity-100 transition-opacity">
+                        <svg class="w-24 h-24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <div
+                        class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-8 group-hover:bg-primary group-hover:text-black transition-all">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Unreal Performance</h3>
+                    <p class="text-gray-400 leading-relaxed mb-6">Optimized networking and lightweight core ensures
+                        lightning-fast launch times and stable gameplay.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div
+                    class="bg-surface/50 border border-white/5 p-10 rounded-[2.5rem] hover:bg-surface/80 transition-all group overflow-hidden relative">
+                    <div
+                        class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-8 group-hover:bg-primary group-hover:text-black transition-all">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Integrated Mods</h3>
+                    <p class="text-gray-400 leading-relaxed">Direct support for Fabric, Forge, NeoForge, and Quilt.
+                        Import any modpack with a single click.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div
+                    class="bg-surface/50 border border-white/5 p-10 rounded-[2.5rem] hover:bg-surface/80 transition-all group overflow-hidden relative">
+                    <div
+                        class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-8 group-hover:bg-primary group-hover:text-black transition-all">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Pro Visuals</h3>
+                    <p class="text-gray-400 leading-relaxed">Premium 3D skin viewer with high-resolution previews.
+                        Customize your identity with capes and slim skin support.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-20 bg-background border-t border-white/5">
+        <div class="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row justify-between items-center gap-12">
+            <div>
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <span class="text-xl font-black text-white">MCLC</span>
+                </div>
+                <p class="text-gray-500 text-sm max-w-xs leading-relaxed">
+                    Designed and built with passion for the Minecraft community. Not an official Minecraft product.
+                </p>
+            </div>
+
+            <div class="flex gap-12 text-sm text-gray-400 font-bold uppercase tracking-widest">
+                <a href="#" class="hover:text-primary transition-colors">Discord</a>
+                <a href="https://github.com/Fernsehheft/MCLC-Client"
+                    class="hover:text-primary transition-colors">GitHub</a>
+                <a href="#" class="hover:text-primary transition-colors">Twitter</a>
+            </div>
+
+            <div class="text-gray-600 text-sm text-center md:text-right font-medium">
+                © 2026 MCLC-Client. Built by <br>
+                <span class="text-gray-400">Fernsehheft, Mobilestars & ItzzMateo</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+
+</html>
