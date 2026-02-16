@@ -27,10 +27,12 @@ protocol.registerSchemesAsPrivileged([
     }
 ]);
 
+let mainWindow;
+
 function createWindow() {
-    const mainWindow = new BrowserWindow({
-        width: 1280,
-        height: 720,
+    mainWindow = new BrowserWindow({
+        width: 1600,
+        height: 900,
         minWidth: 900,
         minHeight: 600,
         title: 'MCLC',
@@ -208,7 +210,7 @@ app.whenReady().then(() => {
                 mainWindow.webContents.send('extension:open-file', file);
                 if (mainWindow.isMinimized()) mainWindow.restore();
                 mainWindow.focus();
-            } else {
+            } else if (mainWindow) {
                  mainWindow.once('ready-to-show', () => {
                     mainWindow.webContents.send('extension:open-file', file);
                  });
@@ -229,12 +231,12 @@ app.whenReady().then(() => {
                 handleDeepLink(commandLine);
             }
         });
-        
-        // Handle init
-         handleDeepLink(process.argv);
     }
 
     createWindow();
+
+    // Handle init
+    handleDeepLink(process.argv);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
