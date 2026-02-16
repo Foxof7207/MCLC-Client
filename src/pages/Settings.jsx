@@ -30,6 +30,7 @@ function Settings() {
     const [isInstallingJava, setIsInstallingJava] = useState(false);
     const [javaInstallProgress, setJavaInstallProgress] = useState(null);
     const [showJavaModal, setShowJavaModal] = useState(false);
+    const [installedRuntimes, setInstalledRuntimes] = useState([]);
     const hasUnsavedChanges = useRef(false);
     const initialSettingsRef = useRef(null);
 
@@ -49,6 +50,7 @@ function Settings() {
             if (result.success) {
                 handleChange('javaPath', result.path);
                 addNotification(`Java ${version} installed successfully`, 'success');
+                loadJavaRuntimes();
             } else {
                 addNotification(`Failed to install Java: ${result.error}`, 'error');
             }
@@ -63,6 +65,7 @@ function Settings() {
     useEffect(() => {
         loadSettings();
         loadInstances();
+        loadJavaRuntimes();
         const handleBeforeUnload = (e) => {
             if (hasUnsavedChanges.current) {
                 saveSettings(settings);
@@ -83,6 +86,34 @@ function Settings() {
     const loadInstances = async () => {
         const list = await window.electronAPI.getInstances();
         setInstances(list || []);
+    };
+
+    const loadJavaRuntimes = async () => {
+        try {
+            const res = await window.electronAPI.getJavaRuntimes();
+            if (res.success) {
+                setInstalledRuntimes(res.runtimes);
+            }
+        } catch (err) {
+            console.error("Failed to load Java runtimes", err);
+        }
+    };
+
+    const handleDeleteRuntime = async (dirPath) => {
+        if (!confirm("Are you sure you want to delete this Java runtime?")) return;
+        try {
+            const res = await window.electronAPI.deleteJavaRuntime(dirPath);
+            if (res.success) {
+                addNotification("Java runtime deleted", "success");
+                loadJavaRuntimes();
+                // If the deleted runtime was selected, clear the selection?
+                // Probably better to leave it and let user realize, or verify.
+            } else {
+                addNotification(`Failed to delete: ${res.error}`, "error");
+            }
+        } catch (e) {
+            addNotification(`Error: ${e.message}`, "error");
+        }
     };
 
     const loadSettings = async () => {
@@ -145,13 +176,24 @@ function Settings() {
     };
 
     const handleBrowseJava = async () => {
-        const path = await window.electronAPI.openFileDialog({
+        const result = await window.electronAPI.openFileDialog({
             properties: ['openFile'],
             filters: [{ name: 'Java Executable', extensions: ['exe', 'bin'] }]
         });
-        if (path) {
-            handleChange('javaPath', path);
-
+        
+        // Check if user canceled the dialog
+        if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+            return; // Don't update the state if canceled
+        }
+        
+        // Extract the file path string
+        const selectedPath = result.filePaths[0];
+        
+        // Optional: Validate that it's a Java executable
+        if (selectedPath && (selectedPath.toLowerCase().endsWith('.exe') || selectedPath.toLowerCase().endsWith('.bin'))) {
+            handleChange('javaPath', selectedPath);
+        } else {
+            addNotification('Please select a valid Java executable (javaw.exe or java)', 'error');
         }
     };
     const handleManualSave = () => {
@@ -189,7 +231,7 @@ function Settings() {
                         <select
                             value={settings.startPage || 'dashboard'}
                             onChange={(e) => handleChange('startPage', e.target.value)}
-                            className="bg-background border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-primary outline-none text-gray-300 cursor-pointer min-w-[160px]"
+                            className="bg-background border border-white/10 rounded-xl px-4 pr-10 py-2.5 text-sm focus:border-primary outline-none text-gray-300 cursor-pointer min-w-[180px]"
                         >
                             <option value="dashboard">Dashboard</option>
                             <option value="library">Library</option>
@@ -279,6 +321,53 @@ function Settings() {
                             Recommended: Leave empty to use bundled Java. Install specific version if needed.
                         </p>
                     </div>
+
+                    {/* Installed Runtimes List */}
+                    {installedRuntimes.length > 0 && (
+                        <div className="mt-6 border-t border-white/5 pt-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-bold text-gray-300">Installed Versions</h3>
+                                <button 
+                                    onClick={() => window.electronAPI.openJavaFolder()}
+                                    className="text-xs text-primary hover:text-primary-hover transition"
+                                >
+                                    Open Folder
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                {installedRuntimes.map((runtime) => (
+                                    <div key={runtime.dirPath} className="flex items-center justify-between bg-black/20 p-3 rounded-lg border border-white/5 group hover:border-white/10 transition">
+                                        <div className="flex-1 min-w-0 mr-4">
+                                            <div className="text-sm font-medium text-gray-200 truncate">{runtime.name}</div>
+                                            <div className="text-xs text-gray-500 truncate font-mono mt-0.5">{runtime.path}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {settings.javaPath === runtime.path ? (
+                                                <span className="px-2 py-1 bg-green-500/10 text-green-400 text-xs rounded border border-green-500/20">Active</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleChange('javaPath', runtime.path)}
+                                                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-xs rounded transition border border-white/5 hover:border-white/10"
+                                                >
+                                                    Select
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => handleDeleteRuntime(runtime.dirPath)}
+                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded transition"
+                                                title="Delete Runtime"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Memory Allocation Section */}

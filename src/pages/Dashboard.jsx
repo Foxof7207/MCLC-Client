@@ -464,6 +464,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                     addNotification(`Export failed: ${e.message}`, 'error');
                 }
                 break;
+                break;
             case 'folder':
                 window.electronAPI.openInstanceFolder(instance.name);
                 break;

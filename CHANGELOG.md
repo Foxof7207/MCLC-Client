@@ -9,6 +9,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 ## [Unreleased]
 
 ### Added
+
 - Instance configuration sharing
 - Focus mode
 - Server-side mod validation
@@ -19,11 +20,13 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - Script support (extensions in work, are similar)
 - Log analysis utility
 - Cloud synchronization for worlds and configurations (e.g., Google Drive, Dropbox, OneDrive)
-- Mod dependency validation
+- Mod dependency validation (partially implemented)
 - Mobile application for the administration panel
 
 ### To Do
+
 #### Features in Progress
+
 - [ ] System for sharing instance configurations
 - [ ] Focus mode
 - [ ] Server-side mod validation
@@ -33,21 +36,59 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - [ ] Client-side quick join mod
 
 #### Possible Future Features
+
 - [ ] Script support
-- [ ] Log analysis utility
+- [ ] Logging analysis utility
 - [ ] Cloud synchronization for worlds and configurations (e.g., Google Drive, Dropbox, OneDrive)
 - [ ] Mod dependency validation
 - [ ] Mobile application for the administration panel
+- [ ] Cross-Platform UI Polishing: Mac-specific window controls + Linux system tray integration
+- [ ] Automated Backups: Scheduled backups for worlds/instances
+- [ ] Localization (i18n): Full multi-language support system
 
 #### Optional (Planned for Future)
+
 - [ ] Command line support
 
+---
+
+## [1.7.1] - 2026-02-16
+
+### Added
+
+- **Styling Page Redesign**: Complete visual overhaul with premium bento grid layout
+  - Live mini-preview component showing real-time theme changes
+  - Visual theme cards with color thumbnails instead of text lists
+  - Custom `ColorPicker` component with glow effects
+  - Enhanced `SliderControl` component with gradient tracks and value badges
+  - Improved organization with distinct sections for Colors, Effects, and Atmosphere
+  - Glassmorphism effects and smooth transitions matching launcher aesthetic
+- **UI Components**:
+  - `ThemeCard.jsx` - Visual theme preview cards with hover animations
+  - `MiniPreview.jsx` - Live miniature launcher preview
+  - `ColorPicker.jsx` - Enhanced color input with glow effect
+  - `SliderControl.jsx` - Gradient slider with real-time value display
+- **CSS Enhancements**:
+  - Custom slider thumb styling with glow effects
+  - Color picker styling for better visual consistency
+  - Custom scrollbar styling for theme lists
+
+### Fixed
+
+- The runtime wasn't working and displaying "object Object" when closing the window when selecting runtime ("javaw.exe")
+
+### Fixed
+
+- Background overlay intensity now correctly applies to the actual app (was only updating preview)
+- Settings button in sidebar now uses glow effect instead of white outline
+- Dropdown arrow in Settings page properly positioned with adequate spacing
 
 ---
 
 ## [1.4.0] - 2026-02-15
 
 ### Added
+
 - **Global Extension System**: Full support for `.mcextension` packages with UI injection (Slots) in Sidebar and other areas.
 - **Extension Marketplace**: Integrated browser for discovering and installing third-party extensions.
 - **Performance Overhaul**:
@@ -64,6 +105,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - **Splash Screen**: Implemented `ready-to-show` window transition in Electron to eliminate initial white flashes.
 
 ### Fixed
+
 - Synchronous I/O bottlenecks in the backend causing UI freezes during launch.
 - Duplicate imports and build-time SyntaxErrors.
 - Visual alignment of toggles and scrolling performance in the dashboard.
@@ -73,6 +115,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 ## [1.3.3 and earlier] - 2026-02-14
 
 ### Added
+
 - Skin and Cape editor (Skin- und Cape-Editor)
 - Group instances (Gruppeninstanzen)
 - News system (Nachrichtensystem)
@@ -97,4 +140,3 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - Shader preview (Shader-Vorschau)
 - Added home section (Startseiten-Bereich hinzugefügt)
 - Server system — create and manage servers (Serversystem (Server erstellen und verwalten))
-

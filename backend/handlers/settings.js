@@ -23,6 +23,13 @@ module.exports = (ipcMain) => {
             glassOpacity: 0.8,
             borderRadius: 12,
             bgMedia: { url: '', type: 'none' }
+        },
+        backupSettings: {
+            enabled: true,
+            onLaunch: true,
+            onClose: true,
+            interval: 60, // minutes
+            maxBackups: 10
         }
     };
 

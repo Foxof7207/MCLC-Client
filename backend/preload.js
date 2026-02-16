@@ -80,6 +80,9 @@ const electronAPI = {
     getLoaders: (mcVersion, loaderType) => ipcRenderer.invoke('data:get-loaders', mcVersion, loaderType),
     getNews: () => ipcRenderer.invoke('data:get-news'),
     installJava: (version) => ipcRenderer.invoke('java:install', version),
+    getJavaRuntimes: () => ipcRenderer.invoke('java:list'),
+    deleteJavaRuntime: (path) => ipcRenderer.invoke('java:delete', path),
+    openJavaFolder: () => ipcRenderer.invoke('java:open-folder'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
     exportModpackAsCode: (data) => {
         console.log('[Preload] 📤 exportModpackAsCode aufgerufen mit:', data);
@@ -217,6 +220,12 @@ const electronAPI = {
     getExtensions: () => ipcRenderer.invoke('extensions:list'),
     installExtension: (sourcePath) => ipcRenderer.invoke('extensions:install', sourcePath),
     removeExtension: (id) => ipcRenderer.invoke('extensions:remove', id),
+    toggleExtension: (id, enabled) => ipcRenderer.invoke('extensions:toggle', id, enabled),
+    onExtensionFile: (callback) => {
+        const subscription = (_event, value) => callback(value);
+        ipcRenderer.on('extension:open-file', subscription);
+        return () => ipcRenderer.removeListener('extension:open-file', subscription);
+    },
     fetchMarketplace: () => ipcRenderer.invoke('extensions:fetch-marketplace')
 };
 try {

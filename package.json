@@ -1,15 +1,17 @@
 {
   "productName": "MCLC",
   "name": "mclc",
-  "description": "Lightweight, open-source Minecraft launcher (Electron + React) by Fernsehheft — features profile & modpack management, skin preview, Discord Rich Presence, and a modern UI for easy installs and updates.",
+  "description": "Lightweight, open-source Minecraft launcher (Electron + React) - features profile & modpack management, skin preview, Discord Rich Presence, and a modern UI for easy installs and updates.",
   "author": "Fernsehheft",
-  "version": "1.5.0",
+  "version": "1.7.1",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"vite\" \"cross-env NODE_ENV=development electron .\"",
     "build": "vite build",
     "start": "electron .",
-    "dist": "npm run build && electron-builder"
+    "dist-clean": "concurrently \"rm -rf dist\" \"rm -rf release\"",
+    "dist": "concurrently \"npm run dist-clean\" \"npm run build\" \"electron-builder\"",
+    "dist-all": "concurrently \"npm run dist-clean\" \"npm run build\" \"electron-builder --wl\""
   },
   "build": {
     "appId": "com.launcher.mclc",
@@ -31,6 +33,18 @@
       "oneClick": true,
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true
+    },
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "category": "public.app-category.games"
+    },
+    "linux": {
+      "target": [
+        "zip"
+      ],
+      "category": "Game"
     }
   },
   "dependencies": {

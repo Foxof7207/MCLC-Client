@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, Menu } = require('electron');
 console.log('☢️ NUCLEAR STARTUP CHECK: main.js is running!');
 
 ipcMain.handle('ping', () => {
@@ -27,10 +27,12 @@ protocol.registerSchemesAsPrivileged([
     }
 ]);
 
+let mainWindow;
+
 function createWindow() {
-    const mainWindow = new BrowserWindow({
-        width: 1280,
-        height: 720,
+    mainWindow = new BrowserWindow({
+        width: 1600,
+        height: 900,
         minWidth: 900,
         minHeight: 600,
         title: 'MCLC',
@@ -104,6 +106,10 @@ function createWindow() {
     require('../backend/handlers/java')(ipcMain);
     const discord = require('../backend/handlers/discord');
     discord.initRPC();
+
+    // Initialize Backup Manager
+    const backupManager = require('../backend/backupManager');
+    backupManager.init(ipcMain);
     const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
     if (isDev) {
         mainWindow.loadURL('http://localhost:3000');
@@ -140,11 +146,113 @@ app.whenReady().then(() => {
         }
     });
 
+    const template = [
+        ...(process.platform === 'darwin' ? [{
+            label: app.name,
+            submenu: [
+                { role: 'about' },
+                { type: 'separator' },
+                { role: 'services' },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideOthers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        }] : []),
+        {
+            label: 'Edit',
+            submenu: [
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                { role: 'delete' },
+                { role: 'selectAll' }
+            ]
+        },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' }
+            ]
+        },
+        {
+            role: 'window',
+            submenu: [
+                { role: 'minimize' },
+                { role: 'zoom' },
+                { type: 'separator' },
+                { role: 'front' },
+                { type: 'separator' },
+                { role: 'window' }
+            ]
+        }
+    ];
+
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+
+    // Unified Deep Link / File Handler
+    const handleDeepLink = (argv) => {
+        const file = argv.find(arg => arg.endsWith('.mcextension'));
+        if (file) {
+            console.log('[Main] file opened:', file);
+            // Wait for window to be ready if it's not
+            if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isLoading()) {
+                mainWindow.webContents.send('extension:open-file', file);
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.focus();
+            } else if (mainWindow) {
+                 mainWindow.once('ready-to-show', () => {
+                    mainWindow.webContents.send('extension:open-file', file);
+                 });
+            }
+        }
+    };
+
+    // Windows / Linux: Second Instance Lock
+    const gotTheLock = app.requestSingleInstanceLock();
+    if (!gotTheLock) {
+        app.quit();
+    } else {
+        app.on('second-instance', (event, commandLine, workingDirectory) => {
+            // Someone tried to run a second instance, we should focus our window.
+            if (mainWindow) {
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.focus();
+                handleDeepLink(commandLine);
+            }
+        });
+    }
+
     createWindow();
+
+    // Handle init
+    handleDeepLink(process.argv);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
+});
+
+// macOS: open-file
+app.on('open-file', (event, path) => {
+    event.preventDefault();
+    // We need to store this or send it to the window
+    // For simplicity, we just log it for now as the user is likely on Windows
+    console.log('[Main] macOS open-file:', path);
 });
 
 app.on('window-all-closed', () => {

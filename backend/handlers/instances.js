@@ -1930,9 +1930,6 @@ module.exports = (ipcMain, win) => {
                 return { success: false, error: e.message };
             }
         });
-        // Function moved to top
-        // Function moved to top
-
 
         ipcMain.handle('instance:install-modpack', async (_, url, name) => {
             try {

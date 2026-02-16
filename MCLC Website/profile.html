@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCLC - Profile</title>
+    <link rel="icon" type="image/png" href="resources/logo.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1bd96a',
+                        'primary-dark': '#14a34f',
+                        surface: '#121212',
+                        background: '#080808',
+                        'accent-dark': '#0f0f0f',
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-background text-gray-200 selection:bg-primary/30 antialiased">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 right-0 z-[100] bg-background/80 backdrop-blur-md border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-6 lg:px-12 py-6 flex items-center justify-between">
+            <a href="index.html" class="flex items-center gap-3">
+                <img src="resources/icon.png" alt="MCLC Logo" class="w-10 h-10 object-contain">
+                <span class="text-2xl font-extrabold tracking-tighter text-white">MCLC</span>
+            </a>
+            <div>
+                <a href="/auth/logout"
+                    class="text-red-500 hover:text-red-400 font-bold text-sm transition-colors">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="pt-32 pb-20 px-6 max-w-5xl mx-auto">
+
+        <!-- Profile Header -->
+        <div class="flex flex-col md:flex-row items-center gap-8 mb-16">
+            <div class="w-32 h-32 rounded-full border-4 border-surface overflow-hidden relative group">
+                <img id="profile-avatar" src="" alt="Avatar" class="w-full h-full object-cover bg-surface">
+            </div>
+            <div class="text-center md:text-left">
+                <h1 id="profile-username" class="text-4xl font-black text-white mb-2">Loading...</h1>
+                <p id="profile-bio" class="text-gray-400 max-w-md">...</p>
+                <div class="mt-4 flex gap-4 justify-center md:justify-start">
+                    <button onclick="toggleEditProfile()"
+                        class="text-sm font-bold text-primary hover:text-white transition-colors">Edit Profile</button>
+                    <a href="/admin_extensions.html" id="admin-link"
+                        class="hidden text-sm font-bold text-yellow-500 hover:text-yellow-400 transition-colors">Admin
+                        Dashboard</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Profile Modal (Hidden) -->
+        <div id="edit-profile-form" class="hidden bg-surface border border-white/5 p-8 rounded-3xl mb-12">
+            <h2 class="text-2xl font-bold text-white mb-6">Edit Profile</h2>
+            <form id="profileForm" class="space-y-6">
+                <div>
+                    <label class="block text-gray-500 text-sm font-bold mb-2">Username</label>
+                    <input type="text" name="username" id="input-username"
+                        class="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors">
+                </div>
+                <div>
+                    <label class="block text-gray-500 text-sm font-bold mb-2">Bio</label>
+                    <textarea name="bio" id="input-bio" rows="3"
+                        class="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors"></textarea>
+                </div>
+                <div>
+                    <label class="block text-gray-500 text-sm font-bold mb-2">Avatar URL</label>
+                    <input type="text" name="avatar" id="input-avatar"
+                        class="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors">
+                </div>
+                <div class="flex gap-4">
+                    <button type="submit"
+                        class="bg-primary hover:bg-primary-dark text-black px-6 py-2 rounded-xl font-bold transition-all">Save
+                        Changes</button>
+                    <button type="button" onclick="toggleEditProfile()"
+                        class="bg-white/5 hover:bg-white/10 text-white px-6 py-2 rounded-xl font-bold transition-all">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Upload Extension -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+
+            <!-- Upload Form -->
+            <div class="lg:col-span-1">
+                <div class="bg-surface/50 border border-white/5 p-8 rounded-3xl sticky top-32">
+                    <h2 class="text-2xl font-bold text-white mb-6">Upload Extension</h2>
+                    <form id="uploadForm" class="space-y-6">
+                        <div>
+                            <label class="block text-gray-500 text-sm font-bold mb-2">Extension Name</label>
+                            <input type="text" name="name" required
+                                class="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 text-sm font-bold mb-2">Description</label>
+                            <textarea name="description" required rows="3"
+                                class="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 text-sm font-bold mb-2">File (.js, .zip)</label>
+                            <input type="file" name="extensionFile" required
+                                class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-black hover:file:bg-primary-dark transition-all">
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-primary hover:bg-primary-dark text-black px-6 py-3 rounded-xl font-bold transition-all shadow-primary-glow">Submit
+                            Extension</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- My Extensions List -->
+            <div class="lg:col-span-2">
+                <h2 class="text-2xl font-bold text-white mb-6">My Extensions</h2>
+                <div id="my-extensions-list" class="space-y-4">
+                    <div class="text-gray-500 animate-pulse">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        // Load Profile Data
+        async function loadProfile() {
+            try {
+                const res = await fetch('/auth/current_user');
+                if (!res.ok) throw new Error('Not logged in');
+                currentUser = await res.json();
+
+                if (!currentUser || !currentUser.id) {
+                    window.location.href = '/auth/google'; // Redirect to login
+                    return;
+                }
+
+                // Update UI
+                document.getElementById('profile-username').textContent = currentUser.username;
+                document.getElementById('profile-bio').textContent = currentUser.bio || 'No bio yet.';
+                document.getElementById('profile-avatar').src = currentUser.avatar || 'https://via.placeholder.com/150';
+
+                // Form values
+                document.getElementById('input-username').value = currentUser.username;
+                document.getElementById('input-bio').value = currentUser.bio || '';
+                document.getElementById('input-avatar').value = currentUser.avatar || '';
+
+                // Admin check
+                if (currentUser.role === 'admin') {
+                    document.getElementById('admin-link').classList.remove('hidden');
+                }
+
+                loadMyExtensions();
+
+            } catch (err) {
+                window.location.href = '/auth/google';
+            }
+        }
+
+        // Load My Extensions
+        async function loadMyExtensions() {
+            try {
+                const res = await fetch('/api/user/extensions');
+                const extensions = await res.json();
+                const list = document.getElementById('my-extensions-list');
+
+                if (extensions.length === 0) {
+                    list.innerHTML = '<div class="text-gray-500">You haven\'t uploaded any extensions yet.</div>';
+                    return;
+                }
+
+                list.innerHTML = extensions.map(ext => `
+                    <div class="bg-surface border border-white/5 p-6 rounded-2xl flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-white text-lg">${ext.name}</h3>
+                            <p class="text-gray-400 text-sm">${ext.description}</p>
+                            <span class="inline-block mt-2 text-xs font-bold uppercase tracking-wider px-2 py-1 rounded bg-white/5 ${getStatusColor(ext.status)}">
+                                ${ext.status}
+                            </span>
+                        </div>
+                        <div class="text-gray-600 text-sm">
+                            ${new Date(ext.created_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                console.error('Error loading my extensions', err);
+            }
+        }
+
+        function getStatusColor(status) {
+            if (status === 'approved') return 'text-primary';
+            if (status === 'rejected') return 'text-red-500';
+            return 'text-yellow-500';
+        }
+
+        function toggleEditProfile() {
+            document.getElementById('edit-profile-form').classList.toggle('hidden');
+        }
+
+        // Profile Update
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                username: document.getElementById('input-username').value,
+                bio: document.getElementById('input-bio').value,
+                avatar: document.getElementById('input-avatar').value
+            };
+
+            await fetch('/api/user/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            toggleEditProfile();
+            loadProfile(); // Reload
+        });
+
+        // Extension Upload
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            try {
+                const res = await fetch('/api/extensions/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await res.json();
+                if (result.success) {
+                    alert('Extension uploaded successfully! Pending approval.');
+                    e.target.reset();
+                    loadMyExtensions();
+                } else {
+                    alert('Upload failed: ' + result.error);
+                }
+            } catch (err) {
+                alert('Upload failed.');
+            }
+        });
+
+        loadProfile();
+    </script>
+</body>
+
+</html>

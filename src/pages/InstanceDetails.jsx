@@ -841,115 +841,130 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             </div>
 
             {/* Main content area */}
-            <div className="flex-1 overflow-hidden p-8">
+            <div className="flex-1 overflow-hidden p-8 pt-4">
                 {activeTab === 'content' && (
                     <div className="h-full flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
-                            <div className="flex gap-2">
+                        <div className="sticky top-0 z-20 flex justify-between items-center mb-4 py-2 bg-background/60 backdrop-blur-xl -mx-8 px-8 border-b border-white/5 animate-in fade-in slide-in-from-top-4 duration-500">
+                            <div className="flex gap-1 bg-white/5 p-1 rounded-2xl border border-white/5">
                                 <button
                                     onClick={() => { setContentView('mods'); setLocalSearchQuery(''); }}
-                                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${contentView === 'mods' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
+                                    className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${contentView === 'mods' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                 >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                                    </svg>
                                     Mods
                                 </button>
                                 <button
                                     onClick={() => { setContentView('resourcepacks'); setLocalSearchQuery(''); }}
-                                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${contentView === 'resourcepacks' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
+                                    className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${contentView === 'resourcepacks' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                 >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
                                     Resource Packs
                                 </button>
                                 <button
                                     onClick={() => { setContentView('shaders'); setLocalSearchQuery(''); }}
-                                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${contentView === 'shaders' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
+                                    className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${contentView === 'shaders' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                                 >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
+                                    </svg>
                                     Shaders
-                                </button>
-                                <button
-                                    onClick={() => { setContentView('search'); setLocalSearchQuery(''); }}
-                                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${contentView === 'search' ? 'bg-primary/20 text-primary' : 'text-gray-500 hover:text-white'}`}
-                                >
-                                    Add Content
                                 </button>
                             </div>
 
-                            {contentView === 'search' && (
-                                <div className="flex gap-1 bg-background-dark/50 p-1 rounded-lg border border-white/5 h-fit self-center">
-                                    <button
-                                        onClick={() => {
-                                            setSearchCategory('mod');
-                                            setSearchOffset(0);
-                                        }}
-                                        className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${searchCategory === 'mod' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        Mods
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setSearchCategory('resourcepack');
-                                            setSearchOffset(0);
-                                        }}
-                                        className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${searchCategory === 'resourcepack' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        Resource Packs
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setSearchCategory('shader');
-                                            setSearchOffset(0);
-                                        }}
-                                        className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${searchCategory === 'shader' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        Shaders
-                                    </button>
-                                </div>
-                            )}
-
-                            {(contentView === 'mods' || contentView === 'resourcepacks' || contentView === 'shaders') && (
-                                <div className="flex items-center gap-3">
-                                    {Object.keys(updates).length > 0 && (
+                            <div className="flex items-center gap-3">
+                                {contentView === 'search' && (
+                                    <div className="flex gap-1 bg-background-dark/50 p-1 rounded-xl border border-white/5 mr-2 animate-in zoom-in-95 duration-200">
                                         <button
-                                            onClick={handleUpdateAll}
-                                            className="px-4 py-1.5 bg-green-500 hover:bg-green-400 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-500/20 transition-all transform hover:scale-105"
+                                            onClick={() => { setSearchCategory('mod'); setSearchOffset(0); }}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${searchCategory === 'mod' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                            </svg>
-                                            Update All ({Object.keys(updates).length})
+                                            Mods
                                         </button>
-                                    )}
-                                    <button
-                                        onClick={() => handleCheckUpdates()}
-                                        disabled={checkingUpdates}
-                                        className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-2 ${checkingUpdates ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'}`}
-                                    >
-                                        {checkingUpdates ? (
-                                            <>
-                                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                        <button
+                                            onClick={() => { setSearchCategory('resourcepack'); setSearchOffset(0); }}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${searchCategory === 'resourcepack' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            Packs
+                                        </button>
+                                        <button
+                                            onClick={() => { setSearchCategory('shader'); setSearchOffset(0); }}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${searchCategory === 'shader' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            Shaders
+                                        </button>
+                                    </div>
+                                )}
+
+                                {(contentView === 'mods' || contentView === 'resourcepacks' || contentView === 'shaders') && (
+                                    <>
+                                        <button
+                                            onClick={() => { setContentView('search'); setLocalSearchQuery(''); }}
+                                            className={`p-2 rounded-xl border transition-all duration-300 flex items-center justify-center ${contentView === 'search' ? 'bg-primary border-primary text-black shadow-lg shadow-primary/20' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20'}`}
+                                            title="Add Content"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                        {Object.keys(updates).length > 0 && (
+                                            <button
+                                                onClick={handleUpdateAll}
+                                                className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-500/20 transition-all transform hover:scale-105"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                </svg>
+                                                Update All ({Object.keys(updates).length})
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => handleCheckUpdates()}
+                                            disabled={checkingUpdates}
+                                            className={`p-2 rounded-xl border transition-all flex items-center justify-center ${checkingUpdates ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20'}`}
+                                            title="Check for Updates"
+                                        >
+                                            {checkingUpdates ? (
+                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                 </svg>
-                                                Checking...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            ) : (
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
-                                                Check for Updates
-                                            </>
-                                        )}
+                                            )}
+                                        </button>
+                                        <div className="relative group">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-3 top-3 text-gray-500 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                            <input
+                                                type="text"
+                                                placeholder="Filter..."
+                                                value={localSearchQuery}
+                                                onChange={(e) => setLocalSearchQuery(e.target.value)}
+                                                className="bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-3 text-sm text-gray-300 w-48 focus:w-64 focus:border-primary focus:bg-white/10 outline-none transition-all shadow-inner"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                {contentView === 'search' && (
+                                    <button
+                                        onClick={() => { setContentView('mods'); setLocalSearchQuery(''); }}
+                                        className="p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center bg-primary text-black shadow-lg shadow-primary/20 scale-110"
+                                        title="Back to Content"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
                                     </button>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            placeholder={contentView === 'mods' ? "Filter mods..." : contentView === 'resourcepacks' ? "Filter resource packs..." : "Filter shaders..."}
-                                            value={localSearchQuery}
-                                            onChange={(e) => setLocalSearchQuery(e.target.value)}
-                                            className="bg-background-dark border border-white/10 rounded-lg py-1.5 px-3 text-sm text-gray-300 w-64 focus:border-primary outline-none"
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
 
                         {contentView === 'mods' ? (
@@ -1153,19 +1168,19 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                             </div>
                         ) : (
                             <div className="h-full flex flex-col">
-                                <form onSubmit={handleSearch} className="flex gap-3 mb-6">
-                                    <div className="flex-1 relative">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3 top-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                <form onSubmit={handleSearch} className="flex gap-3 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="flex-1 relative group">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3 top-3.5 text-gray-500 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                         <input
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             placeholder="Search Modrinth..."
-                                            className="w-full bg-background-dark border border-white/10 rounded-xl p-3 pl-10 text-white focus:border-primary outline-none shadow-inner"
+                                            className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-3 pl-11 text-white focus:border-primary outline-none shadow-inner transition-all"
                                             autoFocus
                                         />
                                     </div>
-                                    <button type="submit" className="bg-white/5 hover:bg-primary hover:text-black text-white font-bold px-6 rounded-xl border border-white/5 transition-all">Search</button>
+                                    <button type="submit" className="bg-primary hover:bg-primary-hover text-black font-bold px-8 rounded-xl border border-transparent transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20">Search</button>
                                 </form>
 
                                 <div className="flex justify-between items-center mb-4">
