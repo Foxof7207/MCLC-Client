@@ -9,6 +9,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 ## [Unreleased]
 
 ### Added
+
 - Instance configuration sharing
 - Focus mode
 - Server-side mod validation
@@ -19,11 +20,13 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - Script support (extensions in work, are similar)
 - Log analysis utility
 - Cloud synchronization for worlds and configurations (e.g., Google Drive, Dropbox, OneDrive)
-- Mod dependency validation
+- Mod dependency validation (partially implemented)
 - Mobile application for the administration panel
 
 ### To Do
+
 #### Features in Progress
+
 - [ ] System for sharing instance configurations
 - [ ] Focus mode
 - [ ] Server-side mod validation
@@ -33,6 +36,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - [ ] Client-side quick join mod
 
 #### Possible Future Features
+
 - [ ] Script support
 - [ ] Logging analysis utility
 - [ ] Cloud synchronization for worlds and configurations (e.g., Google Drive, Dropbox, OneDrive)
@@ -44,14 +48,15 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - [ ] **Localization (i18n)**: Full multi-language support system
 
 #### Optional (Planned for Future)
-- [ ] Command line support
 
+- [ ] Command line support
 
 ---
 
 ## [1.4.0] - 2026-02-15
 
 ### Added
+
 - **Global Extension System**: Full support for `.mcextension` packages with UI injection (Slots) in Sidebar and other areas.
 - **Extension Marketplace**: Integrated browser for discovering and installing third-party extensions.
 - **Performance Overhaul**:
@@ -68,6 +73,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - **Splash Screen**: Implemented `ready-to-show` window transition in Electron to eliminate initial white flashes.
 
 ### Fixed
+
 - Synchronous I/O bottlenecks in the backend causing UI freezes during launch.
 - Duplicate imports and build-time SyntaxErrors.
 - Visual alignment of toggles and scrolling performance in the dashboard.
@@ -77,6 +83,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 ## [1.3.3 and earlier] - 2026-02-14
 
 ### Added
+
 - Skin and Cape editor (Skin- und Cape-Editor)
 - Group instances (Gruppeninstanzen)
 - News system (Nachrichtensystem)
@@ -101,4 +108,3 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - Shader preview (Shader-Vorschau)
 - Added home section (Startseiten-Bereich hinzugefügt)
 - Server system — create and manage servers (Serversystem (Server erstellen und verwalten))
-
