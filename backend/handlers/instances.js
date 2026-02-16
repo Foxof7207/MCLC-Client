@@ -351,9 +351,492 @@ module.exports = (ipcMain, win) => {
             instancesDir = path.join(appData, 'instances');
             console.log('[Instances] Initialized paths:', { appData, instancesDir });
         }
-        
+
         console.log('--- INSTANCES HANDLER INIT START ---');
-        console.log('[Instances] Stage 1: Registration start');
+
+        // Define helper functions at the top scope of the exported function
+        const startBackgroundInstall = async (finalName, config, cleanInstall = false, isMigration = false) => {
+            const dir = path.join(instancesDir, finalName);
+            const { version, loader, loaderVersion: existingLoaderVer } = config;
+
+            console.log(`[Background Install] Starting for ${finalName}, clean=${cleanInstall}, migration=${isMigration}`);
+            if (activeTasks.has(finalName)) {
+                const t = activeTasks.get(finalName);
+                if (!t.aborted) {
+                    console.log('[Background Install] Task already active for this instance, aborting old one.');
+                    t.abort();
+                }
+            }
+            activeTasks.set(finalName, {
+                aborted: false,
+                child: null,
+                abort: () => {
+                    const task = activeTasks.get(finalName);
+                    if (task) {
+                        task.aborted = true;
+                        if (task.child) {
+                            try {
+                                task.child.kill();
+                            } catch (e) { console.error('Failed to kill installer child:', e); }
+                        }
+                    }
+                }
+            });
+            (async () => {
+                const task = activeTasks.get(finalName);
+                if (!task) return;
+
+                try {
+
+                    const logsPath = path.join(dir, 'install.log');
+                    await fs.ensureDir(path.dirname(logsPath));
+                    await fs.appendFile(logsPath, `\n--- ${isMigration ? 'Migration' : 'Installation'} Started: ${new Date().toLocaleString()} ---\n`);
+
+                    const appendLog = async (line) => {
+                        if (task.aborted) return;
+                        const formatted = `[${new Date().toLocaleTimeString()}] ${line}\n`;
+                        await fs.appendFile(logsPath, formatted);
+                        if (win && win.webContents) {
+                            win.webContents.send('launch:log', line);
+                        }
+                    };
+
+                    const sendProgress = (progress, status) => {
+                        if (task.aborted) return;
+                        if (status) appendLog(`Status: ${status}`);
+                        if (win && win.webContents) {
+                            win.webContents.send('install:progress', { instanceName: finalName, progress, status });
+                        }
+                    };
+
+                    const sendCompletion = async (success, error = null) => {
+                        if (task.aborted) return;
+                        try {
+                            const configPath = path.join(dir, 'instance.json');
+                            const updatedConfig = await fs.readJson(configPath);
+                            updatedConfig.status = success ? 'ready' : 'error';
+                            await fs.writeJson(configPath, updatedConfig, { spaces: 4 });
+                        } catch (e) { console.error('Failed to update instance config:', e); }
+
+                        if (win && win.webContents) {
+                            sendProgress(100, success ? 'Completed' : 'Failed');
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            if (success) {
+                                win.webContents.send('instance:status', { instanceName: finalName, status: 'stopped' });
+                            } else {
+                                win.webContents.send('instance:status', { instanceName: finalName, status: 'error', error });
+                            }
+                        }
+                    };
+                    let modsToInstall = [];
+                    if (isMigration) {
+                        sendProgress(2, 'Analyzing current mods for migration...');
+                        const modsDir = path.join(dir, 'mods');
+                        if (await fs.pathExists(modsDir)) {
+                            const files = await fs.readdir(modsDir);
+                            const jars = files.filter(f => f.endsWith('.jar'));
+
+                            for (const jar of jars) {
+                                if (task.aborted) break;
+                                const jarPath = path.join(modsDir, jar);
+                                try {
+                                    const hash = await calculateSha1(jarPath);
+                                    sendProgress(null, `Checking compatibility: ${jar}`);
+                                    try {
+                                        const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`);
+                                        const currentVersion = res.data;
+                                        const projectId = currentVersion.project_id;
+                                        const loaders = [loader.toLowerCase()];
+                                        const gameVersions = [version];
+
+                                        const searchUrl = `https://api.modrinth.com/v2/project/${projectId}/version?loaders=["${loaders.join('","')}"]&game_versions=["${gameVersions.join('","')}"]`;
+                                        const versionsRes = await axios.get(searchUrl);
+                                        const availableVersions = versionsRes.data;
+
+                                        if (availableVersions && availableVersions.length > 0) {
+                                            const bestVersion = availableVersions[0];
+                                            const primaryFile = bestVersion.files.find(f => f.primary) || bestVersion.files[0];
+                                            modsToInstall.push({
+                                                name: primaryFile.filename,
+                                                url: primaryFile.url,
+                                                oldJar: jar
+                                            });
+                                            appendLog(`Found compatible version for ${jar}: ${bestVersion.version_number}`);
+                                        } else {
+                                            appendLog(`No compatible version found for ${jar} on ${loader} ${version}. Mod will be removed.`);
+                                            await fs.remove(jarPath);
+                                        }
+                                    } catch (e) {
+                                        appendLog(`Mod ${jar} not found on Modrinth or API error. Removing to prevent crashes.`);
+                                        await fs.remove(jarPath);
+                                    }
+                                } catch (e) {
+                                    appendLog(`Failed to process ${jar}: ${e.message}`);
+                                }
+                            }
+                            for (const mod of modsToInstall) {
+                                await fs.remove(path.join(modsDir, mod.oldJar));
+                            }
+                        }
+                    }
+
+                    let result = { success: true };
+                    const loaderType = (loader || 'vanilla').toLowerCase();
+                    sendProgress(10, `Downloading Minecraft ${version} base files (Phase 1/3)...`);
+                    try {
+                        const versionManifestUrl = 'https://piston-meta.mojang.com/mc/game/version_manifest.json';
+                        const manifestPath = path.join(dir, 'version_manifest.json');
+                        await downloadFile(versionManifestUrl, manifestPath);
+                        const manifest = await fs.readJson(manifestPath);
+                        const versionData = manifest.versions.find(v => v.id === version);
+
+                        if (!versionData) throw new Error(`Version ${version} not found in manifest`);
+
+                        const versionJsonUrl = versionData.url;
+                        const versionDir = path.join(dir, 'versions', version);
+                        await fs.ensureDir(versionDir);
+                        const versionJsonPath = path.join(versionDir, `${version}.json`);
+
+                        await downloadFile(versionJsonUrl, versionJsonPath);
+                        const clientJarPath = path.join(versionDir, `${version}.jar`);
+                        const versionJson = await fs.readJson(versionJsonPath);
+                        await downloadFile(versionJson.downloads.client.url, clientJarPath);
+                        await fs.remove(manifestPath);
+                    } catch (e) {
+                        appendLog(`Warning: Base game files check/download: ${e.message}`);
+                    }
+                    if (loaderType !== 'vanilla') {
+                        sendProgress(20, `Installing ${loader} loader (Phase 2/3)...`);
+                        let targetLoaderVer = existingLoaderVer;
+                        if (loaderType === 'fabric') result = await installFabricLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
+                        else if (loaderType === 'quilt') result = await installQuiltLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
+                        else if (loaderType === 'forge') result = await installForgeLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
+                        else if (loaderType === 'neoforge') result = await installNeoForgeLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
+
+                        if (!result || !result.success) throw new Error(result?.error || `${loader} installation failed`);
+                        if (loaderType === 'fabric') {
+                            try {
+                                sendProgress(35, 'Auto-installing Fabric API...');
+                                const fabricApiId = 'P7dR8mSH';
+                                const fapiRes = await axios.get(`https://api.modrinth.com/v2/project/${fabricApiId}/version`, {
+                                    params: {
+                                        loaders: JSON.stringify(['fabric']),
+                                        game_versions: JSON.stringify([version])
+                                    }
+                                });
+
+                                if (fapiRes.data && fapiRes.data.length > 0) {
+                                    const latest = fapiRes.data[0];
+                                    const file = latest.files.find(f => f.primary) || latest.files[0];
+                                    const modsDir = path.join(dir, 'mods');
+                                    await fs.ensureDir(modsDir);
+                                    const dest = path.join(modsDir, file.filename);
+
+                                    if (!await fs.pathExists(dest)) {
+                                        appendLog(`Downloading Fabric API compatible with ${version}...`);
+                                        await downloadFile(file.url, dest);
+                                        appendLog(`Fabric API installed: ${file.filename}`);
+                                    }
+                                }
+                            } catch (fapiErr) {
+                                appendLog(`Warning: Failed to auto-install Fabric API: ${fapiErr.message}`);
+                            }
+                        }
+
+                        const configPath = path.join(dir, 'instance.json');
+                        const updatedConfig = await fs.readJson(configPath);
+                        updatedConfig.loaderVersion = result.loaderVersion;
+                        updatedConfig.versionId = result.versionId;
+                        await fs.writeJson(configPath, updatedConfig, { spaces: 4 });
+                    }
+                    sendProgress(40, 'Finalizing game files...');
+                    const baseProgressStart = 40;
+                    try {
+                        const sharedDir = path.join(app.getPath('userData'), 'common');
+                        const assetRoot = path.join(sharedDir, 'assets');
+                        const librariesRoot = path.join(dir, 'libraries');
+                        await fs.ensureDir(assetRoot); await fs.ensureDir(librariesRoot);
+
+                        const currentConfig = await fs.readJson(path.join(dir, 'instance.json'));
+                        const vId = currentConfig.versionId || version;
+                        const vJsonPath = path.join(dir, 'versions', vId, `${vId}.json`);
+                        const vJson = await fs.readJson(vJsonPath);
+
+                        const libraries = vJson.libraries || [];
+                        let downloaded = 0;
+                        for (const lib of libraries) {
+                            if (task.aborted) break;
+
+                            if (lib.downloads && lib.downloads.artifact) {
+                                const art = lib.downloads.artifact;
+                                const dest = path.join(librariesRoot, art.path);
+                                if (!await fs.pathExists(dest)) {
+                                    await fs.ensureDir(path.dirname(dest));
+                                    await downloadFile(art.url, dest);
+                                }
+                            }
+                            downloaded++;
+                            sendProgress(Math.round(baseProgressStart + (downloaded / libraries.length) * 30), `Syncing libraries...`);
+                        }
+                    } catch (e) { appendLog(`Library sync warning: ${e.message}`); }
+                    if (modsToInstall.length > 0) {
+                        sendProgress(80, `Installing ${modsToInstall.length} migrated mods...`);
+                        const modsDir = path.join(dir, 'mods');
+                        await fs.ensureDir(modsDir);
+                        for (const mod of modsToInstall) {
+                            if (task.aborted) break;
+                            const dest = path.join(modsDir, mod.name);
+                            appendLog(`Downloading migrated mod: ${mod.name}`);
+                            await downloadFile(mod.url, dest);
+                        }
+                    }
+
+                    sendCompletion(true);
+                } catch (err) {
+                    console.error(`Background ${isMigration ? 'migration' : 'install'} error:`, err);
+                    sendCompletion(false, err.message);
+                } finally {
+                    activeTasks.delete(finalName);
+                }
+            })();
+        };
+
+        const installMrPack = async (packPath, nameOverride = null) => {
+            try {
+                const zip = new AdmZip(packPath);
+
+                const indexEntry = zip.getEntry('modrinth.index.json');
+                if (!indexEntry) throw new Error('Invalid mrpack: missing modrinth.index.json');
+
+                const index = JSON.parse(indexEntry.getData().toString('utf8'));
+                let instanceName = nameOverride || index.name;
+                let targetDir = path.join(instancesDir, instanceName);
+                let counter = 1;
+                while (await fs.pathExists(targetDir)) {
+                    instanceName = `${nameOverride || index.name} (${counter++})`;
+                    targetDir = path.join(instancesDir, instanceName);
+                }
+
+                await fs.ensureDir(targetDir);
+                const mcVersion = index.dependencies.minecraft;
+                let loaderType = 'Vanilla';
+                let loaderVersion = '';
+
+                if (index.dependencies['fabric-loader']) {
+                    loaderType = 'Fabric';
+                    loaderVersion = index.dependencies['fabric-loader'];
+                } else if (index.dependencies['quilt-loader']) {
+                    loaderType = 'Quilt';
+                    loaderVersion = index.dependencies['quilt-loader'];
+                } else if (index.dependencies['forge']) {
+                    loaderType = 'Forge';
+                    loaderVersion = index.dependencies['forge'];
+                } else if (index.dependencies['neoforge']) {
+                    loaderType = 'NeoForge';
+                    loaderVersion = index.dependencies['neoforge'];
+                }
+
+                const instanceConfig = {
+                    name: instanceName,
+                    version: mcVersion,
+                    loader: loaderType,
+                    loaderVersion: loaderVersion,
+                    icon: DEFAULT_ICON,
+                    status: 'installing',
+                    created: Date.now()
+                };
+
+                await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
+                (async () => {
+                    try {
+                        const sendProgress = (progress, status) => {
+                            if (win && win.webContents) {
+                                win.webContents.send('install:progress', { instanceName, progress, status });
+                            }
+                        };
+
+                        sendProgress(5, 'Extracting overrides...');
+
+                        const entries = zip.getEntries();
+                        for (const entry of entries) {
+                            if (entry.entryName.startsWith('overrides/')) {
+                                const relPath = entry.entryName.replace('overrides/', '');
+                                if (relPath) {
+                                    const dest = path.join(targetDir, relPath);
+                                    if (entry.isDirectory) {
+                                        await fs.ensureDir(dest);
+                                    } else {
+                                        await fs.ensureDir(path.dirname(dest));
+                                        await fs.writeFile(dest, entry.getData());
+                                    }
+                                }
+                            }
+                        }
+
+                        sendProgress(20, `Downloading ${index.files.length} files...`);
+
+                        const totalFiles = index.files.length;
+                        let downloaded = 0;
+
+                        const chunks = [];
+                        for (let i = 0; i < index.files.length; i += 5) {
+                            chunks.push(index.files.slice(i, i + 5));
+                        }
+
+                        for (const chunk of chunks) {
+                            await Promise.all(chunk.map(async (file) => {
+                                const dest = path.join(targetDir, file.path);
+                                await fs.ensureDir(path.dirname(dest));
+                                await downloadFile(file.downloads[0], dest);
+                                downloaded++;
+                                const progress = 20 + Math.round((downloaded / totalFiles) * 60);
+                                sendProgress(progress, `Downloading: ${path.basename(file.path)} (${downloaded}/${totalFiles})`);
+                            }));
+                        }
+
+                        sendProgress(90, 'Finalizing installation...');
+                        await startBackgroundInstall(instanceName, instanceConfig, false, false);
+
+                    } catch (err) {
+                        console.error('[Import:MrPack] Error:', err);
+                        if (win && win.webContents) {
+                            win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
+                        }
+                    }
+                })();
+
+                return { success: true, instanceName };
+            } catch (e) {
+                throw e;
+            }
+        };
+
+        const installCurseForgePack = async (packPath) => {
+            try {
+                const zip = new AdmZip(packPath);
+
+                const manifestEntry = zip.getEntry('manifest.json');
+                if (!manifestEntry) throw new Error('Invalid CurseForge pack: missing manifest.json');
+
+                const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
+                let instanceName = manifest.name || path.basename(packPath, '.zip');
+                let targetDir = path.join(instancesDir, instanceName);
+                let counter = 1;
+                while (await fs.pathExists(targetDir)) {
+                    instanceName = `${manifest.name || 'Imported CF'} (${counter++})`;
+                    targetDir = path.join(instancesDir, instanceName);
+                }
+
+                await fs.ensureDir(targetDir);
+
+                const mcVersion = manifest.minecraft.version;
+                let loaderType = 'Vanilla';
+                let loaderVersion = '';
+
+                if (manifest.minecraft.modLoaders && manifest.minecraft.modLoaders.length > 0) {
+                    const loaderInfo = manifest.minecraft.modLoaders[0];
+                    const id = loaderInfo.id; // e.g., forge-47.2.0
+                    if (id.startsWith('forge-')) {
+                        loaderType = 'Forge';
+                        loaderVersion = id.replace('forge-', '');
+                    } else if (id.startsWith('fabric-')) {
+                        loaderType = 'Fabric';
+                        loaderVersion = id.replace('fabric-', '');
+                    } else if (id.startsWith('neoforge-')) {
+                        loaderType = 'NeoForge';
+                        loaderVersion = id.replace('neoforge-', '');
+                    } else if (id.startsWith('quilt-')) {
+                        loaderType = 'Quilt';
+                        loaderVersion = id.replace('quilt-', '');
+                    }
+                }
+
+                const instanceConfig = {
+                    name: instanceName,
+                    version: mcVersion,
+                    loader: loaderType,
+                    loaderVersion: loaderVersion,
+                    icon: DEFAULT_ICON,
+                    status: 'installing',
+                    created: Date.now()
+                };
+
+                await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
+
+                (async () => {
+                    try {
+                        const sendProgress = (progress, status) => {
+                            if (win && win.webContents) {
+                                win.webContents.send('install:progress', { instanceName, progress, status });
+                            }
+                        };
+
+                        sendProgress(5, 'Extracting overrides...');
+
+                        const entries = zip.getEntries();
+                        for (const entry of entries) {
+                            if (entry.entryName.startsWith('overrides/')) {
+                                const relPath = entry.entryName.replace('overrides/', '');
+                                if (relPath) {
+                                    const dest = path.join(targetDir, relPath);
+                                    if (entry.isDirectory) {
+                                        await fs.ensureDir(dest);
+                                    } else {
+                                        await fs.ensureDir(path.dirname(dest));
+                                        await fs.writeFile(dest, entry.getData());
+                                    }
+                                }
+                            }
+                        }
+
+                        const mods = manifest.files || [];
+                        const totalMods = mods.length;
+                        let downloaded = 0;
+
+                        if (totalMods > 0) {
+                            sendProgress(20, `Downloading ${totalMods} mods...`);
+                            const modsDir = path.join(targetDir, 'mods');
+                            await fs.ensureDir(modsDir);
+
+                            for (const mod of mods) {
+                                try {
+                                    const fileRes = await axios.get(`https://api.curse.tools/v1/cf/mods/${mod.projectID}/files/${mod.fileID}`, {
+                                        headers: { 'User-Agent': 'Client/MCLC/1.0' }
+                                    });
+                                    const fileData = fileRes.data.data;
+                                    const downloadUrl = fileData.downloadUrl;
+                                    const fileName = fileData.fileName;
+
+                                    const dest = path.join(modsDir, fileName);
+                                    await downloadFile(downloadUrl, dest);
+                                    downloaded++;
+                                    const progress = 20 + Math.round((downloaded / totalMods) * 60);
+                                    sendProgress(progress, `Downloading: ${fileName} (${downloaded}/${totalMods})`);
+                                } catch (e) {
+                                    console.error(`[Import:CF] Failed to download mod ID ${mod.projectID}:`, e.message);
+                                }
+                            }
+                        }
+
+                        sendProgress(90, 'Finalizing installation...');
+                        await startBackgroundInstall(instanceName, instanceConfig, false, false);
+
+                    } catch (err) {
+                        console.error('[Import:CF] Error:', err);
+                        if (win && win.webContents) {
+                            win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
+                        }
+                    }
+                })();
+
+                return { success: true, instanceName };
+            } catch (e) {
+                console.error('[Import:CF] Error:', e);
+                return { success: false, error: e.message };
+            }
+        };
+
+
         // Move this to the top to ensure it's registered
         console.log('[Instances] Stage 2: Registering instance:unified-import-v3...');
         ipcMain.handle('instance:unified-import-v3', async (_) => {
@@ -411,1089 +894,62 @@ module.exports = (ipcMain, win) => {
         console.log('[Instances] ✅ Checkpoint 2: About to register get-resourcepacks');
 
         ipcMain.handle('instance:get-resourcepacks', async (_, instanceName) => {
-        console.log(`[Instances:RP] Getting resource packs for: ${instanceName}`);
-        try {
-            const rpDir = path.join(instancesDir, instanceName, 'resourcepacks');
-            await fs.ensureDir(rpDir);
-
-            const modCachePath = path.join(appData, 'mod_cache.json');
-            let modCache = {};
+            console.log(`[Instances:RP] Getting resource packs for: ${instanceName}`);
             try {
-                if (await fs.pathExists(modCachePath)) {
-                    modCache = await fs.readJson(modCachePath);
-                }
-            } catch (e) { console.error('Failed to load cache for RPs', e); }
+                const rpDir = path.join(instancesDir, instanceName, 'resourcepacks');
+                await fs.ensureDir(rpDir);
 
-            const files = await fs.readdir(rpDir, { withFileTypes: true });
-
-            const rpObjects = (await Promise.all(files.map(async (dirent) => {
+                const modCachePath = path.join(appData, 'mod_cache.json');
+                let modCache = {};
                 try {
-                    const fileName = dirent.name;
-                    const filePath = path.join(rpDir, fileName);
-
-                    const isPack = dirent.isDirectory() ||
-                        fileName.toLowerCase().endsWith('.zip') ||
-                        fileName.toLowerCase().endsWith('.rar');
-
-                    if (!isPack) return null;
-
-                    const stats = await fs.stat(filePath);
-                    let title = null, icon = null, version = null;
-
-                    const cacheKey = `${fileName}-${stats.size}`;
-                    if (modCache[cacheKey] && modCache[cacheKey].projectId) {
-                        title = modCache[cacheKey].title;
-                        icon = modCache[cacheKey].icon;
-                        version = modCache[cacheKey].version;
-                    } else if (dirent.isFile()) {
-                        try {
-                            const hash = await calculateSha1(filePath);
-                            if (modCache[hash]) {
-                                console.log(`[Instances:RP] Found legacy SHA1 cache for ${fileName}`);
-                                title = modCache[hash].title;
-                                icon = modCache[hash].icon;
-                                version = modCache[hash].version;
-                                const projectId = modCache[hash].projectId;
-                                const versionId = modCache[hash].versionId;
-
-                                modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
-                            } else {
-                                const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
-                                    headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                    timeout: 3000
-                                });
-                                const versionData = res.data;
-                                const versionId = versionData.id;
-                                const projectId = versionData.project_id;
-
-                                const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${projectId}`, {
-                                    headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                    timeout: 3000
-                                });
-                                const projectData = projectRes.data;
-
-                                title = projectData.title;
-                                icon = projectData.icon_url;
-                                version = versionData.version_number;
-
-                                modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
-                            }
-                        } catch (e) { }
+                    if (await fs.pathExists(modCachePath)) {
+                        modCache = await fs.readJson(modCachePath);
                     }
+                } catch (e) { console.error('Failed to load cache for RPs', e); }
 
-                    return {
-                        name: fileName,
-                        title: title || fileName,
-                        icon,
-                        version,
-                        projectId: modCache[cacheKey]?.projectId,
-                        versionId: modCache[cacheKey]?.versionId,
-                        size: stats.size,
-                        enabled: true
-                    };
-                } catch (e) {
-                    console.error(`Error processing resource pack:`, e);
-                    return null;
-                }
-            }))).filter(p => p !== null);
+                const files = await fs.readdir(rpDir, { withFileTypes: true });
 
-            await fs.writeJson(modCachePath, modCache).catch(() => { });
-
-            return { success: true, packs: rpObjects };
-        } catch (e) {
-            console.error('Failed to get resource packs', e);
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:get-shaders', async (_, instanceName) => {
-        console.log(`[Instances:Shaders] Getting shaders for: ${instanceName}`);
-        try {
-            const shaderDir = path.join(instancesDir, instanceName, 'shaderpacks');
-            await fs.ensureDir(shaderDir);
-
-            const modCachePath = path.join(appData, 'mod_cache.json');
-            let modCache = {};
-            try {
-                if (await fs.pathExists(modCachePath)) {
-                    modCache = await fs.readJson(modCachePath);
-                }
-            } catch (e) { console.error('Failed to load cache for shaders', e); }
-
-            const files = await fs.readdir(shaderDir, { withFileTypes: true });
-
-            const shaderObjects = (await Promise.all(files.map(async (dirent) => {
-                try {
-                    const fileName = dirent.name;
-                    const filePath = path.join(shaderDir, fileName);
-
-                    const isShader = dirent.isDirectory() ||
-                        fileName.toLowerCase().endsWith('.zip');
-
-                    if (!isShader) return null;
-
-                    const stats = await fs.stat(filePath);
-                    let title = null, icon = null, version = null;
-
-                    const cacheKey = `${fileName}-${stats.size}`;
-                    if (modCache[cacheKey] && modCache[cacheKey].projectId) {
-                        title = modCache[cacheKey].title;
-                        icon = modCache[cacheKey].icon;
-                        version = modCache[cacheKey].version;
-                    } else if (dirent.isFile()) {
-                        try {
-                            const hash = await calculateSha1(filePath);
-                            if (modCache[hash]) {
-                                console.log(`[Instances:Shaders] Found legacy SHA1 cache for ${fileName}`);
-                                title = modCache[hash].title;
-                                icon = modCache[hash].icon;
-                                version = modCache[hash].version;
-                                const projectId = modCache[hash].projectId;
-                                const versionId = modCache[hash].versionId;
-
-                                modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
-                            } else {
-                                const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
-                                    headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                    timeout: 3000
-                                });
-                                const versionData = res.data;
-                                const versionId = versionData.id;
-                                const projectId = versionData.project_id;
-
-                                const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${projectId}`, {
-                                    headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                    timeout: 3000
-                                });
-                                const projectData = projectRes.data;
-
-                                title = projectData.title;
-                                icon = projectData.icon_url;
-                                version = versionData.version_number;
-
-                                modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
-                            }
-                        } catch (e) { }
-                    }
-
-                    return {
-                        name: fileName,
-                        title: title || fileName,
-                        icon,
-                        version,
-                        projectId: modCache[cacheKey]?.projectId,
-                        versionId: modCache[cacheKey]?.versionId,
-                        size: stats.size,
-                        enabled: true
-                    };
-                } catch (e) {
-                    console.error(`Error processing shader:`, e);
-                    return null;
-                }
-            }))).filter(p => p !== null);
-
-            await fs.writeJson(modCachePath, modCache).catch(() => { });
-
-            return { success: true, shaders: shaderObjects };
-        } catch (e) {
-            console.error('Failed to get shaders', e);
-            return { success: false, error: e.message };
-        }
-    });
-    const startBackgroundInstall = async (finalName, config, cleanInstall = false, isMigration = false) => {
-        const dir = path.join(instancesDir, finalName);
-        const { version, loader, loaderVersion: existingLoaderVer } = config;
-
-        console.log(`[Background Install] Starting for ${finalName}, clean=${cleanInstall}, migration=${isMigration}`);
-        activeTasks.set(finalName, {
-            aborted: false,
-            child: null,
-            abort: () => {
-                const task = activeTasks.get(finalName);
-                if (task) {
-                    task.aborted = true;
-                    if (task.child) {
-                        try {
-                            task.child.kill();
-                        } catch (e) { console.error('Failed to kill installer child:', e); }
-                    }
-                }
-            }
-        });
-        (async () => {
-            const task = activeTasks.get(finalName);
-            if (!task) return;
-
-            try {
-
-                const logsPath = path.join(dir, 'install.log');
-                await fs.ensureDir(path.dirname(logsPath));
-                await fs.appendFile(logsPath, `\n--- ${isMigration ? 'Migration' : 'Installation'} Started: ${new Date().toLocaleString()} ---\n`);
-
-                const appendLog = async (line) => {
-                    if (task.aborted) return;
-                    const formatted = `[${new Date().toLocaleTimeString()}] ${line}\n`;
-                    await fs.appendFile(logsPath, formatted);
-                    if (win && win.webContents) {
-                        win.webContents.send('launch:log', line);
-                    }
-                };
-
-                const sendProgress = (progress, status) => {
-                    if (task.aborted) return;
-                    if (status) appendLog(`Status: ${status}`);
-                    if (win && win.webContents) {
-                        win.webContents.send('install:progress', { instanceName: finalName, progress, status });
-                    }
-                };
-
-                const sendCompletion = async (success, error = null) => {
-                    if (task.aborted) return;
+                const rpObjects = (await Promise.all(files.map(async (dirent) => {
                     try {
-                        const configPath = path.join(dir, 'instance.json');
-                        const updatedConfig = await fs.readJson(configPath);
-                        updatedConfig.status = success ? 'ready' : 'error';
-                        await fs.writeJson(configPath, updatedConfig, { spaces: 4 });
-                    } catch (e) { console.error('Failed to update instance config:', e); }
+                        const fileName = dirent.name;
+                        const filePath = path.join(rpDir, fileName);
 
-                    if (win && win.webContents) {
-                        sendProgress(100, success ? 'Completed' : 'Failed');
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        if (success) {
-                            win.webContents.send('instance:status', { instanceName: finalName, status: 'stopped' });
-                        } else {
-                            win.webContents.send('instance:status', { instanceName: finalName, status: 'error', error });
-                        }
-                    }
-                };
-                let modsToInstall = [];
-                if (isMigration) {
-                    sendProgress(2, 'Analyzing current mods for migration...');
-                    const modsDir = path.join(dir, 'mods');
-                    if (await fs.pathExists(modsDir)) {
-                        const files = await fs.readdir(modsDir);
-                        const jars = files.filter(f => f.endsWith('.jar'));
+                        const isPack = dirent.isDirectory() ||
+                            fileName.toLowerCase().endsWith('.zip') ||
+                            fileName.toLowerCase().endsWith('.rar');
 
-                        for (const jar of jars) {
-                            if (task.aborted) break;
-                            const jarPath = path.join(modsDir, jar);
+                        if (!isPack) return null;
+
+                        const stats = await fs.stat(filePath);
+                        let title = null, icon = null, version = null;
+
+                        const cacheKey = `${fileName}-${stats.size}`;
+                        if (modCache[cacheKey] && modCache[cacheKey].projectId) {
+                            title = modCache[cacheKey].title;
+                            icon = modCache[cacheKey].icon;
+                            version = modCache[cacheKey].version;
+                        } else if (dirent.isFile()) {
                             try {
-                                const hash = await calculateSha1(jarPath);
-                                sendProgress(null, `Checking compatibility: ${jar}`);
-                                try {
-                                    const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`);
-                                    const currentVersion = res.data;
-                                    const projectId = currentVersion.project_id;
-                                    const loaders = [loader.toLowerCase()];
-                                    const gameVersions = [version];
-
-                                    const searchUrl = `https://api.modrinth.com/v2/project/${projectId}/version?loaders=["${loaders.join('","')}"]&game_versions=["${gameVersions.join('","')}"]`;
-                                    const versionsRes = await axios.get(searchUrl);
-                                    const availableVersions = versionsRes.data;
-
-                                    if (availableVersions && availableVersions.length > 0) {
-                                        const bestVersion = availableVersions[0];
-                                        const primaryFile = bestVersion.files.find(f => f.primary) || bestVersion.files[0];
-                                        modsToInstall.push({
-                                            name: primaryFile.filename,
-                                            url: primaryFile.url,
-                                            oldJar: jar
-                                        });
-                                        appendLog(`Found compatible version for ${jar}: ${bestVersion.version_number}`);
-                                    } else {
-                                        appendLog(`No compatible version found for ${jar} on ${loader} ${version}. Mod will be removed.`);
-                                        await fs.remove(jarPath);
-                                    }
-                                } catch (e) {
-                                    appendLog(`Mod ${jar} not found on Modrinth or API error. Removing to prevent crashes.`);
-                                    await fs.remove(jarPath);
-                                }
-                            } catch (e) {
-                                appendLog(`Failed to process ${jar}: ${e.message}`);
-                            }
-                        }
-                        for (const mod of modsToInstall) {
-                            await fs.remove(path.join(modsDir, mod.oldJar));
-                        }
-                    }
-                }
-
-                let result = { success: true };
-                const loaderType = (loader || 'vanilla').toLowerCase();
-                sendProgress(10, `Downloading Minecraft ${version} base files (Phase 1/3)...`);
-                try {
-                    const versionManifestUrl = 'https://piston-meta.mojang.com/mc/game/version_manifest.json';
-                    const manifestPath = path.join(dir, 'version_manifest.json');
-                    await downloadFile(versionManifestUrl, manifestPath);
-                    const manifest = await fs.readJson(manifestPath);
-                    const versionData = manifest.versions.find(v => v.id === version);
-
-                    if (!versionData) throw new Error(`Version ${version} not found in manifest`);
-
-                    const versionJsonUrl = versionData.url;
-                    const versionDir = path.join(dir, 'versions', version);
-                    await fs.ensureDir(versionDir);
-                    const versionJsonPath = path.join(versionDir, `${version}.json`);
-
-                    await downloadFile(versionJsonUrl, versionJsonPath);
-                    const clientJarPath = path.join(versionDir, `${version}.jar`);
-                    const versionJson = await fs.readJson(versionJsonPath);
-                    await downloadFile(versionJson.downloads.client.url, clientJarPath);
-                    await fs.remove(manifestPath);
-                } catch (e) {
-                    appendLog(`Warning: Base game files check/download: ${e.message}`);
-                }
-                if (loaderType !== 'vanilla') {
-                    sendProgress(20, `Installing ${loader} loader (Phase 2/3)...`);
-                    let targetLoaderVer = existingLoaderVer;
-                    if (loaderType === 'fabric') result = await installFabricLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
-                    else if (loaderType === 'quilt') result = await installQuiltLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
-                    else if (loaderType === 'forge') result = await installForgeLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
-                    else if (loaderType === 'neoforge') result = await installNeoForgeLoader(dir, version, targetLoaderVer, (p, s) => sendProgress(Math.round(p * 0.1) + 20, s), appendLog);
-
-                    if (!result || !result.success) throw new Error(result?.error || `${loader} installation failed`);
-                    if (loaderType === 'fabric') {
-                        try {
-                            sendProgress(35, 'Auto-installing Fabric API...');
-                            const fabricApiId = 'P7dR8mSH';
-                            const fapiRes = await axios.get(`https://api.modrinth.com/v2/project/${fabricApiId}/version`, {
-                                params: {
-                                    loaders: JSON.stringify(['fabric']),
-                                    game_versions: JSON.stringify([version])
-                                }
-                            });
-
-                            if (fapiRes.data && fapiRes.data.length > 0) {
-                                const latest = fapiRes.data[0];
-                                const file = latest.files.find(f => f.primary) || latest.files[0];
-                                const modsDir = path.join(dir, 'mods');
-                                await fs.ensureDir(modsDir);
-                                const dest = path.join(modsDir, file.filename);
-
-                                if (!await fs.pathExists(dest)) {
-                                    appendLog(`Downloading Fabric API compatible with ${version}...`);
-                                    await downloadFile(file.url, dest);
-                                    appendLog(`Fabric API installed: ${file.filename}`);
-                                }
-                            }
-                        } catch (fapiErr) {
-                            appendLog(`Warning: Failed to auto-install Fabric API: ${fapiErr.message}`);
-                        }
-                    }
-
-                    const configPath = path.join(dir, 'instance.json');
-                    const updatedConfig = await fs.readJson(configPath);
-                    updatedConfig.loaderVersion = result.loaderVersion;
-                    updatedConfig.versionId = result.versionId;
-                    await fs.writeJson(configPath, updatedConfig, { spaces: 4 });
-                }
-                sendProgress(40, 'Finalizing game files...');
-                const baseProgressStart = 40;
-                try {
-                    const sharedDir = path.join(app.getPath('userData'), 'common');
-                    const assetRoot = path.join(sharedDir, 'assets');
-                    const librariesRoot = path.join(dir, 'libraries');
-                    await fs.ensureDir(assetRoot); await fs.ensureDir(librariesRoot);
-
-                    const currentConfig = await fs.readJson(path.join(dir, 'instance.json'));
-                    const vId = currentConfig.versionId || version;
-                    const vJsonPath = path.join(dir, 'versions', vId, `${vId}.json`);
-                    const vJson = await fs.readJson(vJsonPath);
-
-                    const libraries = vJson.libraries || [];
-                    let downloaded = 0;
-                    for (const lib of libraries) {
-                        if (task.aborted) break;
-
-                        if (lib.downloads && lib.downloads.artifact) {
-                            const art = lib.downloads.artifact;
-                            const dest = path.join(librariesRoot, art.path);
-                            if (!await fs.pathExists(dest)) {
-                                await fs.ensureDir(path.dirname(dest));
-                                await downloadFile(art.url, dest);
-                            }
-                        }
-                        downloaded++;
-                        sendProgress(Math.round(baseProgressStart + (downloaded / libraries.length) * 30), `Syncing libraries...`);
-                    }
-                } catch (e) { appendLog(`Library sync warning: ${e.message}`); }
-                if (modsToInstall.length > 0) {
-                    sendProgress(80, `Installing ${modsToInstall.length} migrated mods...`);
-                    const modsDir = path.join(dir, 'mods');
-                    await fs.ensureDir(modsDir);
-                    for (const mod of modsToInstall) {
-                        if (task.aborted) break;
-                        const dest = path.join(modsDir, mod.name);
-                        appendLog(`Downloading migrated mod: ${mod.name}`);
-                        await downloadFile(mod.url, dest);
-                    }
-                }
-
-                sendCompletion(true);
-            } catch (err) {
-                console.error(`Background ${isMigration ? 'migration' : 'install'} error:`, err);
-                sendCompletion(false, err.message);
-            } finally {
-                activeTasks.delete(finalName);
-            }
-        })();
-    };
-    console.log('[Instances] ✅ Checkpoint 3: About to register instance:get-all');
-
-    ipcMain.handle('instance:get-all', async () => {
-        try {
-            if (!await fs.pathExists(instancesDir)) return [];
-            const dirs = await fs.readdir(instancesDir);
-            const instances = [];
-            for (const dir of dirs) {
-                const configPath = path.join(instancesDir, dir, 'instance.json');
-                if (await fs.pathExists(configPath)) {
-                    try {
-                        const config = await fs.readJson(configPath);
-                        instances.push(config);
-                    } catch (e) {
-                        console.error(`Failed to read instance config for ${dir}:`, e);
-                    }
-                }
-            }
-            return instances;
-        } catch (e) {
-            console.error('Failed to list instances:', e);
-            return [];
-        }
-    });
-
-    ipcMain.handle('instance:get-log-files', async (_, instanceName) => {
-        try {
-            console.log(`Getting log files for: ${instanceName}`);
-            const instanceDir = path.join(instancesDir, instanceName);
-            const logsDir = path.join(instanceDir, 'logs');
-            const logFiles = [];
-            const installLogPath = path.join(instanceDir, 'install.log');
-            if (await fs.pathExists(installLogPath)) {
-                const stats = await fs.stat(installLogPath);
-                logFiles.push({
-                    name: 'install.log',
-                    date: stats.mtime,
-                    size: stats.size
-                });
-            }
-
-            if (await fs.pathExists(logsDir)) {
-                const files = await fs.readdir(logsDir);
-                for (const file of files) {
-                    if (file.endsWith('.log') || file.endsWith('.log.gz')) {
-                        const stats = await fs.stat(path.join(logsDir, file));
-                        logFiles.push({
-                            name: file,
-                            date: stats.mtime,
-                            size: stats.size
-                        });
-                    }
-                }
-            }
-
-            return logFiles.sort((a, b) => b.date - a.date);
-        } catch (e) {
-            console.error('Error getting log files:', e);
-            return [];
-        }
-    });
-
-    ipcMain.handle('instance:get-worlds', async (_, instanceName) => {
-        try {
-            console.log(`Getting worlds for: ${instanceName}`);
-            const instanceDir = path.join(instancesDir, instanceName);
-            const savesDir = path.join(instanceDir, 'saves');
-            if (!await fs.pathExists(savesDir)) return { success: true, worlds: [] };
-
-            const worlds = [];
-            const dirs = await fs.readdir(savesDir);
-
-            for (const dir of dirs) {
-                const worldPath = path.join(savesDir, dir);
-                const stats = await fs.stat(worldPath);
-                if (stats.isDirectory()) {
-                    const levelDatPath = path.join(worldPath, 'level.dat');
-                    const iconPath = path.join(worldPath, 'icon.png');
-                    
-                    let worldData = {
-                        folderName: dir,
-                        name: dir,
-                        lastPlayed: stats.mtimeMs,
-                        folder: true,
-                        size: 0,
-                        hasIcon: false,
-                        iconData: null
-                    };
-
-                    try {
-                        worldData.size = await getFolderSize(worldPath);
-                    } catch (e) {
-                        console.warn(`Could not get size for world ${dir}:`, e.message);
-                    }
-
-                    if (await fs.pathExists(levelDatPath)) {
-                        try {
-                            const buffer = await fs.readFile(levelDatPath);
-                            const { parsed } = await nbt.parse(buffer);
-                            const data = parsed.value.Data.value;
-                            
-                            worldData.name = data.LevelName?.value || dir;
-                            worldData.lastPlayed = data.LastPlayed?.value ? Number(data.LastPlayed.value) : stats.mtimeMs;
-                            worldData.gameMode = GAME_MODES[data.GameType?.value] || 'Unknown';
-                            worldData.difficulty = DIFFICULTIES[data.Difficulty?.value] || 'Unknown';
-                            worldData.version = data.Version?.value.Name.value || 'Unknown';
-                            worldData.hardcore = data.hardcore?.value === 1;
-                        } catch (e) {
-                            console.error(`Error parsing level.dat for ${dir}:`, e);
-                        }
-                    }
-
-                    if (await fs.pathExists(iconPath)) {
-                        try {
-                            const iconBuffer = await fs.readFile(iconPath);
-                            worldData.hasIcon = true;
-                            worldData.iconData = `data:image/png;base64,${iconBuffer.toString('base64')}`;
-                        } catch (e) {
-                            console.error(`Error reading icon for ${dir}:`, e);
-                        }
-                    }
-
-                    worlds.push(worldData);
-                }
-            }
-
-            return { success: true, worlds: worlds.sort((a, b) => b.lastPlayed - a.lastPlayed) };
-        } catch (e) {
-            console.error('Error getting worlds:', e);
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:open-world-folder', async (_, instanceName, folderName) => {
-        try {
-            const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
-            if (await fs.pathExists(worldPath)) {
-                shell.openPath(worldPath);
-                return { success: true };
-            }
-            return { success: false, error: 'World folder not found' };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:backup-world', async (_, instanceName, folderName) => {
-        try {
-            const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
-            const backupsDir = path.join(instancesDir, instanceName, 'backups');
-            await fs.ensureDir(backupsDir);
-            
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const backupFile = path.join(backupsDir, `${folderName}-backup-${timestamp}.zip`);
-            
-            const output = fs.createWriteStream(backupFile);
-            const archive = archiver('zip');
-            
-            return new Promise((resolve, reject) => {
-                output.on('close', () => resolve({ success: true, backupFile }));
-                archive.on('error', (err) => resolve({ success: false, error: err.message }));
-                archive.pipe(output);
-                archive.directory(worldPath, false);
-                archive.finalize();
-            });
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:delete-world', async (_, instanceName, folderName) => {
-        try {
-            const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
-            if (await fs.pathExists(worldPath)) {
-                await fs.remove(worldPath);
-                return { success: true };
-            }
-            return { success: false, error: 'World folder not found' };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:export-world', async (_, instanceName, folderName) => {
-        try {
-            const { filePath } = await dialog.showSaveDialog({
-                title: 'Export World',
-                defaultPath: `${folderName}.zip`,
-                filters: [{ name: 'Zip Archive', extensions: ['zip'] }]
-            });
-
-            if (!filePath) return { success: false, error: 'Export cancelled' };
-
-            const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
-            const output = fs.createWriteStream(filePath);
-            const archive = archiver('zip');
-
-            return new Promise((resolve, reject) => {
-                output.on('close', () => resolve({ success: true }));
-                archive.on('error', (err) => resolve({ success: false, error: err.message }));
-                archive.pipe(output);
-                archive.directory(worldPath, false);
-                archive.finalize();
-            });
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:get-log', async (_, instanceName, filename) => {
-        try {
-            const instanceDir = path.join(instancesDir, instanceName);
-
-            const logPath = filename === 'install.log'
-                ? path.join(instanceDir, filename)
-                : path.join(instanceDir, 'logs', filename);
-
-            if (!await fs.pathExists(logPath)) return { success: false, error: 'Log file not found' };
-
-            let content;
-            if (filename.endsWith('.gz')) {
-                const buffer = await fs.readFile(logPath);
-                const decompressed = await gunzip(buffer);
-                content = decompressed.toString('utf8');
-            } else {
-                content = await fs.readFile(logPath, 'utf8');
-            }
-
-            return { success: true, content };
-        } catch (e) {
-            console.error('Error reading log:', e);
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:create', async (_, { name, version, loader, loaderVersion, icon }) => {
-        try {
-            let finalName = name;
-            let dir = path.join(instancesDir, finalName);
-            let counter = 1;
-            while (await fs.pathExists(dir)) {
-                finalName = `${name} (${counter})`;
-                dir = path.join(instancesDir, finalName);
-                counter++;
-            }
-
-            await fs.ensureDir(dir);
-            try {
-                const settingsPath = path.join(appData, 'settings.json');
-                if (await fs.pathExists(settingsPath)) {
-                    const settings = await fs.readJson(settingsPath);
-                    if (settings.copySettingsEnabled && settings.copySettingsSourceInstance) {
-                        const sourceDir = path.join(instancesDir, settings.copySettingsSourceInstance);
-                        if (await fs.pathExists(sourceDir)) {
-                            console.log(`Copying settings from ${settings.copySettingsSourceInstance} to ${finalName}`);
-                            const filesToCopy = ['options.txt', 'optionsof.txt'];
-                            for (const file of filesToCopy) {
-                                const srcFile = path.join(sourceDir, file);
-                                if (await fs.pathExists(srcFile)) {
-                                    await fs.copy(srcFile, path.join(dir, file));
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to copy settings:', e);
-            }
-            const config = {
-                name: finalName,
-                version,
-                loader: loader || 'vanilla',
-                loaderVersion: null,
-                versionId: version,
-                icon: icon || null,
-                created: Date.now(),
-                playtime: 0,
-                lastPlayed: null,
-                status: 'installing'
-            };
-
-            await fs.writeJson(path.join(dir, 'instance.json'), config, { spaces: 4 });
-            await fs.writeFile(path.join(dir, 'playtime.txt'), '0');
-            console.log(`[Instance Create] Sending installing status for ${finalName}`);
-            if (win && win.webContents) {
-                win.webContents.send('instance:status', { instanceName: finalName, status: 'installing' });
-                win.webContents.send('install:progress', { instanceName: finalName, progress: 1, status: 'Initializing...' });
-                console.log(`[Instance Create] Sent IPC events for ${finalName}`);
-            } else {
-                console.error(`[Instance Create] win not available for ${finalName}!`);
-            }
-            await startBackgroundInstall(finalName, {
-                version,
-                loader,
-                loaderVersion
-            });
-
-            return { success: true, instanceName: finalName };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    console.log('Registering instance:reinstall handler...');
-    ipcMain.handle('instance:reinstall', async (_, instanceName, type = 'soft') => {
-        try {
-            console.log(`[Instance Reinstall] ${instanceName}, type: ${type}`);
-            const dir = path.join(instancesDir, instanceName);
-            if (!await fs.pathExists(dir)) return { success: false, error: 'Instance not found' };
-
-            const configPath = path.join(dir, 'instance.json');
-            if (!await fs.pathExists(configPath)) return { success: false, error: 'Config missing' };
-
-            const config = await fs.readJson(configPath);
-
-            config.status = 'installing';
-            await fs.writeJson(configPath, config, { spaces: 4 });
-            win.webContents.send('instance:status', { instanceName, status: 'installing' });
-            if (type === 'hard') {
-                console.log(`[Instance Reinstall] Performing HARD reinstall (wiping directory)`);
-                const files = await fs.readdir(dir);
-                for (const file of files) {
-                    if (file === 'instance.json') continue;
-                    await fs.remove(path.join(dir, file));
-                }
-            }
-            await startBackgroundInstall(instanceName, config, type === 'hard');
-
-            return { success: true };
-
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-    ipcMain.handle('instance:get-loader-versions', async (_, loader, mcVersion) => {
-        try {
-            if (!loader || !mcVersion) return { success: false, error: 'Missing arguments' };
-            const loaderName = loader.toLowerCase();
-
-            if (loaderName === 'fabric') {
-                const res = await axios.get(`${FABRIC_META}/versions/loader/${mcVersion}`);
-                return { success: true, versions: res.data.map(v => v.loader) };
-            } else if (loaderName === 'quilt') {
-                const res = await axios.get(`${QUILT_META}/versions/loader/${mcVersion}`);
-                return { success: true, versions: res.data.map(v => v.loader) };
-            } else if (loaderName === 'forge') {
-                const versions = await fetchMavenVersions('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml');
-                const filtered = versions.filter(v => v.startsWith(mcVersion + '-'))
-                    .map(v => {
-                        return v.replace(mcVersion + '-', '');
-                    });
-                if (filtered.length === 0) {
-                    try {
-                        const promoRes = await axios.get('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
-                        const promos = promoRes.data.promos;
-
-                        const relevant = Object.entries(promos).filter(([k]) => k.startsWith(mcVersion + '-'));
-                        return {
-                            success: true,
-                            versions: relevant.map(([_, v]) => ({ version: v, stable: false }))
-                        };
-                    } catch (e) { }
-                }
-
-                return {
-                    success: true,
-                    versions: filtered.map(v => ({ version: v, stable: false }))
-                };
-
-            } else if (loaderName === 'neoforge') {
-
-                const versions = await fetchMavenVersions('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml');
-                const filtered = versions.filter(v => {
-                    if (v.startsWith(mcVersion + '-')) return true;
-                    const shortMc = mcVersion.replace(/^1\./, '');
-                    if (v.startsWith(shortMc + '.')) return true;
-                    return false;
-                });
-
-                return {
-                    success: true,
-                    versions: filtered.map(v => ({ version: v, stable: false }))
-                };
-            }
-
-            return { success: true, versions: [] };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:get-supported-game-versions', async (_, loader) => {
-        try {
-            if (!loader) return { success: false, error: 'Missing loader argument' };
-            const loaderName = loader.toLowerCase();
-            const supportedVersions = new Set();
-
-            if (loaderName === 'fabric') {
-                const res = await axios.get(`${FABRIC_META}/versions/game`);
-                res.data.forEach(v => supportedVersions.add(v.version));
-            } else if (loaderName === 'quilt') {
-                const res = await axios.get(`${QUILT_META}/versions/game`);
-                res.data.forEach(v => supportedVersions.add(v.version));
-            } else if (loaderName === 'forge') {
-                const versions = await fetchMavenVersions('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml');
-                versions.forEach(v => {
-
-                    const dashIndex = v.indexOf('-');
-                    if (dashIndex !== -1) {
-                        const mcVer = v.substring(0, dashIndex);
-
-                        if (/^\d+\.\d+(\.\d+)?$/.test(mcVer)) {
-                            supportedVersions.add(mcVer);
-                        }
-                    }
-                });
-            } else if (loaderName === 'neoforge') {
-                const versions = await fetchMavenVersions('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml');
-                if (versions && versions.length > 0) {
-                    console.log(`[NeoForge Logic] Raw versions found: ${versions.length}. First 5: ${versions.slice(0, 5).join(', ')}`);
-                }
-
-                versions.forEach(v => {
-                    if (v.includes('-')) {
-                        const dashIndex = v.indexOf('-');
-                        const mcVer = v.substring(0, dashIndex);
-                        if (/^1\.\d+(\.\d+)?$/.test(mcVer)) {
-                            supportedVersions.add(mcVer);
-                        } else {
-                            console.log(`[NeoForge Logic] Ignored (bad prefix): ${mcVer} from ${v}`);
-                        }
-                    } else {
-                        const parts = v.split('.');
-                        if (parts.length >= 2) {
-                            const major = parseInt(parts[0]);
-                            const minor = parseInt(parts[1]);
-                            if (!isNaN(major) && !isNaN(minor)) {
-                                if (major >= 20) {
-                                    let derivedVersion;
-                                    if (minor === 0 && major === 21) derivedVersion = `1.${major}`;
-                                    else if (minor === 1 && major === 21) derivedVersion = `1.${major}.1`;
-                                    else derivedVersion = `1.${major}.${minor}`;
-
-                                    supportedVersions.add(derivedVersion);
-                                    if (major === 21) supportedVersions.add('1.21');
-                                    if (major === 20 && minor === 6) supportedVersions.add('1.20.6');
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            const sorted = Array.from(supportedVersions).sort((a, b) => {
-                return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
-            });
-
-            return { success: true, versions: sorted };
-
-        } catch (e) {
-            console.error('Error fetching supported game versions:', e);
-            return { success: false, error: e.message };
-        }
-    });
-    ipcMain.handle('instance:update', async (_, instanceName, newConfig) => {
-        try {
-            const configPath = path.join(instancesDir, instanceName, 'instance.json');
-            if (await fs.pathExists(configPath)) {
-                const current = await fs.readJson(configPath);
-                const updated = { ...current, ...newConfig };
-                await fs.writeJson(configPath, updated, { spaces: 4 });
-                return { success: true };
-            }
-            return { success: false, error: 'Instance not found' };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:rename', async (_, oldName, newName) => {
-        try {
-            console.log(`Renaming instance: "${oldName}" -> "${newName}"`);
-            console.log(`Instances dir: ${instancesDir}`);
-
-            if (!newName || newName.trim() === '') {
-                return { success: false, error: 'New name cannot be empty' };
-            }
-            const oldPath = path.join(instancesDir, oldName);
-            const newPath = path.join(instancesDir, newName);
-
-            console.log(`Old path: ${oldPath}`);
-            console.log(`Exists: ${await fs.pathExists(oldPath)}`);
-
-            if (!await fs.pathExists(oldPath)) {
-                return { success: false, error: `Instance not found at: ${oldPath}` };
-            }
-            if (await fs.pathExists(newPath)) {
-                return { success: false, error: 'An instance with that name already exists' };
-            }
-            await fs.rename(oldPath, newPath);
-            const configPath = path.join(newPath, 'instance.json');
-            const config = await fs.readJson(configPath);
-            config.name = newName;
-            await fs.writeJson(configPath, config, { spaces: 4 });
-
-            return { success: true };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:duplicate', async (_, instanceName) => {
-        try {
-            const sourcePath = path.join(instancesDir, instanceName);
-            if (!await fs.pathExists(sourcePath)) {
-                return { success: false, error: 'Instance not found' };
-            }
-            let newName = `${instanceName} (Copy)`;
-            let counter = 2;
-            while (await fs.pathExists(path.join(instancesDir, newName))) {
-                newName = `${instanceName} (Copy ${counter})`;
-                counter++;
-            }
-
-            const destPath = path.join(instancesDir, newName);
-            await fs.copy(sourcePath, destPath);
-            const configPath = path.join(destPath, 'instance.json');
-            if (await fs.pathExists(configPath)) {
-                const config = await fs.readJson(configPath);
-                config.name = newName;
-                config.created = Date.now();
-                config.playtime = 0;
-                config.lastPlayed = null;
-                await fs.writeJson(configPath, config, { spaces: 4 });
-            }
-
-            return { success: true, newName };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('dialog:open-file', async (_, options = {}) => {
-        const defaultFilters = [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'] }];
-        const { canceled, filePaths } = await dialog.showOpenDialog({
-            properties: options.properties || ['openFile'],
-            filters: options.filters || defaultFilters
-        });
-        return { canceled, filePaths };
-    });
-
-    ipcMain.handle('instance:open-folder', async (_, instanceName) => {
-        const instancePath = path.join(instancesDir, instanceName);
-        if (await fs.pathExists(instancePath)) {
-            await shell.openPath(instancePath);
-            return { success: true };
-        }
-        return { success: false, error: 'Instance folder not found' };
-    });
-    ipcMain.handle('instance:delete', async (_, name) => {
-        try {
-            console.log(`[Instance:Delete] Request to delete ${name}`);
-            const task = activeTasks.get(name);
-            if (task) {
-                console.log(`[Instance:Delete] Aborting installation for ${name}`);
-                task.abort();
-                activeTasks.delete(name);
-            }
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            const dir = path.join(instancesDir, name);
-            if (!await fs.pathExists(dir)) {
-                return { success: true };
-            }
-            const maxRetries = 5;
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    await fs.remove(dir);
-                    console.log(`[Instance:Delete] Successfully deleted ${name}`);
-                    break;
-                } catch (err) {
-                    if (i === maxRetries - 1) throw err;
-                    console.warn(`[Instance:Delete] Attempt ${i + 1} failed, retrying in 1s... (${err.message})`);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-            }
-            win.webContents.send('instance:status', { instanceName: name, status: 'deleted' });
-
-            return { success: true };
-        } catch (e) {
-            console.error(`[Instance:Delete] Failed to delete ${name}:`, e);
-            return { success: false, error: `Failed to delete instance: ${e.message}` };
-        }
-    });
-    ipcMain.handle('instance:get-mods', async (_, instanceName) => {
-        try {
-            const modsDir = path.join(instancesDir, instanceName, 'mods');
-            await fs.ensureDir(modsDir);
-            const modCachePath = path.join(appData, 'mod_cache.json');
-            let modCache = {};
-            try {
-                if (await fs.pathExists(modCachePath)) {
-                    modCache = await fs.readJson(modCachePath);
-                }
-            } catch (e) {
-                console.error('Failed to load mod cache', e);
-            }
-
-            const saveModCache = async () => {
-                try {
-                    await fs.writeJson(modCachePath, modCache);
-                } catch (e) { console.error('Failed to save mod cache', e); }
-            };
-
-            const cacheUpdates = {};
-
-            const files = await fs.readdir(modsDir);
-            const jars = files.filter(f => f.endsWith('.jar') || f.endsWith('.jar.disabled') || f.endsWith('.litemod'));
-
-            const modObjects = (await Promise.all(jars.map(async (fileName) => {
-                try {
-                    const filePath = path.join(modsDir, fileName);
-                    const stats = await fs.stat(filePath);
-                    const isEnabled = !fileName.endsWith('.disabled');
-                    let title = null;
-                    let icon = null;
-                    let version = null;
-
-                    const cacheKey = `${fileName}-${stats.size}`;
-                    if (modCache[cacheKey] && modCache[cacheKey].projectId) {
-                        title = modCache[cacheKey].title;
-                        icon = modCache[cacheKey].icon;
-                        version = modCache[cacheKey].version;
-                    } else {
-
-                        try {
-                            const hash = await calculateSha1(filePath);
-                            if (modCache[hash]) {
-                                console.log(`[Instances] Found legacy SHA1 cache for ${fileName}`);
-                                title = modCache[hash].title;
-                                icon = modCache[hash].icon;
-                                version = modCache[hash].version;
-                                const projectId = modCache[hash].projectId;
-                                const versionId = modCache[hash].versionId;
-                                const entry = { title, icon, version, projectId, versionId, hash };
-                                modCache[cacheKey] = entry;
-                                cacheUpdates[cacheKey] = entry;
-                            } else {
-                                const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
-                                    headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                                    timeout: 3000
-                                });
-                                const versionData = res.data;
-
-                                if (versionData && versionData.project_id) {
-
-                                    const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${versionData.project_id}`, {
+                                const hash = await calculateSha1(filePath);
+                                if (modCache[hash]) {
+                                    console.log(`[Instances:RP] Found legacy SHA1 cache for ${fileName}`);
+                                    title = modCache[hash].title;
+                                    icon = modCache[hash].icon;
+                                    version = modCache[hash].version;
+                                    const projectId = modCache[hash].projectId;
+                                    const versionId = modCache[hash].versionId;
+
+                                    modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
+                                } else {
+                                    const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
+                                        headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                                        timeout: 3000
+                                    });
+                                    const versionData = res.data;
+                                    const versionId = versionData.id;
+                                    const projectId = versionData.project_id;
+
+                                    const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${projectId}`, {
                                         headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
                                         timeout: 3000
                                     });
@@ -1502,575 +958,1266 @@ module.exports = (ipcMain, win) => {
                                     title = projectData.title;
                                     icon = projectData.icon_url;
                                     version = versionData.version_number;
-                                    const projectId = projectData.id;
+
+                                    modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
+                                }
+                            } catch (e) { }
+                        }
+
+                        return {
+                            name: fileName,
+                            title: title || fileName,
+                            icon,
+                            version,
+                            projectId: modCache[cacheKey]?.projectId,
+                            versionId: modCache[cacheKey]?.versionId,
+                            size: stats.size,
+                            enabled: true
+                        };
+                    } catch (e) {
+                        console.error(`Error processing resource pack:`, e);
+                        return null;
+                    }
+                }))).filter(p => p !== null);
+
+                await fs.writeJson(modCachePath, modCache).catch(() => { });
+
+                return { success: true, packs: rpObjects };
+            } catch (e) {
+                console.error('Failed to get resource packs', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:get-shaders', async (_, instanceName) => {
+            console.log(`[Instances:Shaders] Getting shaders for: ${instanceName}`);
+            try {
+                const shaderDir = path.join(instancesDir, instanceName, 'shaderpacks');
+                await fs.ensureDir(shaderDir);
+
+                const modCachePath = path.join(appData, 'mod_cache.json');
+                let modCache = {};
+                try {
+                    if (await fs.pathExists(modCachePath)) {
+                        modCache = await fs.readJson(modCachePath);
+                    }
+                } catch (e) { console.error('Failed to load cache for shaders', e); }
+
+                const files = await fs.readdir(shaderDir, { withFileTypes: true });
+
+                const shaderObjects = (await Promise.all(files.map(async (dirent) => {
+                    try {
+                        const fileName = dirent.name;
+                        const filePath = path.join(shaderDir, fileName);
+
+                        const isShader = dirent.isDirectory() ||
+                            fileName.toLowerCase().endsWith('.zip');
+
+                        if (!isShader) return null;
+
+                        const stats = await fs.stat(filePath);
+                        let title = null, icon = null, version = null;
+
+                        const cacheKey = `${fileName}-${stats.size}`;
+                        if (modCache[cacheKey] && modCache[cacheKey].projectId) {
+                            title = modCache[cacheKey].title;
+                            icon = modCache[cacheKey].icon;
+                            version = modCache[cacheKey].version;
+                        } else if (dirent.isFile()) {
+                            try {
+                                const hash = await calculateSha1(filePath);
+                                if (modCache[hash]) {
+                                    console.log(`[Instances:Shaders] Found legacy SHA1 cache for ${fileName}`);
+                                    title = modCache[hash].title;
+                                    icon = modCache[hash].icon;
+                                    version = modCache[hash].version;
+                                    const projectId = modCache[hash].projectId;
+                                    const versionId = modCache[hash].versionId;
+
+                                    modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
+                                } else {
+                                    const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
+                                        headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                                        timeout: 3000
+                                    });
+                                    const versionData = res.data;
                                     const versionId = versionData.id;
-                                    const entry = { title, icon, version, hash, projectId, versionId };
-                                    modCache[cacheKey] = entry;
-                                    cacheUpdates[cacheKey] = entry;
+                                    const projectId = versionData.project_id;
+
+                                    const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${projectId}`, {
+                                        headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                                        timeout: 3000
+                                    });
+                                    const projectData = projectRes.data;
+
+                                    title = projectData.title;
+                                    icon = projectData.icon_url;
+                                    version = versionData.version_number;
+
+                                    modCache[cacheKey] = { title, icon, version, projectId, versionId, hash };
+                                }
+                            } catch (e) { }
+                        }
+
+                        return {
+                            name: fileName,
+                            title: title || fileName,
+                            icon,
+                            version,
+                            projectId: modCache[cacheKey]?.projectId,
+                            versionId: modCache[cacheKey]?.versionId,
+                            size: stats.size,
+                            enabled: true
+                        };
+                    } catch (e) {
+                        console.error(`Error processing shader:`, e);
+                        return null;
+                    }
+                }))).filter(p => p !== null);
+
+                await fs.writeJson(modCachePath, modCache).catch(() => { });
+
+                return { success: true, shaders: shaderObjects };
+            } catch (e) {
+                console.error('Failed to get shaders', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        // Function moved to top
+
+        console.log('[Instances] ✅ Checkpoint 3: About to register instance:get-all');
+
+        ipcMain.handle('instance:get-all', async () => {
+            try {
+                if (!await fs.pathExists(instancesDir)) return [];
+                const dirs = await fs.readdir(instancesDir);
+                const instances = [];
+                for (const dir of dirs) {
+                    const configPath = path.join(instancesDir, dir, 'instance.json');
+                    if (await fs.pathExists(configPath)) {
+                        try {
+                            const config = await fs.readJson(configPath);
+                            instances.push(config);
+                        } catch (e) {
+                            console.error(`Failed to read instance config for ${dir}:`, e);
+                        }
+                    }
+                }
+                return instances;
+            } catch (e) {
+                console.error('Failed to list instances:', e);
+                return [];
+            }
+        });
+
+        ipcMain.handle('instance:get-log-files', async (_, instanceName) => {
+            try {
+                console.log(`Getting log files for: ${instanceName}`);
+                const instanceDir = path.join(instancesDir, instanceName);
+                const logsDir = path.join(instanceDir, 'logs');
+                const logFiles = [];
+                const installLogPath = path.join(instanceDir, 'install.log');
+                if (await fs.pathExists(installLogPath)) {
+                    const stats = await fs.stat(installLogPath);
+                    logFiles.push({
+                        name: 'install.log',
+                        date: stats.mtime,
+                        size: stats.size
+                    });
+                }
+
+                if (await fs.pathExists(logsDir)) {
+                    const files = await fs.readdir(logsDir);
+                    for (const file of files) {
+                        if (file.endsWith('.log') || file.endsWith('.log.gz')) {
+                            const stats = await fs.stat(path.join(logsDir, file));
+                            logFiles.push({
+                                name: file,
+                                date: stats.mtime,
+                                size: stats.size
+                            });
+                        }
+                    }
+                }
+
+                return logFiles.sort((a, b) => b.date - a.date);
+            } catch (e) {
+                console.error('Error getting log files:', e);
+                return [];
+            }
+        });
+
+        ipcMain.handle('instance:get-worlds', async (_, instanceName) => {
+            try {
+                console.log(`Getting worlds for: ${instanceName}`);
+                const instanceDir = path.join(instancesDir, instanceName);
+                const savesDir = path.join(instanceDir, 'saves');
+                if (!await fs.pathExists(savesDir)) return { success: true, worlds: [] };
+
+                const worlds = [];
+                const dirs = await fs.readdir(savesDir);
+
+                for (const dir of dirs) {
+                    const worldPath = path.join(savesDir, dir);
+                    const stats = await fs.stat(worldPath);
+                    if (stats.isDirectory()) {
+                        const levelDatPath = path.join(worldPath, 'level.dat');
+                        const iconPath = path.join(worldPath, 'icon.png');
+
+                        let worldData = {
+                            folderName: dir,
+                            name: dir,
+                            lastPlayed: stats.mtimeMs,
+                            folder: true,
+                            size: 0,
+                            hasIcon: false,
+                            iconData: null
+                        };
+
+                        try {
+                            worldData.size = await getFolderSize(worldPath);
+                        } catch (e) {
+                            console.warn(`Could not get size for world ${dir}:`, e.message);
+                        }
+
+                        if (await fs.pathExists(levelDatPath)) {
+                            try {
+                                const buffer = await fs.readFile(levelDatPath);
+                                const { parsed } = await nbt.parse(buffer);
+                                const data = parsed.value.Data.value;
+
+                                worldData.name = data.LevelName?.value || dir;
+                                worldData.lastPlayed = data.LastPlayed?.value ? Number(data.LastPlayed.value) : stats.mtimeMs;
+                                worldData.gameMode = GAME_MODES[data.GameType?.value] || 'Unknown';
+                                worldData.difficulty = DIFFICULTIES[data.Difficulty?.value] || 'Unknown';
+                                worldData.version = data.Version?.value.Name.value || 'Unknown';
+                                worldData.hardcore = data.hardcore?.value === 1;
+                            } catch (e) {
+                                console.error(`Error parsing level.dat for ${dir}:`, e);
+                            }
+                        }
+
+                        if (await fs.pathExists(iconPath)) {
+                            try {
+                                const iconBuffer = await fs.readFile(iconPath);
+                                worldData.hasIcon = true;
+                                worldData.iconData = `data:image/png;base64,${iconBuffer.toString('base64')}`;
+                            } catch (e) {
+                                console.error(`Error reading icon for ${dir}:`, e);
+                            }
+                        }
+
+                        worlds.push(worldData);
+                    }
+                }
+
+                return { success: true, worlds: worlds.sort((a, b) => b.lastPlayed - a.lastPlayed) };
+            } catch (e) {
+                console.error('Error getting worlds:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:open-world-folder', async (_, instanceName, folderName) => {
+            try {
+                const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
+                if (await fs.pathExists(worldPath)) {
+                    shell.openPath(worldPath);
+                    return { success: true };
+                }
+                return { success: false, error: 'World folder not found' };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:backup-world', async (_, instanceName, folderName) => {
+            try {
+                const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
+                const backupsDir = path.join(instancesDir, instanceName, 'backups');
+                await fs.ensureDir(backupsDir);
+
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const backupFile = path.join(backupsDir, `${folderName}-backup-${timestamp}.zip`);
+
+                const output = fs.createWriteStream(backupFile);
+                const archive = archiver('zip');
+
+                return new Promise((resolve, reject) => {
+                    output.on('close', () => resolve({ success: true, backupFile }));
+                    archive.on('error', (err) => resolve({ success: false, error: err.message }));
+                    archive.pipe(output);
+                    archive.directory(worldPath, false);
+                    archive.finalize();
+                });
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:delete-world', async (_, instanceName, folderName) => {
+            try {
+                const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
+                if (await fs.pathExists(worldPath)) {
+                    await fs.remove(worldPath);
+                    return { success: true };
+                }
+                return { success: false, error: 'World folder not found' };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:export-world', async (_, instanceName, folderName) => {
+            try {
+                const { filePath } = await dialog.showSaveDialog({
+                    title: 'Export World',
+                    defaultPath: `${folderName}.zip`,
+                    filters: [{ name: 'Zip Archive', extensions: ['zip'] }]
+                });
+
+                if (!filePath) return { success: false, error: 'Export cancelled' };
+
+                const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
+                const output = fs.createWriteStream(filePath);
+                const archive = archiver('zip');
+
+                return new Promise((resolve, reject) => {
+                    output.on('close', () => resolve({ success: true }));
+                    archive.on('error', (err) => resolve({ success: false, error: err.message }));
+                    archive.pipe(output);
+                    archive.directory(worldPath, false);
+                    archive.finalize();
+                });
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:get-log', async (_, instanceName, filename) => {
+            try {
+                const instanceDir = path.join(instancesDir, instanceName);
+
+                const logPath = filename === 'install.log'
+                    ? path.join(instanceDir, filename)
+                    : path.join(instanceDir, 'logs', filename);
+
+                if (!await fs.pathExists(logPath)) return { success: false, error: 'Log file not found' };
+
+                let content;
+                if (filename.endsWith('.gz')) {
+                    const buffer = await fs.readFile(logPath);
+                    const decompressed = await gunzip(buffer);
+                    content = decompressed.toString('utf8');
+                } else {
+                    content = await fs.readFile(logPath, 'utf8');
+                }
+
+                return { success: true, content };
+            } catch (e) {
+                console.error('Error reading log:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:create', async (_, { name, version, loader, loaderVersion, icon }) => {
+            try {
+                let finalName = name;
+                let dir = path.join(instancesDir, finalName);
+                let counter = 1;
+                while (await fs.pathExists(dir)) {
+                    finalName = `${name} (${counter})`;
+                    dir = path.join(instancesDir, finalName);
+                    counter++;
+                }
+
+                await fs.ensureDir(dir);
+                try {
+                    const settingsPath = path.join(appData, 'settings.json');
+                    if (await fs.pathExists(settingsPath)) {
+                        const settings = await fs.readJson(settingsPath);
+                        if (settings.copySettingsEnabled && settings.copySettingsSourceInstance) {
+                            const sourceDir = path.join(instancesDir, settings.copySettingsSourceInstance);
+                            if (await fs.pathExists(sourceDir)) {
+                                console.log(`Copying settings from ${settings.copySettingsSourceInstance} to ${finalName}`);
+                                const filesToCopy = ['options.txt', 'optionsof.txt'];
+                                for (const file of filesToCopy) {
+                                    const srcFile = path.join(sourceDir, file);
+                                    if (await fs.pathExists(srcFile)) {
+                                        await fs.copy(srcFile, path.join(dir, file));
+                                    }
                                 }
                             }
-                        } catch (apiErr) {
-
                         }
+                    }
+                } catch (e) {
+                    console.error('Failed to copy settings:', e);
+                }
+                const config = {
+                    name: finalName,
+                    version,
+                    loader: loader || 'vanilla',
+                    loaderVersion: null,
+                    versionId: version,
+                    icon: icon || null,
+                    created: Date.now(),
+                    playtime: 0,
+                    lastPlayed: null,
+                    status: 'installing'
+                };
+
+                await fs.writeJson(path.join(dir, 'instance.json'), config, { spaces: 4 });
+                await fs.writeFile(path.join(dir, 'playtime.txt'), '0');
+                console.log(`[Instance Create] Sending installing status for ${finalName}`);
+                if (win && win.webContents) {
+                    win.webContents.send('instance:status', { instanceName: finalName, status: 'installing' });
+                    win.webContents.send('install:progress', { instanceName: finalName, progress: 1, status: 'Initializing...' });
+                    console.log(`[Instance Create] Sent IPC events for ${finalName}`);
+                } else {
+                    console.error(`[Instance Create] win not available for ${finalName}!`);
+                }
+                await startBackgroundInstall(finalName, {
+                    version,
+                    loader,
+                    loaderVersion
+                });
+
+                return { success: true, instanceName: finalName };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        console.log('Registering instance:reinstall handler...');
+        ipcMain.handle('instance:reinstall', async (_, instanceName, type = 'soft') => {
+            try {
+                console.log(`[Instance Reinstall] ${instanceName}, type: ${type}`);
+                const dir = path.join(instancesDir, instanceName);
+                if (!await fs.pathExists(dir)) return { success: false, error: 'Instance not found' };
+
+                const configPath = path.join(dir, 'instance.json');
+                if (!await fs.pathExists(configPath)) return { success: false, error: 'Config missing' };
+
+                const config = await fs.readJson(configPath);
+
+                config.status = 'installing';
+                await fs.writeJson(configPath, config, { spaces: 4 });
+                win.webContents.send('instance:status', { instanceName, status: 'installing' });
+                if (type === 'hard') {
+                    console.log(`[Instance Reinstall] Performing HARD reinstall (wiping directory)`);
+                    const files = await fs.readdir(dir);
+                    for (const file of files) {
+                        if (file === 'instance.json') continue;
+                        await fs.remove(path.join(dir, file));
+                    }
+                }
+                await startBackgroundInstall(instanceName, config, type === 'hard');
+
+                return { success: true };
+
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+        ipcMain.handle('instance:get-loader-versions', async (_, loader, mcVersion) => {
+            try {
+                if (!loader || !mcVersion) return { success: false, error: 'Missing arguments' };
+                const loaderName = loader.toLowerCase();
+
+                if (loaderName === 'fabric') {
+                    const res = await axios.get(`${FABRIC_META}/versions/loader/${mcVersion}`);
+                    return { success: true, versions: res.data.map(v => v.loader) };
+                } else if (loaderName === 'quilt') {
+                    const res = await axios.get(`${QUILT_META}/versions/loader/${mcVersion}`);
+                    return { success: true, versions: res.data.map(v => v.loader) };
+                } else if (loaderName === 'forge') {
+                    const versions = await fetchMavenVersions('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml');
+                    const filtered = versions.filter(v => v.startsWith(mcVersion + '-'))
+                        .map(v => {
+                            return v.replace(mcVersion + '-', '');
+                        });
+                    if (filtered.length === 0) {
+                        try {
+                            const promoRes = await axios.get('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
+                            const promos = promoRes.data.promos;
+
+                            const relevant = Object.entries(promos).filter(([k]) => k.startsWith(mcVersion + '-'));
+                            return {
+                                success: true,
+                                versions: relevant.map(([_, v]) => ({ version: v, stable: false }))
+                            };
+                        } catch (e) { }
                     }
 
                     return {
-                        name: fileName,
-                        path: filePath,
-                        size: stats.size,
-                        enabled: isEnabled,
-                        title: title || fileName,
-                        icon: icon,
-                        version: version,
-                        projectId: modCache[cacheKey]?.projectId,
-                        versionId: modCache[cacheKey]?.versionId
+                        success: true,
+                        versions: filtered.map(v => ({ version: v, stable: false }))
                     };
-                } catch (e) {
-                    console.error(`Error processing mod ${fileName}:`, e);
-                    return null;
+
+                } else if (loaderName === 'neoforge') {
+
+                    const versions = await fetchMavenVersions('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml');
+                    const filtered = versions.filter(v => {
+                        if (v.startsWith(mcVersion + '-')) return true;
+                        const shortMc = mcVersion.replace(/^1\./, '');
+                        if (v.startsWith(shortMc + '.')) return true;
+                        return false;
+                    });
+
+                    return {
+                        success: true,
+                        versions: filtered.map(v => ({ version: v, stable: false }))
+                    };
                 }
-            }))).filter(m => m !== null);
-            if (Object.keys(cacheUpdates).length > 0) {
-                try {
-                    const currentDisk = await fs.readJson(modCachePath).catch(() => ({}));
-                    const merged = { ...currentDisk, ...cacheUpdates };
-                    await fs.writeJson(modCachePath, merged);
-                } catch (e) { console.error('Failed to save mod cache updates', e); }
+
+                return { success: true, versions: [] };
+            } catch (e) {
+                return { success: false, error: e.message };
             }
+        });
 
-            return { success: true, mods: modObjects };
-        } catch (e) {
-            console.error('Failed to get mods:', e);
-            return { success: false, error: e.message };
-        }
-    });
+        ipcMain.handle('instance:get-supported-game-versions', async (_, loader) => {
+            try {
+                if (!loader) return { success: false, error: 'Missing loader argument' };
+                const loaderName = loader.toLowerCase();
+                const supportedVersions = new Set();
 
-    ipcMain.handle('instance:toggle-mod', async (_, instanceName, modFileName) => {
-        try {
-            const modsDir = path.join(instancesDir, instanceName, 'mods');
-            const oldPath = path.join(modsDir, modFileName);
+                if (loaderName === 'fabric') {
+                    const res = await axios.get(`${FABRIC_META}/versions/game`);
+                    res.data.forEach(v => supportedVersions.add(v.version));
+                } else if (loaderName === 'quilt') {
+                    const res = await axios.get(`${QUILT_META}/versions/game`);
+                    res.data.forEach(v => supportedVersions.add(v.version));
+                } else if (loaderName === 'forge') {
+                    const versions = await fetchMavenVersions('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml');
+                    versions.forEach(v => {
 
-            let newName;
-            if (modFileName.endsWith('.disabled')) {
-                newName = modFileName.replace('.disabled', '');
-            } else {
-                newName = modFileName + '.disabled';
+                        const dashIndex = v.indexOf('-');
+                        if (dashIndex !== -1) {
+                            const mcVer = v.substring(0, dashIndex);
+
+                            if (/^\d+\.\d+(\.\d+)?$/.test(mcVer)) {
+                                supportedVersions.add(mcVer);
+                            }
+                        }
+                    });
+                } else if (loaderName === 'neoforge') {
+                    const versions = await fetchMavenVersions('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml');
+                    if (versions && versions.length > 0) {
+                        console.log(`[NeoForge Logic] Raw versions found: ${versions.length}. First 5: ${versions.slice(0, 5).join(', ')}`);
+                    }
+
+                    versions.forEach(v => {
+                        if (v.includes('-')) {
+                            const dashIndex = v.indexOf('-');
+                            const mcVer = v.substring(0, dashIndex);
+                            if (/^1\.\d+(\.\d+)?$/.test(mcVer)) {
+                                supportedVersions.add(mcVer);
+                            } else {
+                                console.log(`[NeoForge Logic] Ignored (bad prefix): ${mcVer} from ${v}`);
+                            }
+                        } else {
+                            const parts = v.split('.');
+                            if (parts.length >= 2) {
+                                const major = parseInt(parts[0]);
+                                const minor = parseInt(parts[1]);
+                                if (!isNaN(major) && !isNaN(minor)) {
+                                    if (major >= 20) {
+                                        let derivedVersion;
+                                        if (minor === 0 && major === 21) derivedVersion = `1.${major}`;
+                                        else if (minor === 1 && major === 21) derivedVersion = `1.${major}.1`;
+                                        else derivedVersion = `1.${major}.${minor}`;
+
+                                        supportedVersions.add(derivedVersion);
+                                        if (major === 21) supportedVersions.add('1.21');
+                                        if (major === 20 && minor === 6) supportedVersions.add('1.20.6');
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                const sorted = Array.from(supportedVersions).sort((a, b) => {
+                    return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
+                return { success: true, versions: sorted };
+
+            } catch (e) {
+                console.error('Error fetching supported game versions:', e);
+                return { success: false, error: e.message };
             }
+        });
+        ipcMain.handle('instance:update', async (_, instanceName, newConfig) => {
+            try {
+                const configPath = path.join(instancesDir, instanceName, 'instance.json');
+                if (await fs.pathExists(configPath)) {
+                    const current = await fs.readJson(configPath);
+                    const updated = { ...current, ...newConfig };
+                    await fs.writeJson(configPath, updated, { spaces: 4 });
+                    return { success: true };
+                }
+                return { success: false, error: 'Instance not found' };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
 
-            await fs.rename(oldPath, path.join(modsDir, newName));
-            return { success: true };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
+        ipcMain.handle('instance:rename', async (_, oldName, newName) => {
+            try {
+                console.log(`Renaming instance: "${oldName}" -> "${newName}"`);
+                console.log(`Instances dir: ${instancesDir}`);
 
-    ipcMain.handle('instance:delete-mod', async (_, instanceName, modFileName, projectType = 'mod') => {
-        try {
-            let folder = 'mods';
-            if (projectType === 'resourcepack') folder = 'resourcepacks';
-            if (projectType === 'shader') folder = 'shaderpacks';
+                if (!newName || newName.trim() === '') {
+                    return { success: false, error: 'New name cannot be empty' };
+                }
+                const oldPath = path.join(instancesDir, oldName);
+                const newPath = path.join(instancesDir, newName);
 
-            const contentDir = path.join(instancesDir, instanceName, folder);
-            const modPath = path.join(contentDir, modFileName);
+                console.log(`Old path: ${oldPath}`);
+                console.log(`Exists: ${await fs.pathExists(oldPath)}`);
 
-            console.log(`[Instance:Delete] Request: ${instanceName} / ${folder} / ${modFileName}`);
-            console.log(`[Instance:Delete] Target Path: ${modPath}`);
+                if (!await fs.pathExists(oldPath)) {
+                    return { success: false, error: `Instance not found at: ${oldPath}` };
+                }
+                if (await fs.pathExists(newPath)) {
+                    return { success: false, error: 'An instance with that name already exists' };
+                }
+                await fs.rename(oldPath, newPath);
+                const configPath = path.join(newPath, 'instance.json');
+                const config = await fs.readJson(configPath);
+                config.name = newName;
+                await fs.writeJson(configPath, config, { spaces: 4 });
 
-            if (!await fs.pathExists(modPath)) {
-                console.warn(`[Instance:Delete] Path does not exist: ${modPath}`);
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:duplicate', async (_, instanceName) => {
+            try {
+                const sourcePath = path.join(instancesDir, instanceName);
+                if (!await fs.pathExists(sourcePath)) {
+                    return { success: false, error: 'Instance not found' };
+                }
+                let newName = `${instanceName} (Copy)`;
+                let counter = 2;
+                while (await fs.pathExists(path.join(instancesDir, newName))) {
+                    newName = `${instanceName} (Copy ${counter})`;
+                    counter++;
+                }
+
+                const destPath = path.join(instancesDir, newName);
+                await fs.copy(sourcePath, destPath);
+                const configPath = path.join(destPath, 'instance.json');
+                if (await fs.pathExists(configPath)) {
+                    const config = await fs.readJson(configPath);
+                    config.name = newName;
+                    config.created = Date.now();
+                    config.playtime = 0;
+                    config.lastPlayed = null;
+                    await fs.writeJson(configPath, config, { spaces: 4 });
+                }
+
+                return { success: true, newName };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('dialog:open-file', async (_, options = {}) => {
+            const defaultFilters = [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'] }];
+            const { canceled, filePaths } = await dialog.showOpenDialog({
+                properties: options.properties || ['openFile'],
+                filters: options.filters || defaultFilters
+            });
+            return { canceled, filePaths };
+        });
+
+        ipcMain.handle('instance:open-folder', async (_, instanceName) => {
+            const instancePath = path.join(instancesDir, instanceName);
+            if (await fs.pathExists(instancePath)) {
+                await shell.openPath(instancePath);
                 return { success: true };
             }
+            return { success: false, error: 'Instance folder not found' };
+        });
+        ipcMain.handle('instance:delete', async (_, name) => {
+            try {
+                console.log(`[Instance:Delete] Request to delete ${name}`);
+                const task = activeTasks.get(name);
+                if (task) {
+                    console.log(`[Instance:Delete] Aborting installation for ${name}`);
+                    task.abort();
+                    activeTasks.delete(name);
+                }
+                await new Promise(resolve => setTimeout(resolve, 500));
 
-            await fs.remove(modPath);
-            if (await fs.pathExists(modPath)) {
-                console.error(`[Instance:Delete] FAILED: File still exists at ${modPath}`);
-                return { success: false, error: 'File could not be removed (is it locked?)' };
+                const dir = path.join(instancesDir, name);
+                if (!await fs.pathExists(dir)) {
+                    return { success: true };
+                }
+                const maxRetries = 5;
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        await fs.remove(dir);
+                        console.log(`[Instance:Delete] Successfully deleted ${name}`);
+                        break;
+                    } catch (err) {
+                        if (i === maxRetries - 1) throw err;
+                        console.warn(`[Instance:Delete] Attempt ${i + 1} failed, retrying in 1s... (${err.message})`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+                win.webContents.send('instance:status', { instanceName: name, status: 'deleted' });
+
+                return { success: true };
+            } catch (e) {
+                console.error(`[Instance:Delete] Failed to delete ${name}:`, e);
+                return { success: false, error: `Failed to delete instance: ${e.message}` };
             }
-
-            console.log(`[Instance:Delete] SUCCESS: Deleted ${modPath}`);
-            return { success: true };
-        } catch (e) {
-            console.error(`[Instance:Delete] Error deleting ${modFileName}:`, e);
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:check-updates', async (_, instanceName, contentList) => {
-
-        try {
-            const configPath = path.join(instancesDir, instanceName, 'instance.json');
-            const config = await fs.readJson(configPath);
-            const mcVersion = config.version;
-            const loader = config.loader ? config.loader.toLowerCase() : 'vanilla';
-
-            const results = await Promise.all(contentList.map(async (item) => {
-                if (!item.projectId) return { ...item, hasUpdate: false };
-
+        });
+        ipcMain.handle('instance:get-mods', async (_, instanceName) => {
+            try {
+                const modsDir = path.join(instancesDir, instanceName, 'mods');
+                await fs.ensureDir(modsDir);
+                const modCachePath = path.join(appData, 'mod_cache.json');
+                let modCache = {};
                 try {
-
-                    const loaders = (item.type === 'resourcepack' || item.type === 'shader') ? [] : [loader];
-                    const params = {
-                        loaders: JSON.stringify(loaders),
-                        game_versions: JSON.stringify([mcVersion])
-                    };
-
-                    const response = await axios.get(`https://api.modrinth.com/v2/project/${item.projectId}/version`, {
-                        params,
-                        headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
-                        timeout: 5000
-                    });
-
-                    const versions = response.data;
-                    if (versions.length > 0) {
-                        const latest = versions[0];
-                        if (latest.id !== item.versionId) {
-                            return {
-                                ...item,
-                                hasUpdate: true,
-                                newVersionId: latest.id,
-                                newVersionNumber: latest.version_number,
-                                downloadUrl: latest.files.find(f => f.primary)?.url || latest.files[0]?.url,
-                                filename: latest.files.find(f => f.primary)?.filename || latest.files[0]?.filename
-                            };
-                        }
+                    if (await fs.pathExists(modCachePath)) {
+                        modCache = await fs.readJson(modCachePath);
                     }
                 } catch (e) {
-                    console.error(`Failed to check update for ${item.projectId}:`, e.message);
+                    console.error('Failed to load mod cache', e);
                 }
-                return { ...item, hasUpdate: false };
-            }));
 
-            return { success: true, updates: results.filter(r => r.hasUpdate) };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-    ipcMain.handle('instance:export', async (_, instanceName) => {
-        try {
-            const instancePath = path.join(instancesDir, instanceName);
-            if (!await fs.pathExists(instancePath)) {
-                return { success: false, error: 'Instance not found' };
-            }
-            const { filePath } = await dialog.showSaveDialog({
-                title: 'Export Instance',
-                defaultPath: `${instanceName}.mcpack`,
-                filters: [{ name: 'Modpack', extensions: ['mcpack'] }]
-            });
+                const saveModCache = async () => {
+                    try {
+                        await fs.writeJson(modCachePath, modCache);
+                    } catch (e) { console.error('Failed to save mod cache', e); }
+                };
 
-            if (!filePath) return { success: false, error: 'Cancelled' };
-            const output = fs.createWriteStream(filePath);
-            const archive = archiver('zip', { zlib: { level: 9 } });
+                const cacheUpdates = {};
 
-            archive.pipe(output);
-            archive.file(path.join(instancePath, 'instance.json'), { name: 'instance.json' });
-            const modsPath = path.join(instancePath, 'mods');
-            if (await fs.pathExists(modsPath)) {
-                archive.directory(modsPath, 'mods');
-            }
-            const configPath = path.join(instancePath, 'config');
-            if (await fs.pathExists(configPath)) {
-                archive.directory(configPath, 'config');
-            }
+                const files = await fs.readdir(modsDir);
+                const jars = files.filter(f => f.endsWith('.jar') || f.endsWith('.jar.disabled') || f.endsWith('.litemod'));
 
-            await archive.finalize();
+                const modObjects = (await Promise.all(jars.map(async (fileName) => {
+                    try {
+                        const filePath = path.join(modsDir, fileName);
+                        const stats = await fs.stat(filePath);
+                        const isEnabled = !fileName.endsWith('.disabled');
+                        let title = null;
+                        let icon = null;
+                        let version = null;
 
-            return new Promise((resolve) => {
-                output.on('close', () => resolve({ success: true, path: filePath }));
-                output.on('error', (err) => resolve({ success: false, error: err.message }));
-            });
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-    const installMrPack = async (packPath, nameOverride = null) => {
-        try {
-            const zip = new AdmZip(packPath);
+                        const cacheKey = `${fileName}-${stats.size}`;
+                        if (modCache[cacheKey] && modCache[cacheKey].projectId) {
+                            title = modCache[cacheKey].title;
+                            icon = modCache[cacheKey].icon;
+                            version = modCache[cacheKey].version;
+                        } else {
 
-            const indexEntry = zip.getEntry('modrinth.index.json');
-            if (!indexEntry) throw new Error('Invalid mrpack: missing modrinth.index.json');
-
-            const index = JSON.parse(indexEntry.getData().toString('utf8'));
-            let instanceName = nameOverride || index.name;
-            let targetDir = path.join(instancesDir, instanceName);
-            let counter = 1;
-            while (await fs.pathExists(targetDir)) {
-                instanceName = `${nameOverride || index.name} (${counter++})`;
-                targetDir = path.join(instancesDir, instanceName);
-            }
-
-            await fs.ensureDir(targetDir);
-            const mcVersion = index.dependencies.minecraft;
-            let loaderType = 'Vanilla';
-            let loaderVersion = '';
-
-            if (index.dependencies['fabric-loader']) {
-                loaderType = 'Fabric';
-                loaderVersion = index.dependencies['fabric-loader'];
-            } else if (index.dependencies['quilt-loader']) {
-                loaderType = 'Quilt';
-                loaderVersion = index.dependencies['quilt-loader'];
-            } else if (index.dependencies['forge']) {
-                loaderType = 'Forge';
-                loaderVersion = index.dependencies['forge'];
-            } else if (index.dependencies['neoforge']) {
-                loaderType = 'NeoForge';
-                loaderVersion = index.dependencies['neoforge'];
-            }
-
-            const instanceConfig = {
-                name: instanceName,
-                version: mcVersion,
-                loader: loaderType,
-                loaderVersion: loaderVersion,
-                icon: DEFAULT_ICON,
-                status: 'installing',
-                created: Date.now()
-            };
-
-            await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
-            (async () => {
-                try {
-                    const sendProgress = (progress, status) => {
-                        if (win && win.webContents) {
-                            win.webContents.send('install:progress', { instanceName, progress, status });
-                        }
-                    };
-
-                    sendProgress(5, 'Extracting overrides...');
-
-                    const entries = zip.getEntries();
-                    for (const entry of entries) {
-                        if (entry.entryName.startsWith('overrides/')) {
-                            const relPath = entry.entryName.replace('overrides/', '');
-                            if (relPath) {
-                                const dest = path.join(targetDir, relPath);
-                                if (entry.isDirectory) {
-                                    await fs.ensureDir(dest);
-                                } else {
-                                    await fs.ensureDir(path.dirname(dest));
-                                    await fs.writeFile(dest, entry.getData());
-                                }
-                            }
-                        }
-                    }
-
-                    sendProgress(20, `Downloading ${index.files.length} files...`);
-
-                    const totalFiles = index.files.length;
-                    let downloaded = 0;
-
-                    const chunks = [];
-                    for (let i = 0; i < index.files.length; i += 5) {
-                        chunks.push(index.files.slice(i, i + 5));
-                    }
-
-                    for (const chunk of chunks) {
-                        await Promise.all(chunk.map(async (file) => {
-                            const dest = path.join(targetDir, file.path);
-                            await fs.ensureDir(path.dirname(dest));
-                            await downloadFile(file.downloads[0], dest);
-                            downloaded++;
-                            const progress = 20 + Math.round((downloaded / totalFiles) * 60);
-                            sendProgress(progress, `Downloading: ${path.basename(file.path)} (${downloaded}/${totalFiles})`);
-                        }));
-                    }
-
-                    sendProgress(90, 'Finalizing installation...');
-                    await startBackgroundInstall(instanceName, instanceConfig, false, false);
-
-                } catch (err) {
-                    console.error('[Import:MrPack] Error:', err);
-                    if (win && win.webContents) {
-                        win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
-                    }
-                }
-            })();
-
-            return { success: true, instanceName };
-        } catch (e) {
-            throw e;
-        }
-    };
-    const installCurseForgePack = async (packPath) => {
-        try {
-            const zip = new AdmZip(packPath);
-
-            const manifestEntry = zip.getEntry('manifest.json');
-            if (!manifestEntry) throw new Error('Invalid CurseForge pack: missing manifest.json');
-
-            const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
-            let instanceName = manifest.name || path.basename(packPath, '.zip');
-            let targetDir = path.join(instancesDir, instanceName);
-            let counter = 1;
-            while (await fs.pathExists(targetDir)) {
-                instanceName = `${manifest.name || 'Imported CF'} (${counter++})`;
-                targetDir = path.join(instancesDir, instanceName);
-            }
-
-            await fs.ensureDir(targetDir);
-
-            const mcVersion = manifest.minecraft.version;
-            let loaderType = 'Vanilla';
-            let loaderVersion = '';
-
-            if (manifest.minecraft.modLoaders && manifest.minecraft.modLoaders.length > 0) {
-                const loaderInfo = manifest.minecraft.modLoaders[0];
-                const id = loaderInfo.id; // e.g., forge-47.2.0
-                if (id.startsWith('forge-')) {
-                    loaderType = 'Forge';
-                    loaderVersion = id.replace('forge-', '');
-                } else if (id.startsWith('fabric-')) {
-                    loaderType = 'Fabric';
-                    loaderVersion = id.replace('fabric-', '');
-                } else if (id.startsWith('neoforge-')) {
-                    loaderType = 'NeoForge';
-                    loaderVersion = id.replace('neoforge-', '');
-                } else if (id.startsWith('quilt-')) {
-                    loaderType = 'Quilt';
-                    loaderVersion = id.replace('quilt-', '');
-                }
-            }
-
-            const instanceConfig = {
-                name: instanceName,
-                version: mcVersion,
-                loader: loaderType,
-                loaderVersion: loaderVersion,
-                icon: DEFAULT_ICON,
-                status: 'installing',
-                created: Date.now()
-            };
-
-            await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
-
-            (async () => {
-                try {
-                    const sendProgress = (progress, status) => {
-                        if (win && win.webContents) {
-                            win.webContents.send('install:progress', { instanceName, progress, status });
-                        }
-                    };
-
-                    sendProgress(5, 'Extracting overrides...');
-
-                    const entries = zip.getEntries();
-                    for (const entry of entries) {
-                        if (entry.entryName.startsWith('overrides/')) {
-                            const relPath = entry.entryName.replace('overrides/', '');
-                            if (relPath) {
-                                const dest = path.join(targetDir, relPath);
-                                if (entry.isDirectory) {
-                                    await fs.ensureDir(dest);
-                                } else {
-                                    await fs.ensureDir(path.dirname(dest));
-                                    await fs.writeFile(dest, entry.getData());
-                                }
-                            }
-                        }
-                    }
-
-                    const mods = manifest.files || [];
-                    const totalMods = mods.length;
-                    let downloaded = 0;
-
-                    if (totalMods > 0) {
-                        sendProgress(20, `Downloading ${totalMods} mods...`);
-                        const modsDir = path.join(targetDir, 'mods');
-                        await fs.ensureDir(modsDir);
-
-                        for (const mod of mods) {
                             try {
-                                const fileRes = await axios.get(`https://api.curse.tools/v1/cf/mods/${mod.projectID}/files/${mod.fileID}`, {
-                                    headers: { 'User-Agent': 'Client/MCLC/1.0' }
-                                });
-                                const fileData = fileRes.data.data;
-                                const downloadUrl = fileData.downloadUrl;
-                                const fileName = fileData.fileName;
+                                const hash = await calculateSha1(filePath);
+                                if (modCache[hash]) {
+                                    console.log(`[Instances] Found legacy SHA1 cache for ${fileName}`);
+                                    title = modCache[hash].title;
+                                    icon = modCache[hash].icon;
+                                    version = modCache[hash].version;
+                                    const projectId = modCache[hash].projectId;
+                                    const versionId = modCache[hash].versionId;
+                                    const entry = { title, icon, version, projectId, versionId, hash };
+                                    modCache[cacheKey] = entry;
+                                    cacheUpdates[cacheKey] = entry;
+                                } else {
+                                    const res = await axios.get(`https://api.modrinth.com/v2/version_file/${hash}`, {
+                                        headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                                        timeout: 3000
+                                    });
+                                    const versionData = res.data;
 
-                                const dest = path.join(modsDir, fileName);
-                                await downloadFile(downloadUrl, dest);
-                                downloaded++;
-                                const progress = 20 + Math.round((downloaded / totalMods) * 60);
-                                sendProgress(progress, `Downloading: ${fileName} (${downloaded}/${totalMods})`);
-                            } catch (e) {
-                                console.error(`[Import:CF] Failed to download mod ID ${mod.projectID}:`, e.message);
+                                    if (versionData && versionData.project_id) {
+
+                                        const projectRes = await axios.get(`https://api.modrinth.com/v2/project/${versionData.project_id}`, {
+                                            headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                                            timeout: 3000
+                                        });
+                                        const projectData = projectRes.data;
+
+                                        title = projectData.title;
+                                        icon = projectData.icon_url;
+                                        version = versionData.version_number;
+                                        const projectId = projectData.id;
+                                        const versionId = versionData.id;
+                                        const entry = { title, icon, version, hash, projectId, versionId };
+                                        modCache[cacheKey] = entry;
+                                        cacheUpdates[cacheKey] = entry;
+                                    }
+                                }
+                            } catch (apiErr) {
+
                             }
                         }
+
+                        return {
+                            name: fileName,
+                            path: filePath,
+                            size: stats.size,
+                            enabled: isEnabled,
+                            title: title || fileName,
+                            icon: icon,
+                            version: version,
+                            projectId: modCache[cacheKey]?.projectId,
+                            versionId: modCache[cacheKey]?.versionId
+                        };
+                    } catch (e) {
+                        console.error(`Error processing mod ${fileName}:`, e);
+                        return null;
                     }
+                }))).filter(m => m !== null);
+                if (Object.keys(cacheUpdates).length > 0) {
+                    try {
+                        const currentDisk = await fs.readJson(modCachePath).catch(() => ({}));
+                        const merged = { ...currentDisk, ...cacheUpdates };
+                        await fs.writeJson(modCachePath, merged);
+                    } catch (e) { console.error('Failed to save mod cache updates', e); }
+                }
 
-                    sendProgress(90, 'Finalizing installation...');
-                    await startBackgroundInstall(instanceName, instanceConfig, false, false);
+                return { success: true, mods: modObjects };
+            } catch (e) {
+                console.error('Failed to get mods:', e);
+                return { success: false, error: e.message };
+            }
+        });
 
-                } catch (err) {
-                    console.error('[Import:CF] Error:', err);
-                    if (win && win.webContents) {
-                        win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
+        ipcMain.handle('instance:toggle-mod', async (_, instanceName, modFileName) => {
+            try {
+                const modsDir = path.join(instancesDir, instanceName, 'mods');
+                const oldPath = path.join(modsDir, modFileName);
+
+                let newName;
+                if (modFileName.endsWith('.disabled')) {
+                    newName = modFileName.replace('.disabled', '');
+                } else {
+                    newName = modFileName + '.disabled';
+                }
+
+                await fs.rename(oldPath, path.join(modsDir, newName));
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:delete-mod', async (_, instanceName, modFileName, projectType = 'mod') => {
+            try {
+                let folder = 'mods';
+                if (projectType === 'resourcepack') folder = 'resourcepacks';
+                if (projectType === 'shader') folder = 'shaderpacks';
+
+                const contentDir = path.join(instancesDir, instanceName, folder);
+                const modPath = path.join(contentDir, modFileName);
+
+                console.log(`[Instance:Delete] Request: ${instanceName} / ${folder} / ${modFileName}`);
+                console.log(`[Instance:Delete] Target Path: ${modPath}`);
+
+                if (!await fs.pathExists(modPath)) {
+                    console.warn(`[Instance:Delete] Path does not exist: ${modPath}`);
+                    return { success: true };
+                }
+
+                await fs.remove(modPath);
+                if (await fs.pathExists(modPath)) {
+                    console.error(`[Instance:Delete] FAILED: File still exists at ${modPath}`);
+                    return { success: false, error: 'File could not be removed (is it locked?)' };
+                }
+
+                console.log(`[Instance:Delete] SUCCESS: Deleted ${modPath}`);
+                return { success: true };
+            } catch (e) {
+                console.error(`[Instance:Delete] Error deleting ${modFileName}:`, e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:check-updates', async (_, instanceName, contentList) => {
+
+            try {
+                const configPath = path.join(instancesDir, instanceName, 'instance.json');
+                const config = await fs.readJson(configPath);
+                const mcVersion = config.version;
+                const loader = config.loader ? config.loader.toLowerCase() : 'vanilla';
+
+                const results = await Promise.all(contentList.map(async (item) => {
+                    if (!item.projectId) return { ...item, hasUpdate: false };
+
+                    try {
+
+                        const loaders = (item.type === 'resourcepack' || item.type === 'shader') ? [] : [loader];
+                        const params = {
+                            loaders: JSON.stringify(loaders),
+                            game_versions: JSON.stringify([mcVersion])
+                        };
+
+                        const response = await axios.get(`https://api.modrinth.com/v2/project/${item.projectId}/version`, {
+                            params,
+                            headers: { 'User-Agent': 'Client/MCLC/1.0 (fernsehheft@pluginhub.de)' },
+                            timeout: 5000
+                        });
+
+                        const versions = response.data;
+                        if (versions.length > 0) {
+                            const latest = versions[0];
+                            if (latest.id !== item.versionId) {
+                                return {
+                                    ...item,
+                                    hasUpdate: true,
+                                    newVersionId: latest.id,
+                                    newVersionNumber: latest.version_number,
+                                    downloadUrl: latest.files.find(f => f.primary)?.url || latest.files[0]?.url,
+                                    filename: latest.files.find(f => f.primary)?.filename || latest.files[0]?.filename
+                                };
+                            }
+                        }
+                    } catch (e) {
+                        console.error(`Failed to check update for ${item.projectId}:`, e.message);
                     }
+                    return { ...item, hasUpdate: false };
+                }));
+
+                return { success: true, updates: results.filter(r => r.hasUpdate) };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+        ipcMain.handle('instance:export', async (_, instanceName) => {
+            try {
+                const instancePath = path.join(instancesDir, instanceName);
+                if (!await fs.pathExists(instancePath)) {
+                    return { success: false, error: 'Instance not found' };
                 }
-            })();
+                const { filePath } = await dialog.showSaveDialog({
+                    title: 'Export Instance',
+                    defaultPath: `${instanceName}.mcpack`,
+                    filters: [{ name: 'Modpack', extensions: ['mcpack'] }]
+                });
 
-            return { success: true, instanceName };
-        } catch (e) {
-            console.error('[Import:CF] Error:', e);
-            return { success: false, error: e.message };
-        }
-    };
+                if (!filePath) return { success: false, error: 'Cancelled' };
+                const output = fs.createWriteStream(filePath);
+                const archive = archiver('zip', { zlib: { level: 9 } });
 
-
-    ipcMain.handle('instance:install-modpack', async (_, url, name) => {
-        try {
-            console.log(`[Modpack:Install] URL: ${url}, Name: ${name}`);
-            const tempPath = path.join(os.tmpdir(), `mclc-modpack-${Date.now()}.mrpack`);
-            if (win && win.webContents) {
-                win.webContents.send('install:progress', { instanceName: name, progress: 1, status: 'Downloading Modpack...' });
-            }
-
-            await downloadFile(url, tempPath);
-            console.log(`[Modpack:Install] Downloaded to ${tempPath}`);
-
-            const result = await installMrPack(tempPath, name);
-            await fs.remove(tempPath);
-
-            return result;
-        } catch (e) {
-            console.error('[Modpack:Install] Error:', e);
-            return { success: false, error: e.message };
-        }
-    });
-
-    ipcMain.handle('instance:migrate', async (_, instanceName, newConfig) => {
-        try {
-            console.log(`[Instance:Migrate] Starting migration for ${instanceName}`);
-            const configPath = path.join(instancesDir, instanceName, 'instance.json');
-            if (!await fs.pathExists(configPath)) throw new Error('Instance not found');
-
-            const currentConfig = await fs.readJson(configPath);
-            const finalConfig = { ...currentConfig, ...newConfig, status: 'installing' };
-            await fs.writeJson(configPath, finalConfig, { spaces: 4 });
-            startBackgroundInstall(instanceName, finalConfig, false, true);
-
-            return { success: true };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
-    });
-    ipcMain.handle('instance:install-local-mod', async (_, instanceName, filePath, projectType = 'mod') => {
-        try {
-            const folder = projectType === 'resourcepack' ? 'resourcepacks' : 'mods';
-            const destDir = path.join(instancesDir, instanceName, folder);
-            await fs.ensureDir(destDir);
-
-            const fileName = path.basename(filePath);
-            const destPath = path.join(destDir, fileName);
-            await fs.copy(filePath, destPath);
-
-            console.log(`[Content:InstallLocal] Copied ${projectType}: ${fileName} to ${instanceName}`);
-            return { success: true };
-        } catch (e) {
-            console.error(`[Content:InstallLocal] Error adding content to ${instanceName}:`, e);
-            return { success: false, error: e.message };
-        }
-    });
-    ipcMain.handle('instance:update-file', async (_, data) => {
-        console.log(`Updating file for ${data.instanceName}: ${data.oldFileName} -> ${data.newFileName}`);
-        try {
-            const instancePath = path.join(instancesDir, data.instanceName);
-            let subDir = 'mods';
-            if (data.projectType === 'resourcepack') subDir = 'resourcepacks';
-            if (data.projectType === 'shader') subDir = 'shaderpacks';
-
-            const targetDir = path.join(instancePath, subDir);
-
-            const oldPath = path.join(targetDir, data.oldFileName);
-            if (await fs.pathExists(oldPath)) {
-                await fs.remove(oldPath);
-            }
-
-            const newPath = path.join(targetDir, data.newFileName);
-            await downloadFile(data.url, newPath);
-
-            const modCachePath = path.join(appData, 'mod_cache.json');
-            return { success: true };
-        } catch (e) {
-            console.error('Update failed:', e);
-            return { success: false, error: e.message };
-        }
-    });
-
-    console.log('[Instances] Instance handlers registered.');
-    ipcMain.handle('theme:get-custom-presets', async () => {
-        try {
-            const userData = app.getPath('userData');
-            const presetsDir = path.join(userData, 'custom_themes');
-            
-            if (!await fs.pathExists(presetsDir)) return { success: true, presets: [] };
-            
-            const stats = await fs.stat(presetsDir);
-            if (!stats.isDirectory()) {
-                console.warn('[Theme] custom_themes is a file, not a directory. Deleting...');
-                await fs.remove(presetsDir);
-                return { success: true, presets: [] };
-            }
-
-            const files = await fs.readdir(presetsDir);
-            const presets = [];
-            for (const file of files) {
-                if (file.endsWith('.json')) {
-                    const content = await fs.readJson(path.join(presetsDir, file));
-                    presets.push({
-                        handle: path.basename(file, '.json'),
-                        ...content
-                    });
+                archive.pipe(output);
+                archive.file(path.join(instancePath, 'instance.json'), { name: 'instance.json' });
+                const modsPath = path.join(instancePath, 'mods');
+                if (await fs.pathExists(modsPath)) {
+                    archive.directory(modsPath, 'mods');
                 }
-            }
-            return { success: true, presets };
-        } catch (e) {
-            console.error('Failed to get custom presets:', e);
-            return { success: false, error: e.message };
-        }
-    });
+                const configPath = path.join(instancePath, 'config');
+                if (await fs.pathExists(configPath)) {
+                    archive.directory(configPath, 'config');
+                }
 
-    ipcMain.handle('theme:save-custom-preset', async (_, preset) => {
-        try {
-            const userData = app.getPath('userData');
-            const presetsDir = path.join(userData, 'custom_themes');
-            
-            if (await fs.pathExists(presetsDir)) {
+                await archive.finalize();
+
+                return new Promise((resolve) => {
+                    output.on('close', () => resolve({ success: true, path: filePath }));
+                    output.on('error', (err) => resolve({ success: false, error: err.message }));
+                });
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+        // Function moved to top
+        // Function moved to top
+
+
+        ipcMain.handle('instance:install-modpack', async (_, url, name) => {
+            try {
+                console.log(`[Modpack:Install] URL: ${url}, Name: ${name}`);
+                const tempPath = path.join(os.tmpdir(), `mclc-modpack-${Date.now()}.mrpack`);
+                if (win && win.webContents) {
+                    win.webContents.send('install:progress', { instanceName: name, progress: 1, status: 'Downloading Modpack...' });
+                }
+
+                await downloadFile(url, tempPath);
+                console.log(`[Modpack:Install] Downloaded to ${tempPath}`);
+
+                const result = await installMrPack(tempPath, name);
+                await fs.remove(tempPath);
+
+                return result;
+            } catch (e) {
+                console.error('[Modpack:Install] Error:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('instance:migrate', async (_, instanceName, newConfig) => {
+            try {
+                console.log(`[Instance:Migrate] Starting migration for ${instanceName}`);
+                const configPath = path.join(instancesDir, instanceName, 'instance.json');
+                if (!await fs.pathExists(configPath)) throw new Error('Instance not found');
+
+                const currentConfig = await fs.readJson(configPath);
+                const finalConfig = { ...currentConfig, ...newConfig, status: 'installing' };
+                await fs.writeJson(configPath, finalConfig, { spaces: 4 });
+                startBackgroundInstall(instanceName, finalConfig, false, true);
+
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+        ipcMain.handle('instance:install-local-mod', async (_, instanceName, filePath, projectType = 'mod') => {
+            try {
+                const folder = projectType === 'resourcepack' ? 'resourcepacks' : 'mods';
+                const destDir = path.join(instancesDir, instanceName, folder);
+                await fs.ensureDir(destDir);
+
+                const fileName = path.basename(filePath);
+                const destPath = path.join(destDir, fileName);
+                await fs.copy(filePath, destPath);
+
+                console.log(`[Content:InstallLocal] Copied ${projectType}: ${fileName} to ${instanceName}`);
+                return { success: true };
+            } catch (e) {
+                console.error(`[Content:InstallLocal] Error adding content to ${instanceName}:`, e);
+                return { success: false, error: e.message };
+            }
+        });
+        ipcMain.handle('instance:update-file', async (_, data) => {
+            console.log(`Updating file for ${data.instanceName}: ${data.oldFileName} -> ${data.newFileName}`);
+            try {
+                const instancePath = path.join(instancesDir, data.instanceName);
+                let subDir = 'mods';
+                if (data.projectType === 'resourcepack') subDir = 'resourcepacks';
+                if (data.projectType === 'shader') subDir = 'shaderpacks';
+
+                const targetDir = path.join(instancePath, subDir);
+
+                const oldPath = path.join(targetDir, data.oldFileName);
+                if (await fs.pathExists(oldPath)) {
+                    await fs.remove(oldPath);
+                }
+
+                const newPath = path.join(targetDir, data.newFileName);
+                await downloadFile(data.url, newPath);
+
+                const modCachePath = path.join(appData, 'mod_cache.json');
+                return { success: true };
+            } catch (e) {
+                console.error('Update failed:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        console.log('[Instances] Instance handlers registered.');
+        // Log before registering theme handlers
+        console.log('[Instances] Registering theme handlers...');
+
+        ipcMain.handle('theme:get-custom-presets', async () => {
+            console.log('[Theme] theme:get-custom-presets invoked');
+            try {
+                const userData = app.getPath('userData');
+                const presetsDir = path.join(userData, 'custom_themes');
+
+                if (!await fs.pathExists(presetsDir)) return { success: true, presets: [] };
+
                 const stats = await fs.stat(presetsDir);
                 if (!stats.isDirectory()) {
-                    console.warn('[Theme] custom_themes is blocked by a file. Removing...');
+                    console.warn('[Theme] custom_themes is a file, not a directory. Deleting...');
                     await fs.remove(presetsDir);
+                    return { success: true, presets: [] };
                 }
+
+                const files = await fs.readdir(presetsDir);
+                const presets = [];
+                for (const file of files) {
+                    if (file.endsWith('.json')) {
+                        const content = await fs.readJson(path.join(presetsDir, file));
+                        presets.push({
+                            handle: path.basename(file, '.json'),
+                            ...content
+                        });
+                    }
+                }
+                return { success: true, presets };
+            } catch (e) {
+                console.error('Failed to get custom presets:', e);
+                return { success: false, error: e.message };
             }
+        });
 
-            await fs.ensureDir(presetsDir);
-            const filePath = path.join(presetsDir, `${preset.handle}.json`);
-            const { handle, ...data } = preset;
-            await fs.writeJson(filePath, data, { spaces: 4 });
-            return { success: true };
-        } catch (e) {
-            console.error('Failed to save custom preset:', e);
-            return { success: false, error: e.message };
-        }
-    });
+        console.log('[Instances] theme:get-custom-presets registered.');
 
-    ipcMain.handle('theme:delete-custom-preset', async (_, handle) => {
-        try {
-            const userData = app.getPath('userData');
-            const presetsDir = path.join(userData, 'custom_themes');
-            const filePath = path.join(presetsDir, `${handle}.json`);
-            
-            if (await fs.pathExists(filePath)) {
-                await fs.remove(filePath);
+        ipcMain.handle('theme:save-custom-preset', async (_, preset) => {
+            try {
+                const userData = app.getPath('userData');
+                const presetsDir = path.join(userData, 'custom_themes');
+
+                if (await fs.pathExists(presetsDir)) {
+                    const stats = await fs.stat(presetsDir);
+                    if (!stats.isDirectory()) {
+                        console.warn('[Theme] custom_themes is blocked by a file. Removing...');
+                        await fs.remove(presetsDir);
+                    }
+                }
+
+                await fs.ensureDir(presetsDir);
+                const filePath = path.join(presetsDir, `${preset.handle}.json`);
+                const { handle, ...data } = preset;
+                await fs.writeJson(filePath, data, { spaces: 4 });
+                return { success: true };
+            } catch (e) {
+                console.error('Failed to save custom preset:', e);
+                return { success: false, error: e.message };
             }
-            return { success: true };
-        } catch (e) {
-            console.error('Failed to delete custom preset:', e);
-            return { success: false, error: e.message };
-        }
-    });
+        });
 
-    return ipcMain;
+        ipcMain.handle('theme:delete-custom-preset', async (_, handle) => {
+            try {
+                const userData = app.getPath('userData');
+                const presetsDir = path.join(userData, 'custom_themes');
+                const filePath = path.join(presetsDir, `${handle}.json`);
+
+                if (await fs.pathExists(filePath)) {
+                    await fs.remove(filePath);
+                }
+                return { success: true };
+            } catch (e) {
+                console.error('Failed to delete custom preset:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        // Theme Export Handler
+        ipcMain.handle('theme:export-custom-preset', async (_, preset) => {
+            try {
+                const { filePath } = await dialog.showSaveDialog(win, {
+                    title: 'Export Theme Preset',
+                    defaultPath: `${preset.handle}.json`,
+                    filters: [{ name: 'JSON Files', extensions: ['json'] }]
+                });
+
+                if (filePath) {
+                    await fs.writeJson(filePath, preset, { spaces: 4 });
+                    return { success: true, path: filePath };
+                }
+                return { success: false, error: 'Cancelled' };
+            } catch (e) {
+                console.error('Failed to export theme:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        // Theme Import Handler
+        ipcMain.handle('theme:import-custom-preset', async () => {
+            console.log('[Theme] Import triggered');
+            try {
+                const { filePaths } = await dialog.showOpenDialog(win, {
+                    title: 'Import Theme Preset',
+                    properties: ['openFile'],
+                    filters: [{ name: 'JSON Files', extensions: ['json'] }]
+                });
+
+                if (filePaths && filePaths.length > 0) {
+                    const content = await fs.readJson(filePaths[0]);
+
+                    // Validate basic theme structure
+                    const requiredFields = ['name', 'handle', 'primary', 'bg', 'surface'];
+                    const missing = requiredFields.filter(field => !content[field]);
+
+                    if (missing.length > 0) {
+                        return { success: false, error: `Invalid theme file. Missing fields: ${missing.join(', ')}` };
+                    }
+
+                    const userData = app.getPath('userData');
+                    const presetsDir = path.join(userData, 'custom_themes');
+                    await fs.ensureDir(presetsDir);
+
+                    // Ensure unique handle just in case, but overwrite is also fine if user intends it. 
+                    // Let's overwrite for simplicity as per user request to "import" it.
+                    const targetPath = path.join(presetsDir, `${content.handle}.json`);
+                    await fs.writeJson(targetPath, content, { spaces: 4 });
+
+                    return { success: true };
+                }
+                return { success: false, error: 'Cancelled' };
+            } catch (e) {
+                console.error('Failed to import theme:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        console.log('[Instances] All theme handlers registered successfully.');
+
+        // App Maintenance Handlers
+        ipcMain.handle('app:soft-reset', async () => {
+            console.log('[Maintenance] Soft reset triggered');
+            try {
+                const userData = app.getPath('userData');
+                const items = await fs.readdir(userData);
+
+                for (const item of items) {
+                    if (item === 'instances') continue; // PRESERVE INSTANCES
+
+                    const itemPath = path.join(userData, item);
+                    try {
+                        await fs.remove(itemPath);
+                    } catch (err) {
+                        // Log and ignore EBUSY errors for system files
+                        if (err.code === 'EBUSY') {
+                            console.warn(`[Maintenance] Skipping locked file: ${item}`);
+                        } else {
+                            console.error(`[Maintenance] Failed to remove ${item}:`, err);
+                        }
+                    }
+                }
+
+                console.log('[Maintenance] Soft reset complete. Relaunching...');
+                app.relaunch();
+                app.exit(0);
+                return { success: true };
+            } catch (e) {
+                console.error('[Maintenance] Soft reset failed:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('app:factory-reset', async () => {
+            console.log('[Maintenance] Factory reset triggered');
+            try {
+                const userData = app.getPath('userData');
+                const items = await fs.readdir(userData);
+
+                for (const item of items) {
+                    const itemPath = path.join(userData, item);
+                    try {
+                        await fs.remove(itemPath);
+                    } catch (err) {
+                        // Log and ignore EBUSY errors for system files
+                        if (err.code === 'EBUSY') {
+                            console.warn(`[Maintenance] Skipping locked file: ${item}`);
+                        } else {
+                            console.error(`[Maintenance] Failed to remove ${item}:`, err);
+                        }
+                    }
+                }
+
+                console.log('[Maintenance] Factory reset complete. Relaunching...');
+                app.relaunch();
+                app.exit(0);
+                return { success: true };
+            } catch (e) {
+                console.error('[Maintenance] Factory reset failed:', e);
+                return { success: false, error: e.message };
+            }
+        });
+
+        return ipcMain;
     } catch (err) {
         console.error('CRITICAL ERROR DURING INSTANCE HANDLERS REGISTRATION:', err);
         throw err;
