@@ -1,3 +1,4 @@
+// Navbar Scroll Effect
 const navbar = document.getElementById('navbar');
 window.addEventListener('scroll', () => {
     if (window.scrollY > 50) {
@@ -6,6 +7,8 @@ window.addEventListener('scroll', () => {
         navbar.classList.remove('scrolled');
     }
 });
+
+// Reveal Animations on Scroll
 const revealElements = document.querySelectorAll('.reveal');
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -20,38 +23,47 @@ const revealObserver = new IntersectionObserver((entries) => {
 revealElements.forEach(el => {
     revealObserver.observe(el);
 });
+
+// Parallax/Hover Effect for Hero (Subtle)
 const hero = document.getElementById('home');
 if (hero) {
     hero.addEventListener('mousemove', (e) => {
         const moveX = (e.clientX - window.innerWidth / 2) * 0.01;
         const moveY = (e.clientY - window.innerHeight / 2) * 0.01;
-        const revealEl = hero.querySelector('.reveal');
-        if (revealEl) revealEl.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        const reveal = hero.querySelector('.reveal');
+        if (reveal) reveal.style.transform = `translate(${moveX}px, ${moveY}px)`;
     });
 }
 
-// --- Auth & Account Logic ---
+// Auth Check & Dynamic Nav
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+});
+
 async function checkAuth() {
     console.log('[MCLC] Checking auth status...');
     try {
         const res = await fetch('/api/user');
-        if (!res.ok) throw new Error('Auth fetch failed');
+        if (!res.ok) throw new Error(`Auth API returned ${res.status}`);
+
         const data = await res.json();
-        console.log('[MCLC] Auth data:', data);
+        console.log('[MCLC] Auth status received:', data);
 
         const navContainer = document.querySelector('#navbar .max-w-7xl');
-        const downloadBtn = document.getElementById('downloadNavBtn');
+        if (!navContainer) {
+            console.error('[MCLC] Navbar container not found! Check your HTML structure.');
+            return;
+        }
 
-        if (!navContainer) return;
-
+        // Remove existing auth section if any
         const existingAuth = document.getElementById('auth-section');
         if (existingAuth) existingAuth.remove();
 
         const authDiv = document.createElement('div');
         authDiv.id = 'auth-section';
-        authDiv.className = 'flex items-center gap-4 ml-4';
 
-        if (data.loggedIn) {
+        if (data && data.loggedIn) {
+            console.log('[MCLC] User is logged in as:', data.user.username);
             const isExtensionsPage = window.location.pathname.includes('extensions.html');
             const dashboardBtn = `<a href="dashboard.html" class="hidden md:block text-gray-400 hover:text-white font-bold text-sm transition-colors">Dashboard</a>`;
             const uploadBtn = isExtensionsPage
@@ -62,7 +74,7 @@ async function checkAuth() {
                 ? `<a href="admin_extensions.html" class="hidden md:block text-red-400 hover:text-red-300 font-bold text-sm">Admin Dashboard</a>`
                 : '';
 
-            authDiv.className = 'flex items-center gap-6 ml-auto'; // Push everything to the right
+            authDiv.className = 'flex items-center gap-6 ml-auto';
             authDiv.innerHTML = `
                 ${adminBtn}
                 ${dashboardBtn}
@@ -81,6 +93,7 @@ async function checkAuth() {
                 </div>
             `;
         } else {
+            console.log('[MCLC] User is not logged in. Showing Sign In button.');
             authDiv.className = 'ml-auto';
             authDiv.innerHTML = `
                 <a href="/auth/google" class="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-xl font-bold hover:bg-gray-200 transition-all text-sm">
@@ -90,48 +103,25 @@ async function checkAuth() {
             `;
         }
 
-        // Always append at the end of the flex container to keep it right
-        navContainer.appendChild(authDiv);
+        const downloadBtn = document.getElementById('downloadNavBtn');
+        if (downloadBtn) {
+            navContainer.insertBefore(authDiv, downloadBtn);
+        } else {
+            navContainer.appendChild(authDiv);
+        }
 
     } catch (err) {
-        console.error('[MCLC] Auth Check Failed:', err);
+        console.error('[MCLC] Auth check failed:', err);
+        // Fallback: show login button if we can't determine status
+        const navContainer = document.querySelector('#navbar .max-w-7xl');
+        if (navContainer && !document.getElementById('auth-section')) {
+            const authDiv = document.createElement('div');
+            authDiv.id = 'auth-section';
+            authDiv.className = 'ml-auto';
+            authDiv.innerHTML = `<a href="/auth/google" class="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-xl font-bold hover:bg-gray-200 transition-all text-sm">Sign In</a>`;
+            const downloadBtn = document.getElementById('downloadNavBtn');
+            if (downloadBtn) navContainer.insertBefore(authDiv, downloadBtn);
+            else navContainer.appendChild(authDiv);
+        }
     }
 }
-
-// --- Upload Handler ---
-const uploadForm = document.getElementById('upload-form');
-if (uploadForm) {
-    uploadForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(uploadForm);
-        const submitBtn = uploadForm.querySelector('button[type="submit"]');
-        const originalText = submitBtn.textContent;
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Uploading...';
-
-        try {
-            const res = await fetch('/api/extensions/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await res.json();
-
-            if (data.success) {
-                alert('Success! Your extension has been submitted and is awaiting review.');
-                uploadForm.reset();
-                document.getElementById('upload-modal').classList.add('hidden');
-            } else {
-                alert('Error: ' + (data.error || 'Upload failed'));
-            }
-        } catch (err) {
-            alert('An error occurred during upload.');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        }
-    });
-}
-
-document.addEventListener('DOMContentLoaded', checkAuth);

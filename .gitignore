@@ -24,6 +24,11 @@ news-admin/
 news-admin/**
 MCLC-Mod/
 MCLC-Mod-Sources/
+MCLC-Client/MCLC Website/client/mclc-client.jar
+MCLC Website/client/mclc-client.jar
+MCLC-Client/MCLC Website/client/
+MCLC Website/client/
+
 # Operating system and user-specific files
 .DS_Store
 Thumbs.db
