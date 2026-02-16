@@ -34,10 +34,14 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 
 #### Possible Future Features
 - [ ] Script support
-- [ ] Log analysis utility
+- [ ] Logging analysis utility
 - [ ] Cloud synchronization for worlds and configurations (e.g., Google Drive, Dropbox, OneDrive)
 - [ ] Mod dependency validation
 - [ ] Mobile application for the administration panel
+- [ ] **Cross-Platform UI Polishing**: Mac-specific window controls + Linux system tray integration
+- [ ] **Java Runtime Manager**: UI to view & manage downloaded Java versions
+- [ ] **Automated Backups**: Scheduled backups for worlds/instances
+- [ ] **Localization (i18n)**: Full multi-language support system
 
 #### Optional (Planned for Future)
 - [ ] Command line support

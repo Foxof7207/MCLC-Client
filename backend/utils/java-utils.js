@@ -5,6 +5,8 @@ const AdmZip = require('adm-zip');
 const { pipeline } = require('stream');
 const { promisify } = require('util');
 const streamPipeline = promisify(pipeline);
+const { exec } = require('child_process');
+const execAsync = promisify(exec);
 
 const ADOPTIUM_API = 'https://api.adoptium.net/v3';
 
@@ -38,14 +40,37 @@ async function downloadFile(url, destPath, onProgress) {
     if (stats.size === 0) throw new Error("Downloaded file is empty");
 }
 
+async function extractTarGz(source, destination) {
+    await fs.ensureDir(destination);
+    // Use system tar command (available on Linux/Mac and Win10+)
+    // -x: extract, -z: gzip, -f: file, -C: directory
+    await execAsync(`tar -xzf "${source}" -C "${destination}"`);
+}
+
 async function installJava(version, runtimesDir, onProgress) {
     console.log(`[JavaUtils] Installing Java ${version}`);
     if (onProgress) onProgress('Fetching release info...', 0);
-    const apiUrl = `${ADOPTIUM_API}/assets/feature_releases/${version}/ga?architecture=x64&heap_size=normal&image_type=jdk&jvm_impl=hotspot&os=windows`;
+
+    let osName = 'windows';
+    let arch = 'x64';
+    let ext = 'zip';
+
+    switch (process.platform) {
+        case 'win32': osName = 'windows'; ext = 'zip'; break;
+        case 'darwin': osName = 'mac'; ext = 'tar.gz'; break;
+        case 'linux': osName = 'linux'; ext = 'tar.gz'; break;
+        default: throw new Error(`Unsupported platform: ${process.platform}`);
+    }
+
+    if (process.arch === 'arm64') arch = 'aarch64';
+    
+    // Adoptium API query
+    const apiUrl = `${ADOPTIUM_API}/assets/feature_releases/${version}/ga?architecture=${arch}&heap_size=normal&image_type=jdk&jvm_impl=hotspot&os=${osName}`;
+    console.log(`[JavaUtils] Querying: ${apiUrl}`);
 
     const res = await axios.get(apiUrl);
     if (!res.data || res.data.length === 0) {
-        throw new Error(`No release found for Java ${version}`);
+        throw new Error(`No release found for Java ${version} on ${osName} (${arch})`);
     }
 
     const binary = res.data[0].binaries[0];
@@ -53,37 +78,58 @@ async function installJava(version, runtimesDir, onProgress) {
     const fileName = binary.package.name;
     const releaseName = res.data[0].release_name;
 
-    const versionDir = path.join(runtimesDir, releaseName);
-    const javaExePath = path.join(versionDir, 'bin', 'java.exe');
+    // Correct executable name based on OS
+    const javaBinName = process.platform === 'win32' ? 'java.exe' : 'java';
+    
+    // Path where it *should* be after extraction
+    // Adoptium archives usually contain a root folder with the release name, but sometimes it varies.
+    // We'll extract to runtimesDir and search.
 
-    if (await fs.pathExists(javaExePath)) {
-        return { success: true, path: javaExePath };
-    }
     await fs.ensureDir(runtimesDir);
-    const tempZipPath = path.join(runtimesDir, fileName);
+    const tempPath = path.join(runtimesDir, fileName);
 
-    await downloadFile(downloadUrl, tempZipPath, (percent) => {
+    await downloadFile(downloadUrl, tempPath, (percent) => {
         if (onProgress) onProgress(`Downloading Java ${version}...`, percent);
     });
-    if (onProgress) onProgress('Extracting...', 100);
-    const zip = new AdmZip(tempZipPath);
-    zip.extractAllTo(runtimesDir, true);
-    await fs.remove(tempZipPath);
 
-    if (await fs.pathExists(javaExePath)) {
-        return { success: true, path: javaExePath };
+    if (onProgress) onProgress('Extracting...', 100);
+
+    if (fileName.endsWith('.zip')) {
+        const zip = new AdmZip(tempPath);
+        zip.extractAllTo(runtimesDir, true);
+    } else if (fileName.endsWith('.tar.gz') || fileName.endsWith('.tgz')) {
+        await extractTarGz(tempPath, runtimesDir);
+    } else {
+        throw new Error(`Unsupported archive format: ${fileName}`);
     }
+
+    await fs.remove(tempPath);
+
+    // Find the java binary
     const subdirs = await fs.readdir(runtimesDir);
     for (const dir of subdirs) {
-        const potentialPath = path.join(runtimesDir, dir, 'bin', 'java.exe');
-        if (dir.includes(`jdk-${version}`) || dir.includes(`jre-${version}`)) {
+        const potentialPath = path.join(runtimesDir, dir, 'bin', javaBinName);
+        // Loose check or specific check
+        if ((dir.includes(`jdk-${version}`) || dir.includes(`jre-${version}`) || dir === releaseName)) {
             if (await fs.pathExists(potentialPath)) {
+                // Ensure executable permission on Unix
+                if (process.platform !== 'win32') {
+                    await fs.chmod(potentialPath, 0o755);
+                }
                 return { success: true, path: potentialPath };
             }
         }
+        // Fallback: check deeper if needed, but normally it's release_name/bin/java
+        // Or just checking any subfolder's bin/java
+        if (await fs.pathExists(potentialPath)) {
+             if (process.platform !== 'win32') {
+                await fs.chmod(potentialPath, 0o755);
+            }
+            return { success: true, path: potentialPath };
+        }
     }
 
-    throw new Error(`Could not locate java.exe after extraction in ${runtimesDir}`);
+    throw new Error(`Could not locate ${javaBinName} after extraction in ${runtimesDir}`);
 }
 
 module.exports = {

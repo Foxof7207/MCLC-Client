@@ -75,6 +75,9 @@ const electronAPI = {
     getLoaders: (mcVersion, loaderType) => ipcRenderer.invoke('data:get-loaders', mcVersion, loaderType),
     getNews: () => ipcRenderer.invoke('data:get-news'),
     installJava: (version) => ipcRenderer.invoke('java:install', version),
+    getJavaRuntimes: () => ipcRenderer.invoke('java:list'),
+    deleteJavaRuntime: (path) => ipcRenderer.invoke('java:delete', path),
+    openJavaFolder: () => ipcRenderer.invoke('java:open-folder'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
     exportModpackAsCode: (data) => {
         console.log('[Preload] 📤 exportModpackAsCode aufgerufen mit:', data);
