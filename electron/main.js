@@ -106,6 +106,10 @@ function createWindow() {
     require('../backend/handlers/java')(ipcMain);
     const discord = require('../backend/handlers/discord');
     discord.initRPC();
+
+    // Initialize Backup Manager
+    const backupManager = require('../backend/backupManager');
+    backupManager.init(ipcMain);
     const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
     if (isDev) {
         mainWindow.loadURL('http://localhost:3000');

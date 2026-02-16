@@ -4,6 +4,7 @@ const { app } = require('electron');
 const fs = require('fs-extra');
 const Store = require('electron-store');
 const store = new Store();
+const backupManager = require('../backupManager');
 
 module.exports = (ipcMain, mainWindow) => {
 
@@ -139,6 +140,20 @@ Add-Type -TypeDefinition $code -Language CSharp
             if (!await fs.pathExists(configPath)) return { success: false, error: 'Instance not found' };
 
             const config = await fs.readJson(configPath);
+
+            // Trigger Backup on Launch
+            const backupConfig = store.get('settings') || {};
+            if (backupConfig.backupSettings?.enabled && backupConfig.backupSettings?.onLaunch) {
+                console.log(`[Launcher] Triggering on-launch backup for ${instanceName}`);
+                await backupManager.createBackup(instanceName).catch(err => {
+                    console.error('[Launcher] On-launch backup failed:', err);
+                });
+            }
+
+            // Start Scheduler
+            if (backupConfig.backupSettings?.enabled && backupConfig.backupSettings?.interval > 0) {
+                backupManager.startScheduler(instanceName, backupConfig.backupSettings.interval);
+            }
 
             // Get stored user profile for authentication
             const userProfile = store.get('user_profile');
@@ -543,6 +558,18 @@ Add-Type -TypeDefinition $code -Language CSharp
                     const discord = require('./discord');
                     discord.setActivity('In Launcher', 'Idle', 'minecraft', 'Minecraft');
                 } catch (e) { /* ignore */ }
+
+                // Stop Scheduler
+                backupManager.stopScheduler(instanceName);
+
+                // Trigger Backup on Close
+                const settings = store.get('settings') || {};
+                if (settings.backupSettings?.enabled && settings.backupSettings?.onClose) {
+                    console.log(`[Launcher] Triggering on-close backup for ${instanceName}`);
+                    await backupManager.createBackup(instanceName).catch(err => {
+                        console.error('[Launcher] On-close backup failed:', err);
+                    });
+                }
             });
 
             try {
