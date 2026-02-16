@@ -176,13 +176,24 @@ function Settings() {
     };
 
     const handleBrowseJava = async () => {
-        const path = await window.electronAPI.openFileDialog({
+        const result = await window.electronAPI.openFileDialog({
             properties: ['openFile'],
             filters: [{ name: 'Java Executable', extensions: ['exe', 'bin'] }]
         });
-        if (path) {
-            handleChange('javaPath', path);
-
+        
+        // Check if user canceled the dialog
+        if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+            return; // Don't update the state if canceled
+        }
+        
+        // Extract the file path string
+        const selectedPath = result.filePaths[0];
+        
+        // Optional: Validate that it's a Java executable
+        if (selectedPath && (selectedPath.toLowerCase().endsWith('.exe') || selectedPath.toLowerCase().endsWith('.bin'))) {
+            handleChange('javaPath', selectedPath);
+        } else {
+            addNotification('Please select a valid Java executable (javaw.exe or java)', 'error');
         }
     };
     const handleManualSave = () => {
