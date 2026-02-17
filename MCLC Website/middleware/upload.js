@@ -14,6 +14,18 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        const allowedExtensions = ['.zip', '.mclcextension', '.png', '.jpg', '.jpeg', '.webp'];
+        const ext = path.extname(file.originalname).toLowerCase();
+
+        if (allowedExtensions.includes(ext)) {
+            cb(null, true);
+        } else {
+            cb(new Error('File type not allowed. Only .zip and .mclcextension (and common images) are permitted.'));
+        }
+    }
+});
 
 module.exports = upload;

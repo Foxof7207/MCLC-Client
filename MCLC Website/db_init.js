@@ -27,9 +27,15 @@ const createTables = async () => {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
                 name VARCHAR(100) NOT NULL,
+                identifier VARCHAR(100) UNIQUE,
+                summary VARCHAR(255),
                 description TEXT,
+                type ENUM('extension', 'theme') DEFAULT 'extension',
+                visibility ENUM('public', 'unlisted') DEFAULT 'public',
                 file_path VARCHAR(255) NOT NULL,
+                banner_path VARCHAR(255),
                 status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+                downloads INT DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )

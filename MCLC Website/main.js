@@ -42,83 +42,117 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function checkAuth() {
     console.log('[MCLC] Checking auth status...');
+    const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
+    const loginUrl = `/auth/google?returnTo=${currentPath}`;
+    const logoutUrl = `/auth/logout?returnTo=${currentPath}`;
+
     try {
         const res = await fetch('/api/user');
-        if (!res.ok) throw new Error(`Auth API returned ${res.status}`);
-
         const data = await res.json();
-        console.log('[MCLC] Auth status received:', data);
 
-        const navContainer = document.querySelector('#navbar .max-w-7xl');
-        if (!navContainer) {
-            console.error('[MCLC] Navbar container not found! Check your HTML structure.');
-            return;
-        }
-
-        // Remove existing auth section if any
-        const existingAuth = document.getElementById('auth-section');
-        if (existingAuth) existingAuth.remove();
-
-        // Create a right-aligned container for Download + Auth
-        let rightContainer = document.getElementById('nav-right-container');
-        if (!rightContainer) {
-            rightContainer = document.createElement('div');
-            rightContainer.id = 'nav-right-container';
-            rightContainer.className = 'flex items-center gap-4 md:gap-6 ml-auto';
-            navContainer.appendChild(rightContainer);
-        }
-
-        // Handle Download Button (Move it into the right container if it's not there)
+        const rightGroup = document.getElementById('nav-right-group');
         const downloadBtn = document.getElementById('downloadNavBtn');
-        if (downloadBtn && downloadBtn.parentElement !== rightContainer) {
-            rightContainer.appendChild(downloadBtn);
-        }
+        const mobileMenu = document.getElementById('mobile-menu');
 
-        const authDiv = document.createElement('div');
-        authDiv.id = 'auth-section';
-        authDiv.className = 'flex items-center gap-4 md:gap-6';
+        if (!rightGroup) return;
 
-        if (data && data.loggedIn) {
-            console.log('[MCLC] User is logged in as:', data.user.username);
+        // Reset containers
+        let authSection = document.getElementById('nav-auth-section');
+        if (authSection) authSection.remove();
 
-            authDiv.innerHTML = `
+        authSection = document.createElement('div');
+        authSection.id = 'nav-auth-section';
+        authSection.className = 'flex items-center gap-4';
+
+        if (data.loggedIn) {
+            authSection.innerHTML = `
                 <div class="flex items-center gap-3 pl-4 border-l border-white/10">
                     <a href="dashboard.html" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                        <img src="${data.user.avatar}" alt="${data.user.username}" class="w-8 h-8 rounded-full border border-white/10">
-                        <div class="hidden sm:block text-right leading-tight">
+                        <img src="${data.user.avatar || 'resources/icon.png'}" alt="${data.user.username}" class="w-8 h-8 rounded-full border border-white/10">
+                        <div class="hidden lg:block text-right leading-tight">
                             <div class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Signed in</div>
                             <div class="text-sm font-bold text-white">${data.user.username}</div>
                         </div>
                     </a>
-                    <a href="/auth/logout" class="text-gray-500 hover:text-white transition-colors" title="Logout">
+                    <a href="${logoutUrl}" class="text-gray-500 hover:text-white transition-colors" title="Logout">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                     </a>
                 </div>
             `;
         } else {
-            console.log('[MCLC] User is not logged in. Showing Sign In button.');
-            authDiv.innerHTML = `
-                <a href="/auth/google" class="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-xl font-bold hover:bg-gray-200 transition-all text-sm shrink-0">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.11c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.6z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            authSection.innerHTML = `
+                <a href="${loginUrl}" class="text-white hover:text-primary transition-all font-bold text-sm tracking-wide">
                     Sign In
                 </a>
             `;
         }
 
-        rightContainer.appendChild(authDiv);
+        // SWAP ORDER: Download button must exist in rightGroup
+        if (downloadBtn) {
+            // Find parent if it's wrapped
+            const wrapper = downloadBtn.closest('.hidden.md\\:block') || downloadBtn;
+            rightGroup.appendChild(wrapper);
+            rightGroup.appendChild(authSection);
+        } else {
+            rightGroup.appendChild(authSection);
+        }
+
+        // Mobile Auth
+        if (mobileMenu) {
+            const mobileAuthDiv = mobileMenu.querySelector('.px-6') || mobileMenu;
+            let mobileAuthSection = document.getElementById('mobile-auth-section');
+            if (mobileAuthSection) mobileAuthSection.remove();
+
+            mobileAuthSection = document.createElement('div');
+            mobileAuthSection.id = 'mobile-auth-section';
+            mobileAuthSection.className = 'w-full pt-4 mt-2 border-t border-white/10';
+
+            if (data.loggedIn) {
+                mobileAuthSection.innerHTML = `
+                    <div class="flex items-center justify-center gap-4 mb-4">
+                        <img src="${data.user.avatar || 'resources/icon.png'}" class="w-12 h-12 rounded-full border-2 border-primary/20">
+                        <div class="text-left">
+                            <div class="text-white font-bold">${data.user.username}</div>
+                            <div class="text-gray-500 text-xs font-mono">${data.user.role.toUpperCase()}</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <a href="dashboard.html" class="bg-white/5 text-white py-3 rounded-lg text-xs font-bold text-center">Dashboard</a>
+                        <a href="${logoutUrl}" class="bg-red-500/10 text-red-500 py-3 rounded-lg text-xs font-bold text-center">Logout</a>
+                    </div>
+                `;
+            } else {
+                mobileAuthSection.innerHTML = `
+                    <a href="${loginUrl}" class="flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 text-white py-4 rounded-xl font-bold transition-all border border-white/10">
+                        Sign In with Google
+                    </a>
+                `;
+            }
+
+            const mobileDownload = document.getElementById('downloadNavBtnMobile');
+            if (mobileDownload) mobileDownload.after(mobileAuthSection);
+            else mobileAuthDiv.appendChild(mobileAuthSection);
+        }
 
     } catch (err) {
         console.error('[MCLC] Auth check failed:', err);
-        // Fallback: show login button if we can't determine status
-        const navContainer = document.querySelector('#navbar .max-w-7xl');
-        if (navContainer && !document.getElementById('auth-section')) {
-            const authDiv = document.createElement('div');
-            authDiv.id = 'auth-section';
-            authDiv.className = 'ml-auto';
-            authDiv.innerHTML = `<a href="/auth/google" class="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-xl font-bold hover:bg-gray-200 transition-all text-sm">Sign In</a>`;
-            const downloadBtn = document.getElementById('downloadNavBtn');
-            if (downloadBtn) navContainer.insertBefore(authDiv, downloadBtn);
-            else navContainer.appendChild(authDiv);
-        }
     }
 }
+
+// Mobile Menu Toggle Logic
+function toggleMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const btn = document.getElementById('mobile-menu-btn');
+    if (menu) {
+        menu.classList.toggle('hidden');
+        menu.classList.toggle('open'); // For CSS transitions if used
+    }
+}
+
+// Auto-bind mobile menu button if it exists
+document.addEventListener('DOMContentLoaded', () => {
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    if (mobileBtn) {
+        mobileBtn.addEventListener('click', toggleMenu);
+    }
+});

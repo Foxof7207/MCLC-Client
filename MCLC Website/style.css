@@ -18,22 +18,21 @@
     font-family: 'Poppins', sans-serif;
 }
 
-body {
+/* body {
     background-color: var(--bg-dark);
     color: var(--text-main);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     padding-top: 80px;
-    /* Offset for fixed navbar */
-}
+} */
 
 /* Global Navbar Standards */
-nav {
+/* nav {
     height: 80px;
     display: flex;
     align-items: center;
-}
+} */
 
 .nav-container {
     max-width: 1400px;

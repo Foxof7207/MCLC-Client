@@ -69,19 +69,20 @@
 
 <body>
 
-    <header>
-        <div class="container">
-            <button onclick="logout()" class="btn-logout">LOGOUT</button>
-            <div style="display:flex; align-items:center; gap:15px;">
-                <h1>MCLC <span style="font-weight:300; opacity:0.6; font-size:0.5em;">ADMIN PANEL</span></h1>
+    <header style="background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border-light); padding: 1.5rem 0;">
+        <div class="container" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:20px;">
+                <h1 style="font-size: 2rem; margin:0;">MCLC <span
+                        style="font-weight:300; opacity:0.6; font-size:0.6em;">ADMIN</span></h1>
                 <div id="connection-status"
                     class="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold border border-red-500/20"
-                    style="display:flex; align-items:center; gap:6px; border-radius:10px; padding:2px 8px;">
+                    style="display:flex; align-items:center; gap:6px; border-radius:10px; padding:4px 10px;">
                     <div class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"
-                        style="width:6px; height:6px; background:#e74c3c; border-radius:50%;"></div>
+                        style="width:8px; height:8px; background:#e74c3c; border-radius:50%;"></div>
                     Disconnected
                 </div>
             </div>
+            <button onclick="logout()" class="btn-logout">LOGOUT</button>
         </div>
     </header>
 
@@ -90,6 +91,7 @@
             <div id="tab-dashboard" class="nav-tab active" onclick="switchView('dashboard')">Dashboard</div>
             <div id="tab-list" class="nav-tab" onclick="switchView('list')">News List</div>
             <div id="tab-add" class="nav-tab" onclick="switchView('add')">Add News</div>
+            <div id="tab-extensions" class="nav-tab" onclick="switchView('extensions')">Extensions</div>
             <div id="tab-codes" class="nav-tab" onclick="switchView('codes')">Codes</div>
         </div>
 
@@ -245,7 +247,22 @@
             </div>
         </div>
 
-        <!-- CODES MANAGEMENT (New Section) -->
+        <!-- EXTENSIONS MODERATION -->
+        <div id="section-extensions" class="view-section">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h3 style="color:var(--text-main); margin:0;">Pending Extensions</h3>
+                    <button onclick="loadPendingExtensions()" class="tab-btn">Refresh</button>
+                </div>
+                <div id="pending-extensions-list" style="display:flex; flex-direction:column; gap:15px;">
+                    <!-- Loaded via JS -->
+                    <p style="text-align:center; color:var(--text-muted); padding:20px;">Loading pending extensions...
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CODES MANAGEMENT -->
         <div id="section-codes" class="view-section">
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -300,6 +317,68 @@
             if (tab) tab.classList.add('active');
 
             if (v === 'codes') loadCodes();
+            if (v === 'extensions') loadPendingExtensions();
+        }
+
+        // --- Extension Moderation Logic ---
+        async function loadPendingExtensions() {
+            const list = document.getElementById('pending-extensions-list');
+            list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">Loading...</p>';
+
+            try {
+                const res = await fetch(`/api/admin/extensions/pending`);
+                const extensions = await res.json();
+
+                if (extensions.length === 0) {
+                    list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">No pending extensions to review.</p>';
+                    return;
+                }
+
+                list.innerHTML = extensions.map(ext => `
+                    <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-light); padding:20px; border-radius:12px; display:flex; gap:20px; align-items:start;">
+                        <img src="${ext.banner_path ? '/uploads/' + ext.banner_path : 'resources/icon.png'}" style="width:160px; aspect-ratio:16/9; object-cover:cover; border-radius:8px; border:1px solid var(--border-light);">
+                        <div style="flex:1;">
+                            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
+                                <div>
+                                    <h4 style="color:white; margin:0; font-size:1.2rem;">${ext.name}</h4>
+                                    <code style="font-size:0.7rem; color:var(--primary); font-family:monospace;">${ext.identifier || 'no-id'}</code>
+                                </div>
+                                <div style="text-align:right;">
+                                    <span class="badge ${ext.type === 'theme' ? 'bg-gray' : 'bg-green'}">${ext.type.toUpperCase()}</span>
+                                    <div style="font-size:0.7rem; color:var(--text-muted); margin-top:5px;">by ${ext.developer}</div>
+                                </div>
+                            </div>
+                            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:15px;">${ext.summary || 'No summary.'}</p>
+                            <div style="display:flex; gap:10px;">
+                                <button onclick="approveExtension(${ext.id})" style="background:var(--primary); border:none; color:black; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.8rem;">APPROVE</button>
+                                <button onclick="rejectExtension(${ext.id})" style="background:var(--danger); border:none; color:white; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.8rem;">REJECT</button>
+                                <a href="/uploads/${ext.file_path}" download style="background:rgba(255,255,255,0.1); color:white; padding:8px 16px; border-radius:6px; text-decoration:none; font-size:0.8rem; font-weight:bold;">DOWNLOAD FILE</a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                list.innerHTML = '<p style="text-align:center; color:red; padding:20px;">Failed to load extensions.</p>';
+            }
+        }
+
+        async function approveExtension(id) {
+            if (!confirm('Approve this extension? It will be public instantly.')) return;
+            try {
+                const res = await fetch(`/api/admin/extensions/${id}/approve`, { method: 'POST' });
+                if (res.ok) loadPendingExtensions();
+                else alert('Failed to approve');
+            } catch (err) { console.error(err); }
+        }
+
+        async function rejectExtension(id) {
+            if (!confirm('Reject this extension?')) return;
+            try {
+                const res = await fetch(`/api/admin/extensions/${id}/reject`, { method: 'POST' });
+                if (res.ok) loadPendingExtensions();
+                else alert('Failed to reject');
+            } catch (err) { console.error(err); }
         }
 
         // --- News Logic ---

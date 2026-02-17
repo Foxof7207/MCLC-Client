@@ -40,11 +40,11 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'mclc-secret-key-change-me',
     resave: false,
     saveUninitialized: false,
-    proxy: true, // Trust the proxy for secure cookies
+    proxy: true,
     cookie: {
-        secure: true, // Use secure cookies (requires HTTPS)
-        sameSite: 'lax', // Allow cookies to be sent after Google redirect
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        secure: process.env.NODE_ENV === 'production', // Only secure in production
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000
     }
 }));
 
@@ -298,18 +298,26 @@ const upload = multer({ storage: storage });
 // --- Routes ---
 
 // Auth Routes
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+app.get('/auth/google', (req, res, next) => {
+    if (req.query.returnTo) {
+        req.session.returnTo = req.query.returnTo;
+    }
+    next();
+}, passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }),
     (req, res) => {
-        res.redirect('/');
+        const returnTo = req.session.returnTo || '/';
+        delete req.session.returnTo;
+        res.redirect(returnTo);
     }
 );
 
 app.get('/auth/logout', (req, res) => {
+    const returnTo = req.query.returnTo || '/';
     req.logout((err) => {
         if (err) return next(err);
-        res.redirect('/');
+        res.redirect(returnTo);
     });
 });
 

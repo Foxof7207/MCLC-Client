@@ -45,13 +45,33 @@ router.get('/user/extensions', ensureAuthenticated, async (req, res) => {
 // --- EXTENSION ROUTES ---
 
 // Upload Extension
-router.post('/extensions/upload', ensureAuthenticated, upload.single('extensionFile'), async (req, res) => {
-    const { name, description } = req.body;
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+router.post('/extensions/upload', ensureAuthenticated, upload.fields([
+    { name: 'extensionFile', maxCount: 1 },
+    { name: 'bannerFile', maxCount: 1 }
+]), async (req, res) => {
+    const { name, identifier, summary, description, type, visibility } = req.body;
+
+    const extensionFile = req.files['extensionFile'] ? req.files['extensionFile'][0] : null;
+    const bannerFile = req.files['bannerFile'] ? req.files['bannerFile'][0] : null;
+
+    if (!extensionFile) return res.status(400).json({ error: 'Extension file is required' });
 
     try {
-        await pool.query('INSERT INTO extensions (user_id, name, description, file_path, status) VALUES (?, ?, ?, ?, ?)',
-            [req.user.id, name, description, req.file.path, 'pending']);
+        await pool.query(
+            'INSERT INTO extensions (user_id, name, identifier, summary, description, type, visibility, file_path, banner_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                req.user.id,
+                name,
+                identifier || null,
+                summary || null,
+                description,
+                type || 'extension',
+                visibility || 'public',
+                extensionFile.filename,
+                bannerFile ? bannerFile.filename : null,
+                'pending'
+            ]
+        );
         res.json({ success: true, message: 'Extension uploaded and pending approval' });
     } catch (err) {
         res.status(500).json({ error: err.message });
