@@ -591,6 +591,210 @@ module.exports = (ipcMain, win) => {
                         }
                     }
 
+                    // Install optimization mods if enabled
+                    try {
+                        const settingsPath = path.join(appData, 'settings.json');
+                        let settings = {};
+                        if (await fs.pathExists(settingsPath)) {
+                            settings = await fs.readJson(settingsPath);
+                        }
+
+                        if (settings.optimization !== false) { // default true
+                            sendProgress(85, 'Installing optimization mods...');
+                            appendLog('Installing optimization mods...');
+
+                            const MODRINTH_API = 'https://api.modrinth.com/v2';
+                            const modsDir = path.join(dir, 'mods');
+                            await fs.ensureDir(modsDir);
+
+                            const loaderName = (loader || 'vanilla').toLowerCase();
+                            const primaryMods = [
+                                '5ZwdcRci',
+                                'YL57xq9U',
+                                'iAiqcykM',
+                                'Bh37bMuy',
+                                'PtjYWJkn',
+                                'AANobbMI',
+                                'gvQqBUqZ',
+                                'mOgUt4GM',
+                                'yBW8D80W',
+                                'EIa1eiMm',
+                                'P7dR8mSH',
+                                '4I1XuqiY',
+                                'BVzZfTc1',
+                                'NNAgCjsB',
+                                'LQ3K71Q1'
+                            ];
+                            const fallbackMods = ['GchcoXML', '4ZqxOvjD']; // fallback if YL57xq9U unavailable
+
+                            let modsToInstallList = [...primaryMods];
+                            let installedPhosphor = false;
+
+                            for (const projectId of modsToInstallList) {
+                                if (task.aborted) break;
+
+                                try {
+                                    const versionsRes = await axios.get(
+                                        `${MODRINTH_API}/project/${projectId}/version`,
+                                        {
+                                            params: {
+                                                loaders: JSON.stringify([loaderName]),
+                                                game_versions: JSON.stringify([version])
+                                            }
+                                        }
+                                    );
+
+                                    if (versionsRes.data && versionsRes.data.length > 0) {
+                                        const latestVersion = versionsRes.data[0];
+                                        const primaryFile = latestVersion.files.find(f => f.primary) || latestVersion.files[0];
+
+                                        const dest = path.join(modsDir, primaryFile.filename);
+                                        if (!await fs.pathExists(dest)) {
+                                            appendLog(`Downloading: ${primaryFile.filename}`);
+                                            await downloadFile(primaryFile.url, dest);
+                                            appendLog(`Installed: ${primaryFile.filename}`);
+
+                                            if (projectId === 'YL57xq9U') {
+                                                installedPhosphor = true;
+                                            }
+                                        }
+                                    } else if (projectId === 'YL57xq9U' && !installedPhosphor) {
+                                        // Try fallback mods if Phosphor is not available
+                                        appendLog('Phosphor not available, trying fallback mods...');
+                                        for (const fallbackId of fallbackMods) {
+                                            try {
+                                                const fallbackRes = await axios.get(
+                                                    `${MODRINTH_API}/project/${fallbackId}/version`,
+                                                    {
+                                                        params: {
+                                                            loaders: JSON.stringify([loaderName]),
+                                                            game_versions: JSON.stringify([version])
+                                                        }
+                                                    }
+                                                );
+
+                                                if (fallbackRes.data && fallbackRes.data.length > 0) {
+                                                    const fallbackVersion = fallbackRes.data[0];
+                                                    const fallbackFile = fallbackVersion.files.find(f => f.primary) || fallbackVersion.files[0];
+                                                    const dest = path.join(modsDir, fallbackFile.filename);
+
+                                                    if (!await fs.pathExists(dest)) {
+                                                        appendLog(`Downloading fallback: ${fallbackFile.filename}`);
+                                                        await downloadFile(fallbackFile.url, dest);
+                                                        appendLog(`Installed fallback: ${fallbackFile.filename}`);
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                appendLog(`Fallback mod ${fallbackId} not available: ${e.message}`);
+                                            }
+                                        }
+                                    }
+                                } catch (e) {
+                                    if (projectId === 'YL57xq9U') {
+                                        appendLog(`Phosphor not available (${e.message}), trying fallbacks...`);
+                                        for (const fallbackId of fallbackMods) {
+                                            try {
+                                                const fallbackRes = await axios.get(
+                                                    `${MODRINTH_API}/project/${fallbackId}/version`,
+                                                    {
+                                                        params: {
+                                                            loaders: JSON.stringify([loaderName]),
+                                                            game_versions: JSON.stringify([version])
+                                                        }
+                                                    }
+                                                );
+
+                                                if (fallbackRes.data && fallbackRes.data.length > 0) {
+                                                    const fallbackVersion = fallbackRes.data[0];
+                                                    const fallbackFile = fallbackVersion.files.find(f => f.primary) || fallbackVersion.files[0];
+                                                    const dest = path.join(modsDir, fallbackFile.filename);
+
+                                                    if (!await fs.pathExists(dest)) {
+                                                        appendLog(`Downloading fallback: ${fallbackFile.filename}`);
+                                                        await downloadFile(fallbackFile.url, dest);
+                                                        appendLog(`Installed fallback: ${fallbackFile.filename}`);
+                                                    }
+                                                }
+                                            } catch (fallbackErr) {
+                                                appendLog(`Fallback mod ${fallbackId} failed: ${fallbackErr.message}`);
+                                            }
+                                        }
+                                    } else {
+                                        appendLog(`Optimization mod ${projectId} not available for this configuration: ${e.message}`);
+                                    }
+                                }
+                            }
+
+                            appendLog('Optimization mods installation complete');
+                        }
+                    } catch (e) {
+                        appendLog(`Optimization mods installation failed: ${e.message}`);
+                    }
+
+                    // Install auto install mods if enabled
+                    try {
+                        const settingsPath = path.join(appData, 'settings.json');
+                        let settings = {};
+                        if (await fs.pathExists(settingsPath)) {
+                            settings = await fs.readJson(settingsPath);
+                        }
+
+                        if (settings.enableAutoInstallMods && Array.isArray(settings.autoInstallMods) && settings.autoInstallMods.length > 0) {
+                            sendProgress(90, 'Installing auto install mods...');
+                            appendLog(`Installing ${settings.autoInstallMods.length} auto install mod(s)...`);
+
+                            const MODRINTH_API = 'https://api.modrinth.com/v2';
+                            const modsDir = path.join(dir, 'mods');
+                            await fs.ensureDir(modsDir);
+
+                            const loaderName = (loader || 'vanilla').toLowerCase();
+                            let installedCount = 0;
+                            let skippedCount = 0;
+
+                            for (const projectId of settings.autoInstallMods) {
+                                if (task.aborted) break;
+
+                                try {
+                                    const versionsRes = await axios.get(
+                                        `${MODRINTH_API}/project/${projectId}/version`,
+                                        {
+                                            params: {
+                                                loaders: JSON.stringify([loaderName]),
+                                                game_versions: JSON.stringify([version])
+                                            }
+                                        }
+                                    );
+
+                                    if (versionsRes.data && versionsRes.data.length > 0) {
+                                        const latestVersion = versionsRes.data[0];
+                                        const primaryFile = latestVersion.files.find(f => f.primary) || latestVersion.files[0];
+
+                                        const dest = path.join(modsDir, primaryFile.filename);
+                                        if (!await fs.pathExists(dest)) {
+                                            appendLog(`Downloading auto install mod: ${primaryFile.filename}`);
+                                            await downloadFile(primaryFile.url, dest);
+                                            appendLog(`Installed auto install mod: ${primaryFile.filename}`);
+                                            installedCount++;
+                                        } else {
+                                            appendLog(`Auto install mod already exists: ${primaryFile.filename}`);
+                                            installedCount++;
+                                        }
+                                    } else {
+                                        appendLog(`Auto install mod ${projectId} not available for ${loaderName} ${version} - skipping`);
+                                        skippedCount++;
+                                    }
+                                } catch (e) {
+                                    appendLog(`Auto install mod ${projectId} installation failed: ${e.message} - skipping`);
+                                    skippedCount++;
+                                }
+                            }
+
+                            appendLog(`Auto install mods installation complete (${installedCount} installed, ${skippedCount} skipped)`);
+                        }
+                    } catch (e) {
+                        appendLog(`Auto install mods installation failed: ${e.message}`);
+                    }
+
                     sendCompletion(true);
                 } catch (err) {
                     console.error(`Background ${isMigration ? 'migration' : 'install'} error:`, err);

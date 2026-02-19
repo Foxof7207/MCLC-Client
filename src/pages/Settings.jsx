@@ -21,7 +21,10 @@ function Settings() {
         resolutionHeight: 480,
         enableDiscordRPC: true,
         autoUploadLogs: true,
-        showDisabledFeatures: false
+        showDisabledFeatures: false,
+        optimization: true,
+        enableAutoInstallMods: true,
+        autoInstallMods: []
     });
 
     const [showSoftResetModal, setShowSoftResetModal] = useState(false);
@@ -31,6 +34,11 @@ function Settings() {
     const [javaInstallProgress, setJavaInstallProgress] = useState(null);
     const [showJavaModal, setShowJavaModal] = useState(false);
     const [installedRuntimes, setInstalledRuntimes] = useState([]);
+    const [autoInstallModsInput, setAutoInstallModsInput] = useState('');
+    const [searchingAutoInstallMods, setSearchingAutoInstallMods] = useState(false);
+    const [autoInstallModsSearchResults, setAutoInstallModsSearchResults] = useState([]);
+    const [autoInstallModsMetadata, setAutoInstallModsMetadata] = useState({});
+    const [autoInstallModsListSearch, setAutoInstallModsListSearch] = useState('');
     const hasUnsavedChanges = useRef(false);
     const initialSettingsRef = useRef(null);
 
@@ -180,15 +188,15 @@ function Settings() {
             properties: ['openFile'],
             filters: [{ name: 'Java Executable', extensions: ['exe', 'bin'] }]
         });
-        
+
         // Check if user canceled the dialog
         if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
             return; // Don't update the state if canceled
         }
-        
+
         // Extract the file path string
         const selectedPath = result.filePaths[0];
-        
+
         // Optional: Validate that it's a Java executable
         if (selectedPath && (selectedPath.toLowerCase().endsWith('.exe') || selectedPath.toLowerCase().endsWith('.bin'))) {
             handleChange('javaPath', selectedPath);
@@ -198,6 +206,78 @@ function Settings() {
     };
     const handleManualSave = () => {
         saveSettings(settings, false);
+    };
+
+    const addAutoInstallMod = async () => {
+        const input = autoInstallModsInput.trim();
+        if (!input) {
+            addNotification('Please enter a Modrinth ID or search term', 'error');
+            return;
+        }
+
+        // Check if it's already in the list
+        if (settings.autoInstallMods.includes(input)) {
+            addNotification('This mod is already in the list', 'warning');
+            setAutoInstallModsInput('');
+            return;
+        }
+
+        // Try to get mod name from search results or API
+        let modName = input;
+        const foundInSearch = autoInstallModsSearchResults.find(m => m.project_id === input);
+        if (foundInSearch) {
+            modName = foundInSearch.title;
+        } else {
+            // Try to fetch from API
+            try {
+                const response = await fetch(`https://api.modrinth.com/v2/project/${input}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    modName = data.title;
+                }
+            } catch (err) {
+                console.error('Failed to fetch mod details:', err);
+            }
+        }
+
+        // Add the mod
+        const newAutoInstallMods = [...(settings.autoInstallMods || []), input];
+        handleChange('autoInstallMods', newAutoInstallMods);
+        setAutoInstallModsMetadata(prev => ({ ...prev, [input]: modName }));
+        setAutoInstallModsInput('');
+        setAutoInstallModsSearchResults([]);
+        addNotification('Mod added to Auto Install Mods', 'success');
+    };
+
+    const removeAutoInstallMod = (modId) => {
+        const newAutoInstallMods = (settings.autoInstallMods || []).filter(m => m !== modId);
+        handleChange('autoInstallMods', newAutoInstallMods);
+        setAutoInstallModsMetadata(prev => {
+            const newMetadata = { ...prev };
+            delete newMetadata[modId];
+            return newMetadata;
+        });
+        addNotification('Mod removed from Auto Install Mods', 'success');
+    };
+
+    const searchModrinthMod = async (query) => {
+        if (!query.trim()) {
+            setAutoInstallModsSearchResults([]);
+            return;
+        }
+
+        setSearchingAutoInstallMods(true);
+        try {
+            const response = await fetch(`https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&limit=5`);
+            const data = await response.json();
+            setAutoInstallModsSearchResults(data.hits || []);
+        } catch (err) {
+            console.error('Failed to search mods:', err);
+            addNotification('Failed to search Modrinth', 'error');
+            setAutoInstallModsSearchResults([]);
+        } finally {
+            setSearchingAutoInstallMods(false);
+        }
     };
 
     return (
@@ -327,14 +407,14 @@ function Settings() {
                         <div className="mt-6 border-t border-white/5 pt-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-sm font-bold text-gray-300">Installed Versions</h3>
-                                <button 
+                                <button
                                     onClick={() => window.electronAPI.openJavaFolder()}
                                     className="text-xs text-primary hover:text-primary-hover transition"
                                 >
                                     Open Folder
                                 </button>
                             </div>
-                            
+
                             <div className="space-y-2">
                                 {installedRuntimes.map((runtime) => (
                                     <div key={runtime.dirPath} className="flex items-center justify-between bg-black/20 p-3 rounded-lg border border-white/5 group hover:border-white/10 transition">
@@ -484,13 +564,128 @@ function Settings() {
                         description="Automatically upload logs to mclo.gs if the game crashes"
                     />
                     <ToggleBox
-                        className="mt-4 pt-4 border-t border-white/5"
                         checked={settings.showDisabledFeatures || false}
                         onChange={(val) => handleChange('showDisabledFeatures', val)}
                         label="Show Disabled Features"
                         description="Hides or grays out features that are currently disabled (like the Extensions button)."
                     />
+                    <ToggleBox
+                        className="mt-4 pt-4 border-t border-white/5"
+                        checked={settings.optimization || false}
+                        onChange={(val) => handleChange('optimization', val)}
+                        label="Enable Optimization"
+                        description="Automatically install performance optimization mods when creating a new instance."
+                    />
+                    <ToggleBox
+                        className="mt-4 pt-4 border-t border-white/5"
+                        checked={settings.enableAutoInstallMods || false}
+                        onChange={(val) => handleChange('enableAutoInstallMods', val)}
+                        label="Enable Auto Install Mods"
+                        description="Automatically install selected mods when creating a new instance. Unavailable mods for specific versions will be skipped."
+                    />
                 </div>
+
+                {/* Auto Install Mods Management Section */}
+                {settings.enableAutoInstallMods && (
+                    <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors mt-6">
+                        <h2 className="text-lg font-bold mb-6 text-white">Auto Install Mods Management</h2>
+                        <p className="text-sm text-gray-400 mb-4">Add mods by entering their Modrinth ID or searching by name. These mods will be automatically installed in every new instance.</p>
+
+                        {/* Search / Add Input */}
+                        <div className="mb-6">
+                            <label className="block text-gray-400 text-sm font-medium mb-2">Add Auto Install Mod</label>
+                            <div className="flex gap-2 mb-3">
+                                <input
+                                    type="text"
+                                    value={autoInstallModsInput}
+                                    onChange={(e) => {
+                                        setAutoInstallModsInput(e.target.value);
+                                        if (e.target.value.trim()) {
+                                            searchModrinthMod(e.target.value);
+                                        } else {
+                                            setAutoInstallModsSearchResults([]);
+                                        }
+                                    }}
+                                    placeholder="Enter Modrinth ID or search mod name..."
+                                    className="flex-1 bg-black/20 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-primary/50"
+                                    onKeyPress={(e) => e.key === 'Enter' && addAutoInstallMod()}
+                                />
+                                <button
+                                    onClick={addAutoInstallMod}
+                                    className="px-4 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-medium transition"
+                                >
+                                    Add
+                                </button>
+                            </div>
+
+                            {/* Search Results */}
+                            {autoInstallModsSearchResults.length > 0 && (
+                                <div className="bg-black/20 border border-white/10 rounded-lg overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
+                                    {autoInstallModsSearchResults.map((mod) => (
+                                        <button
+                                            key={mod.project_id}
+                                            onClick={() => {
+                                                setAutoInstallModsInput(mod.project_id);
+                                                setAutoInstallModsSearchResults([]);
+                                            }}
+                                            className="w-full text-left px-4 py-2 hover:bg-white/10 transition border-b border-white/5 last:border-b-0"
+                                        >
+                                            <div className="font-medium text-sm text-white">{mod.title}</div>
+                                            <div className="text-xs text-gray-500 truncate">{mod.project_id}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Current Auto Install Mods List */}
+                        {(settings.autoInstallMods || []).length > 0 ? (
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <label className="block text-gray-400 text-sm font-medium">Auto Install Mods ({settings.autoInstallMods.length})</label>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={autoInstallModsListSearch}
+                                    onChange={(e) => setAutoInstallModsListSearch(e.target.value)}
+                                    placeholder="Search mods in list..."
+                                    className="w-full mb-3 bg-black/20 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-primary/50"
+                                />
+                                <div className="space-y-2">
+                                    {(settings.autoInstallMods || []).filter((mod) => {
+                                        const modName = autoInstallModsMetadata[mod] || mod;
+                                        const searchQuery = autoInstallModsListSearch.toLowerCase();
+                                        return modName.toLowerCase().includes(searchQuery) || mod.toLowerCase().includes(searchQuery);
+                                    }).map((mod) => (
+                                        <div key={mod} className="flex items-center justify-between bg-black/20 border border-white/5 rounded-lg px-4 py-3">
+                                            <div>
+                                                <div className="text-sm text-white font-medium">{autoInstallModsMetadata[mod] || mod}</div>
+                                                <code className="text-xs text-gray-500 font-mono">{mod}</code>
+                                            </div>
+                                            <button
+                                                onClick={() => removeAutoInstallMod(mod)}
+                                                className="px-3 py-1 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded border border-red-500/20 transition"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {autoInstallModsListSearch && (settings.autoInstallMods || []).filter((mod) => {
+                                        const modName = autoInstallModsMetadata[mod] || mod;
+                                        const searchQuery = autoInstallModsListSearch.toLowerCase();
+                                        return modName.toLowerCase().includes(searchQuery) || mod.toLowerCase().includes(searchQuery);
+                                    }).length === 0 && (
+                                            <div className="text-center py-4 text-gray-500 text-sm">No mods match your search.</div>
+                                        )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-6 bg-black/20 border border-white/5 rounded-lg">
+                                <p className="text-gray-500 text-sm">No auto install mods added yet. Add some to get started!</p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Maintenance Section */}

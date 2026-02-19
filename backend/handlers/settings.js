@@ -15,6 +15,7 @@ module.exports = (ipcMain) => {
         showDisabledFeatures: false,
         copySettingsEnabled: false,
         copySettingsSourceInstance: '',
+        optimization: true,
         theme: {
             primaryColor: '#22e07a',
             backgroundColor: '#0d1117',
