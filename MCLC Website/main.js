@@ -8,8 +8,10 @@ window.addEventListener('scroll', () => {
     }
 });
 
+// Helper for standardizing paths (global)
+window.fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
+
 // Reveal Animations on Scroll
-const revealElements = document.querySelectorAll('.reveal');
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -68,7 +70,7 @@ async function checkAuth() {
             authSection.innerHTML = `
                 <div class="flex items-center gap-3 pl-4 border-l border-white/10">
                     <a href="dashboard.html" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                        <img src="${data.user.avatar || 'resources/icon.png'}" alt="${data.user.username}" class="w-8 h-8 rounded-full border border-white/10">
+                        <img src="${fixPath(data.user.avatar)}" alt="${data.user.username}" class="w-8 h-8 rounded-full border border-white/10 overflow-hidden object-cover">
                         <div class="hidden lg:block text-right leading-tight">
                             <div class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Signed in</div>
                             <div class="text-sm font-bold text-white">${data.user.username}</div>
@@ -110,7 +112,7 @@ async function checkAuth() {
             if (data.loggedIn) {
                 mobileAuthSection.innerHTML = `
                     <div class="flex items-center justify-center gap-4 mb-4">
-                        <img src="${data.user.avatar || 'resources/icon.png'}" class="w-12 h-12 rounded-full border-2 border-primary/20">
+                        <img src="${fixPath(data.user.avatar)}" class="w-14 h-14 rounded-full border-2 border-primary/20 object-cover">
                         <div class="text-left">
                             <div class="text-white font-bold">${data.user.username}</div>
                             <div class="text-gray-500 text-xs font-mono">${data.user.role.toUpperCase()}</div>

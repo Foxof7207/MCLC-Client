@@ -82,9 +82,15 @@
                         class="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors"></textarea>
                 </div>
                 <div>
-                    <label class="block text-gray-500 text-sm font-bold mb-2">Avatar URL</label>
-                    <input type="text" name="avatar" id="input-avatar"
-                        class="w-full bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors">
+                    <label class="block text-gray-500 text-sm font-bold mb-2">Avatar URL / File</label>
+                    <div class="flex gap-4">
+                        <input type="text" name="avatar" id="input-avatar" placeholder="https://..."
+                            class="flex-1 bg-background border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary focus:outline-none transition-colors">
+                        <input type="file" id="input-avatar-file" accept="image/*" class="hidden">
+                        <button type="button" onclick="document.getElementById('input-avatar-file').click()"
+                            class="bg-white/5 hover:bg-white/10 text-white px-4 py-3 rounded-xl font-bold transition-all text-sm whitespace-nowrap">Upload
+                            File</button>
+                    </div>
                 </div>
                 <div class="flex gap-4">
                     <button type="submit"
@@ -185,10 +191,12 @@
                     return;
                 }
 
+                const fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
+
                 // Update UI
                 document.getElementById('profile-username').textContent = currentUser.username;
                 document.getElementById('profile-bio').textContent = currentUser.bio || 'No bio yet.';
-                document.getElementById('profile-avatar').src = currentUser.avatar || 'https://via.placeholder.com/150';
+                document.getElementById('profile-avatar').src = fixPath(currentUser.avatar);
 
                 // Form values
                 document.getElementById('input-username').value = currentUser.username;
@@ -252,16 +260,19 @@
         // Profile Update
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const data = {
-                username: document.getElementById('input-username').value,
-                bio: document.getElementById('input-bio').value,
-                avatar: document.getElementById('input-avatar').value
-            };
+            const formData = new FormData();
+            formData.append('username', document.getElementById('input-username').value);
+            formData.append('bio', document.getElementById('input-bio').value);
+            formData.append('avatar', document.getElementById('input-avatar').value);
+
+            const fileInput = document.getElementById('input-avatar-file');
+            if (fileInput.files[0]) {
+                formData.append('avatarFile', fileInput.files[0]);
+            }
 
             await fetch('/api/user/update', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: formData
             });
 
             toggleEditProfile();

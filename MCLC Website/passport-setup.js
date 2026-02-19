@@ -24,16 +24,37 @@ passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: process.env.CALLBACK_URL || "/auth/google/callback",
-    proxy: true
+    proxy: true,
+    passReqToCallback: true
 },
-    async (accessToken, refreshToken, profile, done) => {
+    async (req, accessToken, refreshToken, profile, done) => {
         try {
+            let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+            if (ip && ip.includes(',')) ip = ip.split(',')[0].trim();
+            const now = new Date();
+
             // Check if user exists
             const [rows] = await pool.query('SELECT * FROM users WHERE google_id = ?', [profile.id]);
 
             if (rows.length > 0) {
-                // User exists, return user
-                return done(null, rows[0]);
+                const user = rows[0];
+
+                // Check for ban
+                if (user.banned) {
+                    if (user.ban_expires && new Date(user.ban_expires) < now) {
+                        // Ban expired
+                        await pool.query('UPDATE users SET banned = FALSE, ban_reason = NULL, ban_expires = NULL WHERE id = ?', [user.id]);
+                    } else {
+                        return done(null, false, { message: user.ban_reason || 'You are banned from this platform.' });
+                    }
+                }
+
+                // Update IP and last login
+                await pool.query('UPDATE users SET last_login = ?, ip_address = ? WHERE id = ?', [now, ip, user.id]);
+                user.last_login = now;
+                user.ip_address = ip;
+
+                return done(null, user);
             } else {
                 // New user, create
                 const newUser = {
@@ -42,18 +63,20 @@ passport.use(new GoogleStrategy({
                     email: profile.emails && profile.emails.length > 0 ? profile.emails[0].value : null,
                     avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null,
                     bio: 'Project MCLC Member',
-                    role: 'user'
+                    role: 'user',
+                    last_login: now,
+                    ip_address: ip
                 };
 
                 const [result] = await pool.query(
-                    'INSERT INTO users (google_id, username, email, avatar, bio, role) VALUES (?, ?, ?, ?, ?, ?)',
-                    [newUser.google_id, newUser.username, newUser.email, newUser.avatar, newUser.bio, newUser.role]
+                    'INSERT INTO users (google_id, username, email, avatar, bio, role, last_login, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    [newUser.google_id, newUser.username, newUser.email, newUser.avatar, newUser.bio, newUser.role, newUser.last_login, newUser.ip_address]
                 );
                 newUser.id = result.insertId;
                 return done(null, newUser);
             }
         } catch (err) {
-            console.error('Stats Update Error', err);
+            console.error('Passport Error:', err);
             return done(err, null);
         }
     }));

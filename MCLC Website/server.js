@@ -322,10 +322,14 @@ app.get('/auth/logout', (req, res) => {
 });
 
 app.get('/api/user', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.json({ loggedIn: true, user: req.user });
-    } else {
+    try {
+        if (req.isAuthenticated()) {
+            return res.json({ loggedIn: true, user: req.user });
+        }
         res.json({ loggedIn: false });
+    } catch (err) {
+        console.error('[API Error] /api/user failed:', err);
+        res.status(500).json({ error: 'Auth check failed', details: err.message });
     }
 });
 
@@ -357,7 +361,8 @@ app.get('/api/extensions', async (req, res) => {
         `, search ? [`%${search}%`, `%${search}%`] : []);
         res.json(extensions);
     } catch (err) {
-        res.status(500).json({ error: 'Database error' });
+        console.error('[API Error] Fetch Extensions failed:', err);
+        res.status(500).json({ error: 'Database error', details: err.message });
     }
 });
 
@@ -368,16 +373,36 @@ app.post('/api/extensions/upload', ensureAuthenticated, upload.fields([
     const files = req.files;
     if (!files || !files.extensionFile) return res.status(400).json({ error: 'No extension file uploaded' });
 
-    const { name, description, identifier, summary, type } = req.body;
-    const filePath = '/uploads/' + files.extensionFile[0].filename;
-    const bannerPath = files.bannerImage ? '/uploads/' + files.bannerImage[0].filename : null;
+    const { name, description, identifier, summary, type, visibility, version } = req.body;
+    const bannerFilename = files.bannerImage ? files.bannerImage[0].filename : null;
+    const extensionFilename = files.extensionFile[0].filename;
 
     try {
-        await pool.query(
-            'INSERT INTO extensions (user_id, name, identifier, summary, description, type, file_path, banner_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [req.user.id, name, identifier, summary, description, type || 'extension', filePath, bannerPath]
-        );
-        res.json({ success: true });
+        const connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // 1. Insert into extensions (Metadata)
+            const [extResult] = await connection.query(
+                'INSERT INTO extensions (user_id, name, identifier, summary, description, type, visibility, banner_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [req.user.id, name, identifier, summary, description, type || 'extension', visibility || 'public', bannerFilename]
+            );
+            const extensionId = extResult.insertId;
+
+            // 2. Insert into extension_versions (Initial version)
+            await connection.query(
+                'INSERT INTO extension_versions (extension_id, version, changelog, file_path, status) VALUES (?, ?, ?, ?, ?)',
+                [extensionId, version || '1.0.0', 'Initial upload', extensionFilename, 'pending']
+            );
+
+            await connection.commit();
+            res.json({ success: true, extensionId });
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
     } catch (err) {
         console.error('Upload Error:', err);
         if (err.code === 'ER_DUP_ENTRY') {
@@ -387,18 +412,132 @@ app.post('/api/extensions/upload', ensureAuthenticated, upload.fields([
     }
 });
 
+app.post('/api/extensions/update/:id', ensureAuthenticated, upload.fields([
+    { name: 'bannerImage', maxCount: 1 }
+]), async (req, res) => {
+    const { id } = req.params;
+    const { name, description, summary, type, visibility } = req.body;
+    const files = req.files;
+
+    try {
+        const [rows] = await pool.query('SELECT user_id FROM extensions WHERE id = ?', [id]);
+        if (rows.length === 0) return res.status(404).json({ error: 'Extension not found' });
+        if (rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        const bannerPath = files && files.bannerImage ? files.bannerImage[0].filename : null;
+
+        // If admin, update directly. If user, save to draft.
+        if (req.user.role === 'admin') {
+            let updateFields = [];
+            let queryParams = [];
+            if (name) { updateFields.push('name = ?'); queryParams.push(name); }
+            if (description) { updateFields.push('description = ?'); queryParams.push(description); }
+            if (summary) { updateFields.push('summary = ?'); queryParams.push(summary); }
+            if (bannerPath) { updateFields.push('banner_path = ?'); queryParams.push(bannerPath); }
+            if (type) { updateFields.push('type = ?'); queryParams.push(type); }
+            if (visibility) { updateFields.push('visibility = ?'); queryParams.push(visibility); }
+
+            if (updateFields.length > 0) {
+                queryParams.push(id);
+                await pool.query(`UPDATE extensions SET ${updateFields.join(', ')} WHERE id = ?`, queryParams);
+            }
+            res.json({ success: true, message: 'Updated directly (Admin)' });
+        } else {
+            // Save to Metadata Draft
+            await pool.query(
+                'INSERT INTO extension_metadata_drafts (extension_id, name, summary, description, banner_path, status) VALUES (?, ?, ?, ?, ?, ?)',
+                [id, name, summary, description, bannerPath, 'pending']
+            );
+            res.json({ success: true, message: 'Metadata draft submitted for review' });
+        }
+    } catch (err) {
+        console.error('Update (Draft) Error:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// New Version Upload
+app.post('/api/extensions/:id/version', ensureAuthenticated, upload.single('extensionFile'), async (req, res) => {
+    const { id } = req.params;
+    const { version, changelog } = req.body;
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    try {
+        const [rows] = await pool.query('SELECT user_id FROM extensions WHERE id = ?', [id]);
+        if (rows.length === 0) return res.status(404).json({ error: 'Extension not found' });
+        if (rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        await pool.query(
+            'INSERT INTO extension_versions (extension_id, version, changelog, file_path, status) VALUES (?, ?, ?, ?, ?)',
+            [id, version, changelog, req.file.filename, 'pending']
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Version Upload Error:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 app.get('/api/extensions/i/:identifier', async (req, res) => {
     const { identifier } = req.params;
     try {
+        // 1. Get Extension Metadata
         const [rows] = await pool.query(`
             SELECT extensions.*, users.username as developer, users.avatar as developer_avatar
             FROM extensions 
             LEFT JOIN users ON extensions.user_id = users.id 
-            WHERE extensions.identifier = ? AND extensions.status = "approved"
+            WHERE extensions.identifier = ?
         `, [identifier]);
 
         if (rows.length === 0) return res.status(404).json({ error: 'Extension not found' });
-        res.json(rows[0]);
+        const extension = rows[0];
+
+        // 2. Get All Approved Versions
+        const [versions] = await pool.query(
+            'SELECT * FROM extension_versions WHERE extension_id = ? AND status = "approved" ORDER BY created_at DESC',
+            [extension.id]
+        );
+
+        res.json({ ...extension, versions });
+    } catch (err) {
+        console.error('[API Error] Fetch Extension Detail failed:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/extensions/:id/versions', ensureAuthenticated, async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            'SELECT * FROM extension_versions WHERE extension_id = ? ORDER BY created_at DESC',
+            [req.params.id]
+        );
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/extensions/versions/:vid', ensureAuthenticated, async (req, res) => {
+    const vid = req.params.vid;
+    try {
+        // Check ownership of the extension this version belongs to
+        const [ext] = await pool.query(`
+            SELECT extensions.user_id FROM extensions
+            JOIN extension_versions ON extensions.id = extension_versions.extension_id
+            WHERE extension_versions.id = ?
+        `, [vid]);
+
+        if (ext.length === 0) return res.status(404).json({ error: 'Version not found' });
+        if (ext[0].user_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        await pool.query('DELETE FROM extension_versions WHERE id = ?', [vid]);
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: 'Database error' });
     }
@@ -407,8 +546,25 @@ app.get('/api/extensions/i/:identifier', async (req, res) => {
 // User Specific Endpoints
 app.get('/api/user/extensions', ensureAuthenticated, async (req, res) => {
     try {
+        const isAdmin = req.user && req.user.role === 'admin';
+        const query = isAdmin
+            ? 'SELECT * FROM extensions ORDER BY created_at DESC'
+            : 'SELECT * FROM extensions WHERE user_id = ? ORDER BY created_at DESC';
+
+        const params = isAdmin ? [] : [req.user.id];
+
+        const [rows] = await pool.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        console.error('[API Error] /api/user/extensions failed:', err);
+        res.status(500).json({ error: 'Database error', details: err.message });
+    }
+});
+
+app.get('/api/user/notifications', ensureAuthenticated, async (req, res) => {
+    try {
         const [rows] = await pool.query(
-            'SELECT * FROM extensions WHERE user_id = ? ORDER BY created_at DESC',
+            'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
             [req.user.id]
         );
         res.json(rows);
@@ -417,12 +573,36 @@ app.get('/api/user/extensions', ensureAuthenticated, async (req, res) => {
     }
 });
 
-app.post('/api/user/update', ensureAuthenticated, async (req, res) => {
+app.post('/api/notifications/read/:id', ensureAuthenticated, async (req, res) => {
+    try {
+        await pool.query('UPDATE notifications SET is_read = TRUE WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/notifications/read-all', ensureAuthenticated, async (req, res) => {
+    try {
+        await pool.query('UPDATE notifications SET is_read = TRUE WHERE user_id = ?', [req.user.id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/user/update', ensureAuthenticated, upload.single('avatarFile'), async (req, res) => {
     const { username, bio, avatar } = req.body;
+    let finalAvatar = avatar;
+
+    if (req.file) {
+        finalAvatar = req.file.filename;
+    }
+
     try {
         await pool.query(
             'UPDATE users SET username = ?, bio = ?, avatar = ? WHERE id = ?',
-            [username, bio, avatar, req.user.id]
+            [username, bio, finalAvatar, req.user.id]
         );
         res.json({ success: true });
     } catch (err) {
@@ -430,14 +610,67 @@ app.post('/api/user/update', ensureAuthenticated, async (req, res) => {
     }
 });
 
+// Developer Profile API
+app.get('/api/users/p/:username', async (req, res) => {
+    try {
+        const [userRows] = await pool.query('SELECT id, username, avatar, bio, role, created_at FROM users WHERE username = ?', [req.params.username]);
+        if (userRows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        const user = userRows[0];
+        const [extensions] = await pool.query('SELECT name, identifier, summary, banner_path, type, status FROM extensions WHERE user_id = ? AND status = "approved"', [user.id]);
+
+        res.json({ user, extensions });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// Admin User Management
+app.get('/api/admin/users', ensureAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT id, username, email, ip_address, role, last_login, banned, warn_count, created_at FROM users ORDER BY created_at DESC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/admin/users/:id/:action', ensureAdmin, async (req, res) => {
+    const { id, action } = req.params;
+    const { reason, duration } = req.body; // duration in hours
+
+    try {
+        if (action === 'warn') {
+            await pool.query('UPDATE users SET warn_count = warn_count + 1 WHERE id = ?', [id]);
+            await pool.query('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)', [id, `You have received a warning. Reason: ${reason || 'No reason specified'}`, 'warning']);
+        } else if (action === 'ban') {
+            let expires = null;
+            if (duration) {
+                expires = new Date();
+                expires.setHours(expires.getHours() + parseInt(duration));
+            }
+            await pool.query('UPDATE users SET banned = TRUE, ban_reason = ?, ban_expires = ? WHERE id = ?', [reason, expires, id]);
+            await pool.query('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)', [id, `You have been banned. Reason: ${reason}`, 'error']);
+        } else if (action === 'unban') {
+            await pool.query('UPDATE users SET banned = FALSE, ban_reason = NULL, ban_expires = NULL WHERE id = ?', [id]);
+            await pool.query('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)', [id, 'Your ban has been lifted.', 'success']);
+        } else {
+            return res.status(400).json({ error: 'Invalid action' });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // Admin Extension Endpoints
-app.get('/api/admin/extensions/pending', ensureAdmin, async (req, res) => {
+app.get('/api/admin/extensions/all', ensureAdmin, async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT extensions.*, users.username as developer 
             FROM extensions 
             LEFT JOIN users ON extensions.user_id = users.id 
-            WHERE status = "pending"
+            ORDER BY created_at DESC
         `);
         res.json(rows);
     } catch (err) {
@@ -445,11 +678,96 @@ app.get('/api/admin/extensions/pending', ensureAdmin, async (req, res) => {
     }
 });
 
-app.post('/api/admin/extensions/:id/:action', ensureAdmin, async (req, res) => {
-    const { id, action } = req.params;
+app.get('/api/admin/extensions/pending', ensureAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT extensions.*, users.username as developer 
+            FROM extensions 
+            LEFT JOIN users ON extensions.user_id = users.id 
+            WHERE extensions.status = "pending"
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/admin/drafts/pending', ensureAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT extension_metadata_drafts.*, extensions.name as original_name, users.username as developer
+            FROM extension_metadata_drafts
+            JOIN extensions ON extension_metadata_drafts.extension_id = extensions.id
+            JOIN users ON extensions.user_id = users.id
+            WHERE extension_metadata_drafts.status = "pending"
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/admin/drafts/:did/:action', ensureAdmin, async (req, res) => {
+    const { did, action } = req.params;
+    const { reason } = req.body;
+    try {
+        if (action === 'approve') {
+            const [drafts] = await pool.query('SELECT * FROM extension_metadata_drafts WHERE id = ?', [did]);
+            if (drafts.length === 0) return res.status(404).json({ error: 'Draft not found' });
+            const draft = drafts[0];
+
+            // Update Extension
+            let updates = [];
+            let params = [];
+            if (draft.name) { updates.push('name = ?'); params.push(draft.name); }
+            if (draft.summary) { updates.push('summary = ?'); params.push(draft.summary); }
+            if (draft.description) { updates.push('description = ?'); params.push(draft.description); }
+            if (draft.banner_path) { updates.push('banner_path = ?'); params.push(draft.banner_path); }
+
+            if (updates.length > 0) {
+                params.push(draft.extension_id);
+                await pool.query(`UPDATE extensions SET ${updates.join(', ')} WHERE id = ?`, params);
+            }
+
+            await pool.query('UPDATE extension_metadata_drafts SET status = "approved" WHERE id = ?', [did]);
+        } else {
+            await pool.query('UPDATE extension_metadata_drafts SET status = "rejected" WHERE id = ?', [did]);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/admin/versions/pending', ensureAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT extension_versions.*, extensions.name as extension_name, users.username as developer
+            FROM extension_versions
+            JOIN extensions ON extension_versions.extension_id = extensions.id
+            JOIN users ON extensions.user_id = users.id
+            WHERE extension_versions.status = "pending"
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/admin/versions/:vid/:action', ensureAdmin, async (req, res) => {
+    const { vid, action } = req.params;
     const status = action === 'approve' ? 'approved' : 'rejected';
     try {
-        await pool.query('UPDATE extensions SET status = ? WHERE id = ?', [status, id]);
+        await pool.query('UPDATE extension_versions SET status = ? WHERE id = ?', [status, vid]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/admin/extensions/:id', ensureAdmin, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM extensions WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: 'Database error' });
@@ -514,6 +832,15 @@ app.post('/api/news', (req, res) => {
 });
 
 // Serve landing page (current directory or website/ subdir)
+// --- Error Handling Middleware (Last) ---
+app.use((err, req, res, next) => {
+    console.error(`[Server Error] ${req.method} ${req.url}:`, err);
+    res.status(500).json({
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message
+    });
+});
+
 const websitePath = fs.existsSync(path.join(__dirname, 'website'))
     ? path.join(__dirname, 'website')
     : __dirname;

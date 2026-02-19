@@ -220,6 +220,8 @@
                     return;
                 }
 
+                const fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : '/resources/icon.png';
+
                 extensions.forEach((ext, index) => {
                     const delay = index * 100;
                     const card = document.createElement('div');
@@ -227,7 +229,7 @@
                     card.style.animation = `fadeIn 0.5s ease-out ${delay}ms forwards`;
                     card.style.opacity = '0';
 
-                    const bannerUrl = ext.banner_path ? (ext.banner_path.startsWith('http') ? ext.banner_path : `/uploads/${ext.banner_path}`) : '/resources/icon.png';
+                    const bannerUrl = fixPath(ext.banner_path);
                     const typeLabel = ext.type === 'theme' ? 'Theme' : 'Extension';
                     const devInitial = ext.developer ? ext.developer.charAt(0).toUpperCase() : '?';
 

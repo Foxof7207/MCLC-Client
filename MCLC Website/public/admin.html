@@ -404,7 +404,7 @@
 
             container.innerHTML = news.map((item, index) => `
             <div style="display:flex; gap:15px; padding:15px; border-bottom:1px solid var(--border-light); align-items:center;">
-                <img src="${item.image || 'https://via.placeholder.com/60'}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; background:rgba(0,0,0,0.2);">
+                <img src="${item.image || 'resources/icon.png'}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; background:rgba(0,0,0,0.2);">
                 <div style="flex:1;">
                     <h4 style="color:white; margin-bottom:5px;">${item.title}</h4>
                     <p class="description-box">${item.description || ''}</p>
