@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNotification } from './NotificationContext';
+
 
 // Simple ID generator to avoid nanoid dependency issues
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -15,6 +17,7 @@ export const ExtensionProvider = ({ children }) => {
     const [activeExtensions, setActiveExtensions] = useState({}); // { [id]: { exports, api, cleanup: [] } }
     const [views, setViews] = useState({}); // { "sidebar.bottom": [ { id, extensionId, component } ] }
     const [loading, setLoading] = useState(true);
+    const { addNotification } = useNotification();
 
     // API exposed to extensions
     const createExtensionApi = (extensionId) => ({
@@ -23,23 +26,42 @@ export const ExtensionProvider = ({ children }) => {
             registerView: (slotName, component) => {
                 setViews(prev => {
                     const slotViews = prev[slotName] || [];
-                    // Avoid duplicates
-                    if (slotViews.some(v => v.extensionId === extensionId && v.component === component)) {
-                        return prev;
-                    }
+                    // Remove existing view for this extension in this slot if any
+                    const filteredViews = slotViews.filter(v => v.extensionId !== extensionId);
                     return {
                         ...prev,
-                        [slotName]: [...slotViews, { id: generateId(), extensionId, component }]
+                        [slotName]: [...filteredViews, { id: generateId(), extensionId, component }]
                     };
                 });
             },
             toast: (message, type = 'info') => {
                 console.log(`[Extension:${extensionId}] Toast: ${message} (${type})`);
-                // TODO: Dispatch to global notification system
-                // window.dispatchEvent(new CustomEvent('mclc:notification', { detail: { message, type } }));
+                if (addNotification) {
+                    addNotification(`[${extensionId}] ${message}`, type);
+                }
+            }
+
+        },
+        // IPC Communication
+        ipc: {
+            invoke: (channel, ...args) => {
+                // If it's a core method mapped in electronAPI
+                const coreMethod = channel.replace(/:/g, '_'); // Some methods might be named differently
+                if (window.electronAPI[channel]) return window.electronAPI[channel](...args);
+
+                // If it's the extension's own backend
+                return window.electronAPI.invokeExtension(extensionId, channel, ...args);
+            },
+            on: (channel, callback) => {
+                return window.electronAPI.onExtensionMessage(extensionId, channel, callback);
             }
         },
-        // Storage (Stub)
+        // Launcher specific API
+        launcher: {
+            getActiveProcesses: () => window.electronAPI.getActiveProcesses(),
+            getProcessStats: (pid) => window.electronAPI.getProcessStats(pid),
+        },
+        // Storage
         storage: {
             get: (key) => {
                 try {
@@ -54,6 +76,7 @@ export const ExtensionProvider = ({ children }) => {
         // Meta
         meta: { id: extensionId }
     });
+
 
     // Unload an extension
     const unloadExtension = async (extensionId) => {
@@ -97,7 +120,7 @@ export const ExtensionProvider = ({ children }) => {
             console.log(`[Extension] Loading ${ext.id}...`);
             const entryPath = ext.localPath + '/' + (ext.main || 'index.js');
             const importUrl = `app-media:///${entryPath}`;
-            
+
             // Fetch code
             const response = await fetch(importUrl);
             if (!response.ok) throw new Error(`Failed to fetch ${entryPath}`);
@@ -115,13 +138,16 @@ export const ExtensionProvider = ({ children }) => {
             const exports = {};
             const module = { exports };
             const api = createExtensionApi(ext.id);
+            // Expose a temporary global for JSX components to access the API
+            window.MCLC_API = api;
 
             // Execute
             const wrapper = new Function('require', 'exports', 'module', 'React', 'api', code);
             wrapper(customRequire, exports, module, window.React, api);
 
+
             const ExportedModule = module.exports;
-            
+
             // Store active state BEFORE calling activate (in case activate calls registerView immediately)
             setActiveExtensions(prev => ({
                 ...prev,
@@ -130,7 +156,7 @@ export const ExtensionProvider = ({ children }) => {
                     api: api
                 }
             }));
-            
+
             // Lifecycle: Activate
             // Support both new 'activate' export and legacy 'register' export
             if (typeof ExportedModule.activate === 'function') {
@@ -157,14 +183,14 @@ export const ExtensionProvider = ({ children }) => {
     const toggleExtension = async (id, enabled) => {
         try {
             console.log(`[ExtensionContext] Toggling ${id} to ${enabled}`);
-            
+
             // Get the extension BEFORE state update
             const ext = installedExtensions.find(e => e.id === id);
             if (!ext) {
                 console.error(`Extension ${id} not found`);
                 return;
             }
-            
+
             // 1. Update Backend Persistence
             const result = await window.electronAPI.toggleExtension(id, enabled);
             if (!result.success) {
@@ -173,7 +199,7 @@ export const ExtensionProvider = ({ children }) => {
             }
 
             // 2. Update Local State (UI)
-            setInstalledExtensions(prev => prev.map(e => 
+            setInstalledExtensions(prev => prev.map(e =>
                 e.id === id ? { ...e, enabled } : e
             ));
 
@@ -189,31 +215,35 @@ export const ExtensionProvider = ({ children }) => {
         }
     };
 
-    useEffect(() => {
-        const initExtensions = async () => {
-            if (!EXTENSIONS_ENABLED) {
-                setLoading(false);
-                return;
-            }
-            if (!window.electronAPI) return;
-            
-            try {
-                const result = await window.electronAPI.getExtensions();
-                if (result.success) {
-                    setInstalledExtensions(result.extensions);
-                    // Load only ENABLED extensions
-                    for (const ext of result.extensions) {
-                        if (ext.enabled) {
-                             await loadExtension(ext);
-                        }
+    const refreshExtensions = async () => {
+        if (!EXTENSIONS_ENABLED) {
+            setLoading(false);
+            return;
+        }
+        if (!window.electronAPI) return;
+
+        try {
+            const result = await window.electronAPI.getExtensions();
+            if (result.success) {
+                setInstalledExtensions(result.extensions);
+                // Load only ENABLED extensions
+                for (const ext of result.extensions) {
+                    if (ext.enabled && !activeExtensions[ext.id]) {
+                        await loadExtension(ext);
+                    } else if (!ext.enabled && activeExtensions[ext.id]) {
+                        await unloadExtension(ext.id);
                     }
                 }
-            } catch (e) {
-                console.error("Failed to initialize extensions:", e);
             }
-            setLoading(false);
-        };
-        initExtensions();
+        } catch (e) {
+            console.error("Failed to refresh extensions:", e);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        refreshExtensions();
+
 
         // Listen for file opens
         if (window.electronAPI && window.electronAPI.onExtensionFile) {
@@ -224,12 +254,12 @@ export const ExtensionProvider = ({ children }) => {
                         const result = await window.electronAPI.installExtension(filePath);
                         if (result.success) {
                             alert(`Extension installed!`);
-                            window.location.reload();
+                            refreshExtensions();
                         } else {
                             alert(`Failed to install: ${result.error}`);
                         }
                     } catch (e) {
-                         alert(`Error: ${e.message}`);
+                        alert(`Error: ${e.message}`);
                     }
                 }
             });
@@ -241,15 +271,16 @@ export const ExtensionProvider = ({ children }) => {
     const getViews = (slotName) => views[slotName] || [];
 
     return (
-        <ExtensionContext.Provider value={{ 
+        <ExtensionContext.Provider value={{
             extensionsEnabled: EXTENSIONS_ENABLED,
-            installedExtensions, 
+            installedExtensions,
             activeExtensions,
-            loading, 
+            loading,
             getViews,
             loadExtension,
             unloadExtension,
-            toggleExtension
+            toggleExtension,
+            refreshExtensions
         }}>
             {children}
         </ExtensionContext.Provider>

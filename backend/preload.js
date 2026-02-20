@@ -249,7 +249,17 @@ const electronAPI = {
         ipcRenderer.on('extension:open-file', subscription);
         return () => ipcRenderer.removeListener('extension:open-file', subscription);
     },
+    getActiveProcesses: () => ipcRenderer.invoke('launcher:get-active-processes'),
+    getProcessStats: (pid) => ipcRenderer.invoke('launcher:get-process-stats', pid),
+    // Generic invoke for extensions to call their OWN backend
+    invokeExtension: (extId, channel, ...args) => ipcRenderer.invoke(`ext:${extId}:${channel}`, ...args),
+    onExtensionMessage: (extId, channel, callback) => {
+        const subscription = (_event, ...args) => callback(...args);
+        ipcRenderer.on(`ext:${extId}:${channel}`, subscription);
+        return () => ipcRenderer.removeListener(`ext:${extId}:${channel}`, subscription);
+    },
     fetchMarketplace: () => ipcRenderer.invoke('extensions:fetch-marketplace')
+
 };
 try {
     contextBridge.exposeInMainWorld('electronAPI', electronAPI);

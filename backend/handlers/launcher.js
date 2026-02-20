@@ -5,6 +5,8 @@ const fs = require('fs-extra');
 const Store = require('electron-store');
 const store = new Store();
 const backupManager = require('../backupManager');
+const { getProcessStats } = require('../utils/process-utils');
+
 
 module.exports = (ipcMain, mainWindow) => {
 
@@ -97,6 +99,24 @@ Add-Type -TypeDefinition $code -Language CSharp
     ipcMain.handle('launcher:get-live-logs', (_, instanceName) => {
         return liveLogs.get(instanceName) || [];
     });
+
+    ipcMain.handle('launcher:get-active-processes', () => {
+        const processes = [];
+        for (const [name, startTime] of runningInstances.entries()) {
+            const proc = childProcesses.get(name);
+            processes.push({
+                name,
+                startTime,
+                pid: proc ? proc.pid : null
+            });
+        }
+        return processes;
+    });
+
+    ipcMain.handle('launcher:get-process-stats', async (_, pid) => {
+        return await getProcessStats(pid);
+    });
+
 
     ipcMain.handle('launcher:kill', async (_, instanceName) => {
         // If the process is already running, kill it
@@ -273,7 +293,7 @@ Add-Type -TypeDefinition $code -Language CSharp
                 try {
                     const { stderr } = await execAsync(`"${p}" -version`, { encoding: 'utf8' });
                     // java -version often outputs to stderr
-                    javaOutput = stderr; 
+                    javaOutput = stderr;
                     return true;
                 } catch (e) {
                     return false;

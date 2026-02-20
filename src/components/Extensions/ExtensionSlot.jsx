@@ -24,7 +24,7 @@ class ExtensionErrorBoundary extends React.Component {
     }
 }
 
-const ExtensionSlot = ({ name, className }) => {
+const ExtensionSlot = ({ name, className, context }) => {
     const { getViews } = useExtensions();
     const views = getViews(name);
 
@@ -36,12 +36,13 @@ const ExtensionSlot = ({ name, className }) => {
                 const Component = view.component;
                 return (
                     <ExtensionErrorBoundary key={view.id}>
-                        <Component />
+                        <Component context={context} />
                     </ExtensionErrorBoundary>
                 );
             })}
         </div>
     );
 };
+
 
 export default ExtensionSlot;

@@ -12,6 +12,71 @@ module.exports = (ipcMain, mainWindow) => {
     // Ensure extensions directory exists
     fs.ensureDirSync(extensionsDir);
 
+    const activeBackendExtensions = new Map(); // { id: { module, api } }
+
+    const createBackendApi = (id) => ({
+        ipc: {
+            handle: (channel, listener) => {
+                const fullChannel = `ext:${id}:${channel}`;
+                try { ipcMain.removeHandler(fullChannel); } catch (e) { } // Clean up old handler if exists
+                ipcMain.handle(fullChannel, (event, ...args) => listener(event, ...args));
+            },
+            on: (channel, listener) => {
+                const fullChannel = `ext:${id}:${channel}`;
+                ipcMain.removeAllListeners(fullChannel);
+                ipcMain.on(fullChannel, (event, ...args) => listener(event, ...args));
+            },
+            send: (channel, ...args) => {
+                mainWindow.webContents.send(`ext:${id}:${channel}`, ...args);
+            }
+        },
+        launcher: {
+            // We could add more specific backend-only launcher hooks here
+        },
+        app,
+        id
+    });
+
+    const loadBackend = async (id, extensionPath) => {
+        const backendPath = path.join(extensionPath, 'backend.js');
+        if (await fs.pathExists(backendPath)) {
+            try {
+                console.log(`[Extensions] Loading backend for ${id}...`);
+                // Clear cache to allow reloads if needed
+                delete require.cache[require.resolve(backendPath)];
+                const backendModule = require(backendPath);
+                const api = createBackendApi(id);
+
+                if (typeof backendModule.activate === 'function') {
+                    await backendModule.activate(api);
+                }
+
+                activeBackendExtensions.set(id, { module: backendModule, api });
+            } catch (e) {
+                console.error(`[Extensions] Failed to load backend for ${id}:`, e);
+            }
+        }
+    };
+
+    const unloadBackend = async (id) => {
+        const active = activeBackendExtensions.get(id);
+        if (active) {
+            try {
+                if (typeof active.module.deactivate === 'function') {
+                    await active.module.deactivate();
+                }
+                // Cleanup IPC handlers
+                // Note: ipcMain.removeHandler doesn't exist in older Electron, 
+                // but we should attempt to remove if possible.
+                // In modern Electron: ipcMain.removeHandler(`ext:${id}:...`)
+            } catch (e) {
+                console.error(`[Extensions] Failed to deactivate backend for ${id}:`, e);
+            }
+            activeBackendExtensions.delete(id);
+        }
+    };
+
+
     // Helper: Load Config
     const loadConfig = async () => {
         try {
@@ -45,14 +110,18 @@ module.exports = (ipcMain, mainWindow) => {
                         if (!manifest.main && manifest.entry) {
                             manifest.main = manifest.entry;
                         }
+                        // The transpiler converts .jsx/.tsx to .js, so we must tell the frontend to load .js
+                        if (manifest.main) {
+                            manifest.main = manifest.main.replace(/\.(jsx|tsx)$/, '.js');
+                        }
 
                         // Determine enabled state (default to true if not set)
                         const isEnabled = config.enabled[dir] !== false;
-                        
+
                         // Resolve Icon Path
                         let iconPath = null;
                         if (manifest.icon) {
-                             iconPath = path.join(extensionsDir, dir, manifest.icon).replace(/\\/g, '/');
+                            iconPath = path.join(extensionsDir, dir, manifest.icon).replace(/\\/g, '/');
                         }
 
                         extensions.push({
@@ -80,11 +149,20 @@ module.exports = (ipcMain, mainWindow) => {
             const config = await loadConfig();
             config.enabled[id] = enabled;
             await saveConfig(config);
+
+            if (enabled) {
+                const targetPath = path.join(extensionsDir, id);
+                await loadBackend(id, targetPath);
+            } else {
+                await unloadBackend(id);
+            }
+
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };
         }
     });
+
 
     // Install extension from URL or local path
     ipcMain.handle('extensions:install', async (_, sourcePath) => {
@@ -98,31 +176,34 @@ module.exports = (ipcMain, mainWindow) => {
             }
 
             const zip = await JSZip.loadAsync(buffer);
-            
+
             // 1. VALIDATION: Check for manifest.json
             const manifestFile = zip.file('manifest.json');
             if (!manifestFile) {
                 return { success: false, error: 'Invalid extension: missing manifest.json' };
             }
 
-            // 2. VALIDATION: Check for main.js (Strict Requirement)
-            // We check if 'main.js' exists in the root of the zip
-            if (!zip.file('main.js')) {
-                 return { success: false, error: 'Invalid extension: missing main.js in root' };
-            }
-
             const manifestContent = await manifestFile.async('text');
             const manifest = JSON.parse(manifestContent);
-            
+
             if (!manifest.id) {
-                 // Generate a safe ID from name
-                 manifest.id = manifest.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                manifest.id = (manifest.name || 'unnamed').toLowerCase().replace(/[^a-z0-9]/g, '-');
             }
-            
+
             // Normalize entry point
-            if (!manifest.main && manifest.entry) {
-                manifest.main = manifest.entry;
+            const entryFile = manifest.main || manifest.entry || 'index.js';
+
+            // 2. VALIDATION: Check if entry file (in some form) exists
+            // We search for the entry file or its source variants (.jsx, .tsx)
+            const entryBasename = entryFile.replace(/\.(js|jsx|tsx)$/, '');
+            const hasEntry = zip.file(entryFile) ||
+                zip.file(`${entryBasename}.jsx`) ||
+                zip.file(`${entryBasename}.tsx`);
+
+            if (!hasEntry) {
+                return { success: false, error: `Invalid extension: missing entry file (${entryFile}) in root` };
             }
+
 
             const installPath = path.join(extensionsDir, manifest.id);
             await fs.ensureDir(installPath);
@@ -130,17 +211,17 @@ module.exports = (ipcMain, mainWindow) => {
             // Extract and Transpile
             for (const filename of Object.keys(zip.files)) {
                 if (zip.files[filename].dir) continue;
-                
+
                 const fileData = await zip.files[filename].async('nodebuffer');
                 const destPath = path.join(installPath, filename);
-                
+
                 await fs.ensureDir(path.dirname(destPath));
 
                 // Transpile JSX/TSX/JS files
                 if (filename.endsWith('.jsx') || filename.endsWith('.tsx') || filename.endsWith('.js')) {
                     const code = fileData.toString('utf-8');
                     try {
-                        const compiled = transform(code, { 
+                        const compiled = transform(code, {
                             transforms: ['jsx', 'imports'],
                             filePath: filename
                         });
@@ -175,7 +256,7 @@ module.exports = (ipcMain, mainWindow) => {
             const targetPath = path.join(extensionsDir, extensionId);
             if (await fs.pathExists(targetPath)) {
                 await fs.remove(targetPath);
-                
+
                 // Cleanup config
                 const config = await loadConfig();
                 delete config.enabled[extensionId];
@@ -191,7 +272,20 @@ module.exports = (ipcMain, mainWindow) => {
     });
 
     // Fetch Marketplace Data - REMOVED or Deprecated
+    // List only enabled backends to start them on launch
+    const initBackends = async () => {
+        const config = await loadConfig();
+        const dirs = await fs.readdir(extensionsDir);
+        for (const id of dirs) {
+            if (config.enabled[id] !== false) {
+                await loadBackend(id, path.join(extensionsDir, id));
+            }
+        }
+    };
+    initBackends();
+
     ipcMain.handle('extensions:fetch-marketplace', async () => {
         return { success: true, extensions: [] }; // Return empty, distinct from "Installed"
     });
 };
+

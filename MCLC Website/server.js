@@ -939,8 +939,17 @@ const adminPublicPath = fs.existsSync(path.join(__dirname, 'public'))
 console.log(`[Static] Serving website from: ${path.resolve(websitePath)}`);
 console.log(`[Static] Serving admin from: ${path.resolve(adminPublicPath)}`);
 
-app.use(express.static(websitePath));
-app.use(express.static(adminPublicPath));
+const staticOptions = {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            // Force browser to always revalidate HTML files so cached `<script>` hashes/tags update
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        }
+    }
+};
+
+app.use(express.static(websitePath, staticOptions));
+app.use(express.static(adminPublicPath, staticOptions));
 
 // Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
@@ -949,7 +958,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 app.get('/extensions/:identifier', (req, res) => {
     // If the identifier corresponds to a file that exists, let express.static handle it
     // But since we want dynamic pages, we'll serve the template
-    res.sendFile(path.join(__dirname, 'extension_detail.html'));
+    res.sendFile(path.join(__dirname, 'extension_detail.html'), { headers: { 'Cache-Control': 'no-cache, must-revalidate' } });
 });
 
 // Initialize Codes System

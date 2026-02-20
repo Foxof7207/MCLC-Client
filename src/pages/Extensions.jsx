@@ -2,23 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useExtensions } from '../context/ExtensionContext';
 
 const Extensions = () => {
-    const { installedExtensions, loadExtension, unloadExtension, toggleExtension } = useExtensions(); // Use Context
+    const { installedExtensions, refreshExtensions, unloadExtension, toggleExtension } = useExtensions(); // Use Context
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [loading, setLoading] = useState(true);
 
     const handleUpload = async () => {
         if (!window.electronAPI) return;
-        
+
         const file = await window.electronAPI.openFileDialog({
-            filters: [{ name: 'MC Extension', extensions: ['mcextension', 'zip'] }]
+            filters: [{ name: 'MC Extension', extensions: ['mclcextension', 'zip'] }]
         });
-        
+
         if (file && !file.canceled && file.filePaths && file.filePaths.length > 0) {
-            // Install from local path
-            // alert("Installing from local file..."); // Removed alert for cleaner UX
+
             const result = await window.electronAPI.installExtension(file.filePaths[0]);
             if (result.success) {
-                window.location.reload();
+                refreshExtensions();
             } else {
                 alert(`Failed to install: ${result.error}`);
             }
@@ -31,7 +30,7 @@ const Extensions = () => {
         await unloadExtension(id);
         const result = await window.electronAPI.removeExtension(id);
         if (result.success) {
-            window.location.reload(); 
+            refreshExtensions();
         } else {
             alert(`Failed to remove: ${result.error}`);
         }
@@ -44,7 +43,7 @@ const Extensions = () => {
                     <h1 className="text-3xl font-bold text-white">Extensions</h1>
                     <p className="text-gray-400 mt-1">Manage and configure your installed extensions.</p>
                 </div>
-                <button 
+                <button
                     onClick={handleUpload}
                     className="bg-primary hover:scale-[1.02] text-black font-bold px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center gap-2 shadow-primary/20 hover:shadow-primary/30"
                 >
@@ -54,7 +53,7 @@ const Extensions = () => {
                     Upload Extension
                 </button>
             </div>
-            
+
             <div className="flex flex-col gap-4">
                 {installedExtensions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-surface/5 rounded-2xl border border-white/5 border-dashed">
@@ -62,7 +61,7 @@ const Extensions = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
                         <p className="text-gray-500 font-medium text-lg">No extensions installed</p>
-                        <p className="text-gray-600 text-sm mt-1">Upload a .zip or .mcextension file to get started.</p>
+                        <p className="text-gray-600 text-sm mt-1">Upload a .zip or .mclcextension file to get started.</p>
                     </div>
                 ) : (
                     installedExtensions.map(ext => (
@@ -70,11 +69,11 @@ const Extensions = () => {
                             {/* Icon / Placeholder */}
                             <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold shadow-inner overflow-hidden flex-shrink-0 ${ext.enabled ? 'bg-primary/20 text-primary' : 'bg-gray-800 text-gray-500'}`}>
                                 {ext.iconPath ? (
-                                    <img 
-                                        src={`app-media:///${ext.iconPath}`} 
-                                        alt={ext.name} 
+                                    <img
+                                        src={`app-media:///${ext.iconPath}`}
+                                        alt={ext.name}
                                         className="w-full h-full object-cover"
-                                        onError={(e) => { e.target.style.display = 'none'; }} 
+                                        onError={(e) => { e.target.style.display = 'none'; }}
                                     />
                                 ) : (
                                     <span>{ext.name.charAt(0).toUpperCase()}</span>
@@ -96,8 +95,8 @@ const Extensions = () => {
                             <div className="flex items-center gap-6">
                                 {/* Toggle Switch */}
                                 <label className="flex items-center cursor-pointer relative">
-                                    <input 
-                                        type="checkbox" 
+                                    <input
+                                        type="checkbox"
                                         className="sr-only peer"
                                         checked={!!ext.enabled}
                                         onChange={(e) => toggleExtension(ext.id, e.target.checked)}
@@ -108,7 +107,7 @@ const Extensions = () => {
 
                                 <div className="h-8 w-[1px] bg-white/10"></div>
 
-                                <button 
+                                <button
                                     onClick={() => handleRemove(ext.id)}
                                     className="p-2 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
                                     title="Uninstall"

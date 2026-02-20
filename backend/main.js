@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol } = require('electron');
+
 const path = require('path');
 const fs = require('fs-extra');
 
@@ -84,6 +85,8 @@ function createWindow() {
         }
         console.log('[Main] Registering skins handler...');
         require('./handlers/skins')(ipcMain, mainWindow);
+        console.log('[Main] Registering extensions handler...');
+        require('./handlers/extensions')(ipcMain, mainWindow);
         console.log('[Main] Registering discord handler...');
         try {
             const discord = require('./handlers/discord');
@@ -127,7 +130,27 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    // Register custom protocol for extensions to load assets (e.g. extension://my-extension/assets/img.png)
+    protocol.registerFileProtocol('extension', (request, callback) => {
+        const url = request.url.replace(/^extension:\/\//, '');
+        try {
+            const decodedUrl = decodeURIComponent(url); // e.g. "my-extension/assets/img.png"
+            const extensionsDir = path.join(app.getPath('userData'), 'extensions');
+            const filePath = path.normalize(path.join(extensionsDir, decodedUrl));
+
+            // Prevent directory traversal attacks
+            if (!filePath.startsWith(extensionsDir)) {
+                return callback({ error: -2 });
+            }
+            callback({ path: filePath });
+        } catch (error) {
+            console.error('Failed to parse extension URL:', error);
+            callback({ error: -2 });
+        }
+    });
+
     createWindow();
+
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -22,6 +22,7 @@ const revealObserver = new IntersectionObserver((entries) => {
     threshold: 0.1
 });
 
+const revealElements = document.querySelectorAll('.reveal');
 revealElements.forEach(el => {
     revealObserver.observe(el);
 });
@@ -48,10 +49,18 @@ async function checkAuth() {
     const loginUrl = `/auth/google?returnTo=${currentPath}`;
     const logoutUrl = `/auth/logout?returnTo=${currentPath}`;
 
+    let data = { loggedIn: false };
     try {
         const res = await fetch('/api/user');
-        const data = await res.json();
+        if (res.ok) {
+            data = await res.json();
+        }
+    } catch (err) {
+        console.error('[MCLC] Auth check failed:', err);
+        // Fallback to unauthenticated state
+    }
 
+    try {
         const rightGroup = document.getElementById('nav-right-group');
         const downloadBtn = document.getElementById('downloadNavBtn');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -64,7 +73,7 @@ async function checkAuth() {
 
         authSection = document.createElement('div');
         authSection.id = 'nav-auth-section';
-        authSection.className = 'flex items-center gap-4';
+        authSection.className = 'hidden md:flex items-center gap-4';
 
         if (data.loggedIn) {
             authSection.innerHTML = `
@@ -136,8 +145,8 @@ async function checkAuth() {
             else mobileAuthDiv.appendChild(mobileAuthSection);
         }
 
-    } catch (err) {
-        console.error('[MCLC] Auth check failed:', err);
+    } catch (e) {
+        console.error('[MCLC] Failed to render auth UI:', e);
     }
 }
 

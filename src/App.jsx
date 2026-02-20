@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExtensionProvider } from './context/ExtensionContext';
 import { Analytics } from './services/Analytics';
+import ExtensionSlot from './components/Extensions/ExtensionSlot';
+
 
 const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
@@ -476,7 +478,13 @@ function App() {
                         </div>
                     </div>
 
+                    {/* Extension Slot: Header Center */}
+                    <ExtensionSlot name="header.center" className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" />
+
                     <div className="flex items-center gap-4 no-drag h-full">
+                        {/* Extension Slot: Header Right */}
+                        <ExtensionSlot name="header.right" className="flex items-center gap-2 mr-2" />
+
                         { }
                         <div className="relative h-full flex items-center" ref={sessionsRef}>
                             <button
@@ -666,6 +674,9 @@ function App() {
                     </main>
                 )}
             </div>
+
+            {/* Extension Slot: Global App Overlay (for floating modals, arbitrary elements) */}
+            <ExtensionSlot name="app.overlay" className="absolute inset-0 pointer-events-none z-[9999] *:pointer-events-auto" />
         </ExtensionProvider>
     );
 }

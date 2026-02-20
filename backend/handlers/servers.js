@@ -6,7 +6,9 @@ const axios = require('axios');
 const { createWriteStream } = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
+const { getProcessStats } = require('../utils/process-utils');
 const serverProcesses = new Map();
+
 
 const serverStatsIntervals = new Map();
 
@@ -237,80 +239,8 @@ async function updateServerConfig(serverName, updates) {
     }
     return null;
 }
-async function getProcessStats(pid) {
-    try {
-        if (!pid) return { cpu: 0, memory: 0 };
+// getProcessStats was here, now moved to utils/process-utils.js
 
-        return new Promise((resolve) => {
-            if (process.platform === 'win32') {
-
-                const { exec } = require('child_process');
-                exec(`tasklist /FI "PID eq ${pid}" /FO CSV /NH`, (error, stdout) => {
-                    if (error) {
-                        resolve({ cpu: 0, memory: 0 });
-                        return;
-                    }
-
-                    const lines = stdout.trim().split('\r\n').filter(l => l.trim());
-                    if (lines.length > 0) {
-                        // "Image Name","PID","Session Name","Session#","Mem Usage"
-                        // parts might be split by commas within quotes. 
-                        // Simplified regex to match the last quoted part which is usually memory.
-                        const matches = lines[0].match(/"([^"]+)"/g);
-                        if (matches && matches.length >= 5) {
-                            const memStr = matches[4].replace(/[",]/g, '').trim();
-                            let memoryMB = 0;
-                            // tasklist memory is usually in K (e.g. "150.000 K")
-                            const val = parseInt(memStr.replace(/[^\d]/g, ''));
-                            if (memStr.includes('K')) memoryMB = val / 1024;
-                            else if (memStr.includes('M')) memoryMB = val;
-                            else if (memStr.includes('G')) memoryMB = val * 1024;
-                            else memoryMB = val / (1024 * 1024);
-
-                            // Get CPU usage using PowerShell for more reliable Percentage values
-                            const psCmd = `powershell -Command "Get-WmiObject -Class Win32_PerfFormattedData_PerfProc_Process -Filter \\"IDProcess=${pid}\\" | Select-Object -ExpandProperty PercentProcessorTime"`;
-                            exec(psCmd, (error, stdout) => {
-                                const cpuVal = parseInt(stdout.trim());
-                                resolve({
-                                    cpu: isNaN(cpuVal) ? 0 : Math.min(cpuVal, 100),
-                                    memory: Math.round(memoryMB) || 1
-                                });
-                            });
-                        } else {
-                            resolve({ cpu: 0, memory: 0 });
-                        }
-                    } else {
-                        resolve({ cpu: 0, memory: 0 });
-                    }
-                });
-            } else {
-                // Linux/Mac: Use ps command
-                const { exec } = require('child_process');
-                exec(`ps -o %cpu=,rss= -p ${pid}`, (error, stdout) => {
-                    if (error) {
-                        resolve({ cpu: 0, memory: 0 });
-                        return;
-                    }
-
-                    const parts = stdout.trim().split(/\s+/);
-                    if (parts.length >= 2) {
-                        const cpu = parseFloat(parts[0]) || 0;
-                        const memoryKB = parseInt(parts[1]) || 0;
-                        resolve({
-                            cpu: Math.min(Math.round(cpu), 100),
-                            memory: Math.round(memoryKB / 1024)
-                        });
-                    } else {
-                        resolve({ cpu: 0, memory: 0 });
-                    }
-                });
-            }
-        });
-    } catch (error) {
-        console.error('Error getting process stats:', error);
-        return { cpu: 0, memory: 0 };
-    }
-}
 
 
 

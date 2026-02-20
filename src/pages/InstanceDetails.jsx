@@ -5,6 +5,8 @@ import ModpackCodeModal from '../components/ModpackCodeModal';
 import { useNotification } from '../context/NotificationContext';
 import { Analytics } from '../services/Analytics';
 import ToggleBox from '../components/ToggleBox';
+import ExtensionSlot from '../components/Extensions/ExtensionSlot';
+
 
 function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate }) {
     const [activeTab, setActiveTab] = useState('content');
@@ -834,8 +836,14 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             </div>
 
             { }
-            <div className="px-8 mt-8 flex gap-2 border-b border-white/5">
+            <div className="px-8 mt-4">
+                <ExtensionSlot name="instance.details" context={{ instanceName: instance.name, status, isRunning }} className="w-full flex gap-4 overflow-x-auto" />
+            </div>
+
+            { }
+            <div className="px-8 mt-4 flex gap-2 border-b border-white/5">
                 <button onClick={() => setActiveTab('content')} className={TAB_CLASSES('content')}>Content</button>
+
                 <button onClick={() => setActiveTab('worlds')} className={TAB_CLASSES('worlds')}>Worlds</button>
                 <button onClick={() => setActiveTab('logs')} className={TAB_CLASSES('logs')}>Logs</button>
             </div>
@@ -1311,12 +1319,11 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                             )}
                                             {/* Game Mode Badge */}
                                             <div className="absolute top-3 left-3 flex gap-2">
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-lg ${
-                                                    world.gameMode === 'Creative' ? 'bg-purple-500/80 text-white' :
-                                                    world.gameMode === 'Survival' ? 'bg-red-500/80 text-white' :
-                                                    world.gameMode === 'Adventure' ? 'bg-orange-500/80 text-white' :
-                                                    'bg-gray-500/80 text-white'
-                                                }`}>
+                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-lg ${world.gameMode === 'Creative' ? 'bg-purple-500/80 text-white' :
+                                                        world.gameMode === 'Survival' ? 'bg-red-500/80 text-white' :
+                                                            world.gameMode === 'Adventure' ? 'bg-orange-500/80 text-white' :
+                                                                'bg-gray-500/80 text-white'
+                                                    }`}>
                                                     {world.gameMode || 'Unknown'}
                                                 </span>
                                                 {world.hardcore && (
@@ -1338,7 +1345,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                             <h3 className="text-white font-bold text-lg truncate group-hover:text-primary transition-colors mb-1" title={world.name}>
                                                 {world.name}
                                             </h3>
-                                            
+
                                             <div className="grid grid-cols-2 gap-2 mt-auto pt-4 border-t border-white/5">
                                                 <div className="flex flex-col">
                                                     <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Last Played</span>
