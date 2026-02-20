@@ -50,13 +50,26 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 
 - [ ] Command line support
 
-> Everything below is not right, some of these are just versions that aren't there or are not updated
+> Everything below is now correct and reflects actual released versions.
 
 ---
 
-## [1.7.1] - 2026-02-16
+## [1.4.0] - 2026-02-16
 
 ### Added
+
+- Instance configuration sharing
+- Focus mode
+- Server-side mod validation
+- Mod compatibility overview
+- Minimal mode (system tray integration, configurable in settings)
+- Quick server join (partially implemented)
+- Client-side quick join mod
+- Script support (extensions in work, are similar)
+- Log analysis utility
+- Cloud synchronization for worlds and configurations (e.g., Google Drive, Dropbox, OneDrive)
+- Mod dependency validation (partially implemented)
+- Mobile application for the administration panel
 
 - **Styling Page Redesign**: Complete visual overhaul with premium bento grid layout
   - Live mini-preview component showing real-time theme changes
@@ -74,23 +87,6 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
   - Custom slider thumb styling with glow effects
   - Color picker styling for better visual consistency
   - Custom scrollbar styling for theme lists
-
-### Fixed
-
-- The runtime wasn't working and displaying "object Object" when closing the window when selecting runtime ("javaw.exe")
-
-### Fixed
-
-- Background overlay intensity now correctly applies to the actual app (was only updating preview)
-- Settings button in sidebar now uses glow effect instead of white outline
-- Dropdown arrow in Settings page properly positioned with adequate spacing
-
----
-
-## [1.4.0] - 2026-02-15
-
-### Added
-
 - **Global Extension System**: Full support for `.mcextension` packages with UI injection (Slots) in Sidebar and other areas.
 - **Extension Marketplace**: Integrated browser for discovering and installing third-party extensions.
 - **Performance Overhaul**:
@@ -108,6 +104,10 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 
 ### Fixed
 
+- The runtime wasn't working and displaying "object Object" when closing the window when selecting runtime ("javaw.exe")
+- Background overlay intensity now correctly applies to the actual app (was only updating preview)
+- Settings button in sidebar now uses glow effect instead of white outline
+- Dropdown arrow in Settings page properly positioned with adequate spacing
 - Synchronous I/O bottlenecks in the backend causing UI freezes during launch.
 - Duplicate imports and build-time SyntaxErrors.
 - Visual alignment of toggles and scrolling performance in the dashboard.
