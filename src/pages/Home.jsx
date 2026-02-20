@@ -222,10 +222,10 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
         }
     };
 
-    const loadModOfTheDay = async () => {
+    const loadModOfTheDay = async (projectId) => {
         setLoadingModOfTheDay(true);
         try {
-            const res = await window.electronAPI.getModrinthProject('e2R0wxyL');
+            const res = await window.electronAPI.getModrinthProject(projectId);
             if (res && res.success) {
                 setModOfTheDay(res.project);
             }
@@ -237,7 +237,11 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
     };
 
     const loadNewModOfTheDay = async () => {
-        await loadModOfTheDay();
+        if (modIds.length === 0) return;
+        const newId = selectRandomModId(modIds);
+        if (newId) {
+            setCurrentModId(newId);
+        }
     };
 
     const recentInstances = [...instances]
