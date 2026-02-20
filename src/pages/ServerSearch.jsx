@@ -22,6 +22,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const [showInstallModal, setShowInstallModal] = useState(false);
     const [selectedMod, setSelectedMod] = useState(null);
     const [selectedServer, setSelectedServer] = useState('');
+    const [servers, setServers] = useState([]);
     const [installing, setInstalling] = useState(false);
     const [installedIds, setInstalledIds] = useState(new Set());
     const [instanceInstalledIds, setInstanceInstalledIds] = useState(new Set());
@@ -120,12 +121,12 @@ function Search({ initialCategory, onCategoryConsumed }) {
         }
     };
     useEffect(() => {
-        if (showInstallModal && selectedInstance) {
+        if (showInstallModal && selectedServer) {
             checkInstanceInstalled();
         } else {
             setInstanceInstalledIds(new Set());
         }
-    }, [selectedInstance, showInstallModal, projectType]);
+    }, [selectedServer, showInstallModal, projectType]);
 
     const checkInstanceInstalled = async () => {
         try {
@@ -419,7 +420,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                                     onChange={(e) => setSelectedServer(e.target.value)}
                                     className="w-full bg-background border border-white/10 rounded-xl p-3 text-white focus:border-primary outline-none appearance-none"
                                 >
-                                    {window.electronAPI.getServers && [].map(inst => (
+                                    {servers && servers.map(inst => (
                                         <option key={inst.name} value={inst.name}>{inst.name} ({inst.software} {inst.version})</option>
                                     ))}
                                 </select>

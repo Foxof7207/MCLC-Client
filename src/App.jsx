@@ -164,6 +164,27 @@ function App() {
             }
         });
 
+        const removeServerStatusListener = window.electronAPI.onServerStatus?.(({ serverName, status }) => {
+            setRunningInstances(prev => {
+                const next = { ...prev };
+                if (status === 'stopped' || status === 'deleted' || status === 'error') {
+                    delete next[serverName];
+                } else {
+                    next[serverName] = status;
+                }
+                return next;
+            });
+
+            // Cleanup active downloads for servers too if applicable
+            setActiveDownloads(prev => {
+                const next = { ...prev };
+                if (status === 'stopped' || status === 'error' || status === 'ready' || status === 'deleted' || status === 'running') {
+                    delete next[serverName];
+                }
+                return next;
+            });
+        });
+
         const removeInstallListener = window.electronAPI.onInstallProgress(({ instanceName, progress, status }) => {
             setActiveDownloads(prev => {
                 const next = { ...prev };
@@ -229,6 +250,7 @@ function App() {
             if (removeInstallListener) removeInstallListener();
             if (removeLaunchProgressListener) removeLaunchProgressListener();
             if (removeStatusListener) removeStatusListener();
+            if (removeServerStatusListener) removeServerStatusListener();
             if (removeThemeListener) removeThemeListener();
             if (removeWindowStateListener) removeWindowStateListener();
             document.removeEventListener('mousedown', handleClickOutside);

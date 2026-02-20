@@ -68,9 +68,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         loadPlatforms();
 
         const removeListener = window.electronAPI.onServerStatus(({ serverName, status }) => {
-            if (status === 'stopped' || status === 'ready' || status === 'error' || status === 'deleted') {
-                loadServers();
-            }
+            loadServers();
             if (selectedServer?.name === serverName && status === 'stopped') {
                 addNotification(`Server ${serverName} stopped`, 'info');
             }
