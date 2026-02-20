@@ -829,9 +829,14 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
 
         setIsSearchingMods(true);
         try {
-            const projectType = getProjectType();
-            const result = await window.electronAPI.modrinthSearch(query, [], {
-                projectType,
+            const loader = getLoaderForModrinth();
+            const facets = [];
+            if (loader !== 'vanilla') {
+                facets.push([`categories:${loader}`]);
+            }
+
+            const result = await window.electronAPI.modrinthSearch(query, facets, {
+                projectType: 'mod',
                 limit: 10
             });
 
@@ -864,7 +869,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                     ...prev,
                     [projectId]: result.versions || []
                 }));
-                
+
                 if (result.versions && result.versions.length > 0) {
                     setSelectedModVersion(prev => ({
                         ...prev,
@@ -909,7 +914,8 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 versionId: versionId,
                 filename: file.filename,
                 url: file.url,
-                projectType: getProjectType()
+                projectType: getLoaderType() === 'paper-like' ? 'plugin' : 'mod',
+                isServer: true
             });
 
             if (result.success) {

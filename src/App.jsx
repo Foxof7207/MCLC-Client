@@ -12,6 +12,7 @@ const Settings = React.lazy(() => import('./pages/Settings'));
 const Styling = React.lazy(() => import('./pages/Styling'));
 const Skins = React.lazy(() => import('./pages/Skins'));
 const ServerSettings = React.lazy(() => import('./pages/ServerSettings'));
+const ServerSearch = React.lazy(() => import('./pages/ServerSearch'));
 const ServerLibrary = React.lazy(() => import('./pages/ServerLibrary'));
 const InstanceDetails = React.lazy(() => import('./pages/InstanceDetails'));
 const Extensions = React.lazy(() => import('./pages/Extensions'));
@@ -609,7 +610,7 @@ function App() {
                                                     onServerUpdate={handleServerUpdate}
                                                 />
                                             )}
-                                            {currentView === 'search' && <Search />}
+                                            {currentView === 'search' && <ServerSearch />}
                                             {currentView === 'styling' && <Styling />}
                                             {currentView === 'server-library' && <ServerLibrary />}
                                             {currentView === 'server-settings' && <ServerSettings />}

@@ -93,13 +93,14 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
         console.log(`[Servers] Checking Playit plugin for ${software} ${version}`);
         const loaderMap = {
             'paper': 'paper',
-            'purpur': 'purpur',
-            'spigot': 'spigot',
-            'bukkit': 'bukkit',
-            'folia': 'folia',
+            'purpur': 'paper',
+            'spigot': 'paper',
+            'bukkit': 'paper',
+            'folia': 'paper',
             'fabric': 'fabric',
             'forge': 'forge',
             'neoforge': 'neoforge',
+            'quilt': 'quilt',
             'vanilla': 'vanilla'
         };
 
@@ -427,6 +428,13 @@ eula=true
                         const process = serverProcesses.get(config.name);
                         if (process && !process.killed) {
                             config.status = 'running';
+                        } else if (config.status === 'starting' || config.status === 'stopping') {
+                            // if process is not running but status implies it is
+                            const now = Date.now();
+                            const startTime = serverStartTimes.get(config.name) || 0;
+                            // Reset config.status if there is no process
+                            config.status = 'stopped';
+                            config.pid = null;
                         } else {
                             config.status = 'stopped';
                             config.pid = null;
@@ -443,6 +451,37 @@ eula=true
         } catch (error) {
             console.error('Error getting servers:', error);
             return [];
+        }
+    });
+
+    // Get server status
+    ipcMain.handle('server:get-status', async (event, name) => {
+        try {
+            const process = serverProcesses.get(name);
+            if (process && !process.killed) {
+                return 'running';
+            }
+            const serversDir = path.join(app.getPath('userData'), 'servers');
+            const safeName = sanitizeFileName(name);
+            const configPath = path.join(serversDir, safeName, 'server.json');
+
+            if (await fs.pathExists(configPath)) {
+                const config = await fs.readJson(configPath);
+                return config.status === 'starting' || config.status === 'stopping' ? 'stopped' : (config.status || 'stopped');
+            }
+            return 'stopped';
+        } catch (error) {
+            console.error('Error getting server status:', error);
+            return 'stopped';
+        }
+    });
+
+    app.on('before-quit', () => {
+        for (const [name, process] of serverProcesses.entries()) {
+            if (process && !process.killed) {
+                console.log(`[Servers] Killing server ${name} before quit`);
+                process.kill('SIGKILL');
+            }
         }
     });
 
@@ -1032,29 +1071,7 @@ eula=false
         }
     });
 
-    // Get server status
-    ipcMain.handle('server:get-status', async (event, name) => {
-        try {
-            const process = serverProcesses.get(name);
-            if (process && !process.killed) {
-                return 'running';
-            }
 
-            const serversDir = path.join(app.getPath('userData'), 'servers');
-            const safeName = sanitizeFileName(name);
-            const configPath = path.join(serversDir, safeName, 'server.json');
-
-            if (await fs.pathExists(configPath)) {
-                const config = await fs.readJson(configPath);
-                return config.status || 'stopped';
-            }
-
-            return 'stopped';
-        } catch (error) {
-            console.error('[Servers] Error getting server status:', error);
-            return 'stopped';
-        }
-    });
 
     // Open server folder
     ipcMain.handle('server:open-folder', async (event, name) => {
@@ -1239,10 +1256,10 @@ eula=false
         try {
             const loaderMap = {
                 'paper': 'paper',
-                'purpur': 'purpur',
-                'spigot': 'spigot',
-                'bukkit': 'bukkit',
-                'folia': 'folia',
+                'purpur': 'paper',
+                'spigot': 'paper',
+                'bukkit': 'paper',
+                'folia': 'paper',
                 'fabric': 'fabric',
                 'forge': 'forge',
                 'neoforge': 'neoforge',

@@ -67,6 +67,7 @@ const electronAPI = {
     getInstances: () => ipcRenderer.invoke('instance:get-all'),
     installModpack: (url, name) => ipcRenderer.invoke('instance:install-modpack', url, name),
     searchModrinth: (query, facets, options) => ipcRenderer.invoke('modrinth:search', query, facets, options),
+    modrinthSearch: (query, facets, options) => ipcRenderer.invoke('modrinth:search', query, facets, options),
     installMod: (data) => ipcRenderer.invoke('modrinth:install', data),
     installLocalMod: (instanceName, filePath) => ipcRenderer.invoke('instance:install-local-mod', instanceName, filePath),
     getModVersions: (projectId, loaders, gameVersions) => ipcRenderer.invoke('modrinth:get-versions', projectId, loaders, gameVersions),
@@ -162,7 +163,7 @@ const electronAPI = {
     stopServer: (name) => ipcRenderer.invoke('server:stop', name),
     restartServer: (name) => ipcRenderer.invoke('server:restart', name),
     getServerStatus: (name) => ipcRenderer.invoke('server:get-status', name),
-    getServerLogs: (name) => ipcRenderer.invoke('server:get-console', name),
+    getServerConsole: (name) => ipcRenderer.invoke('server:get-console', name),
     sendServerCommand: (serverName, command) => ipcRenderer.invoke('server:send-command', serverName, command),
     getServerStats: (name) => ipcRenderer.invoke('server:get-stats', name),
     saveServerLogs: (serverName, logs) => ipcRenderer.invoke('server:save-logs', serverName, logs),
@@ -181,10 +182,25 @@ const electronAPI = {
         ipcRenderer.on('server:status', subscription);
         return () => ipcRenderer.removeListener('server:status', subscription);
     },
+    onServerConsoleOutput: (callback) => {
+        const subscription = (_event, value) => callback(value);
+        ipcRenderer.on('server:console', subscription);
+        return () => ipcRenderer.removeListener('server:console', subscription);
+    },
     onServerLog: (callback) => {
         const subscription = (_event, value) => callback(value);
         ipcRenderer.on('server:console', subscription);
         return () => ipcRenderer.removeListener('server:console', subscription);
+    },
+    onServerStats: (callback) => {
+        const subscription = (_event, value) => callback(value);
+        ipcRenderer.on('server:stats', subscription);
+        return () => ipcRenderer.removeListener('server:stats', subscription);
+    },
+    onServerConsoleCleared: (callback) => {
+        const subscription = (_event, value) => callback(value);
+        ipcRenderer.on('server:console-cleared', subscription);
+        return () => ipcRenderer.removeListener('server:console-cleared', subscription);
     },
     onServerStats: (callback) => {
         const subscription = (_event, value) => callback(value);
