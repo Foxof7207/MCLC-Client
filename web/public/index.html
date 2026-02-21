@@ -34,8 +34,7 @@
         </form>
     </div>
 
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    <script>        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const password = document.getElementById('password').value;
             const res = await fetch('/api/login', {
@@ -50,8 +49,7 @@
             } else {
                 alert('Access Denied');
             }
-        });
-    </script>
+        });</script>
 
 </body>
 

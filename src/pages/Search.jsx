@@ -242,17 +242,15 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
             if (res.success && res.versions.length > 0) {
                 const version = res.versions[0];
-                
-                // Resolve dependencies
                 const depRes = await window.electronAPI.resolveDependencies(version.id, loaders, [instance.version]);
-                
+
                 if (depRes.success && depRes.dependencies.length > 1) {
                     setPendingDependencies(depRes.dependencies);
                     setResolvedForInstance(instance);
                     setShowDependencyModal(true);
                     setShowInstallModal(false);
                 } else {
-                    // Just install the primary mod
+
                     const file = version.files.find(f => f.primary) || version.files[0];
                     await executeInstallList([{
                         instanceName: instance.name,
@@ -276,13 +274,13 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
     const executeInstallList = async (installList) => {
         if (!installList || installList.length === 0) return;
-        
+
         setInstalling(true);
         try {
             for (let i = 0; i < installList.length; i++) {
                 const item = installList[i];
                 addNotification(`Installing ${item.title} (${i + 1}/${installList.length})...`, 'info');
-                
+
                 const res = await window.electronAPI.installMod({
                     instanceName: item.instanceName,
                     projectId: item.projectId,
@@ -312,7 +310,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
     const handleDependencyConfirm = async (selectedMods) => {
         if (!resolvedForInstance) return;
-        
+
         const installList = selectedMods.map(m => ({
             instanceName: resolvedForInstance.name,
             projectId: m.projectId,
@@ -322,7 +320,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
             projectType: m.projectType,
             title: m.title
         }));
-        
+
         await executeInstallList(installList);
     };
 
@@ -679,7 +677,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
             }
 
             {showDependencyModal && (
-                <ModDependencyModal 
+                <ModDependencyModal
                     mods={pendingDependencies}
                     onConfirm={handleDependencyConfirm}
                     onCancel={() => setShowDependencyModal(false)}

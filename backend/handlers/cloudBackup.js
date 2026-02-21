@@ -9,19 +9,19 @@ const store = new Store();
 const PROVIDERS = {
     GOOGLE_DRIVE: {
         name: 'Google Drive',
-        clientId: '1002457962092-07245fh0gf5phjpsbklvl6s7ktl7m8r5.apps.googleusercontent.com', // Replace with your Google Client ID
-        clientSecret: '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', // Replace with your Google Client Secret
+        clientId: '1002457962092-07245fh0gf5phjpsbklvl6s7ktl7m8r5.apps.googleusercontent.com',
+        clientSecret: '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',
         authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
         tokenUrl: 'https://oauth2.googleapis.com/token',
         scope: 'https://www.googleapis.com/auth/drive.file openid profile email'
     },
     DROPBOX: {
         name: 'Dropbox',
-        clientId: '44ruvawolz1o7jo', // Replace with your Dropbox App Key
-        clientSecret: 'k86b6d63o14k8ku', // Replace with your Dropbox App Secret
+        clientId: '44ruvawolz1o7jo',
+        clientSecret: 'k86b6d63o14k8ku',
         authUrl: 'https://www.dropbox.com/oauth2/authorize',
         tokenUrl: 'https://api.dropboxapi.com/oauth2/token',
-        scope: '' // Dropbox handles scopes via app settings
+        scope: ''
     }
 };
 
@@ -58,8 +58,6 @@ class CloudBackupHandler {
         this.ipcMain.handle('cloud:download', async (_, providerId, fileId, targetPath) => {
             return await this.downloadBackup(providerId, fileId, targetPath);
         });
-
-        // Auto-backup listener
         const { app } = require('electron');
         app.on('backup:created', async ({ providerId, filePath, instanceName }) => {
             console.log(`[CloudBackup] 📥 Event received: backup:created for ${instanceName} to ${providerId}`);
@@ -68,7 +66,7 @@ class CloudBackupHandler {
                 const result = await this.uploadBackup(providerId, filePath, instanceName);
                 if (result.success) {
                     console.log(`[CloudBackup] ✅ Upload successful: ${instanceName}`);
-                    // Delete the local file after successful cloud upload as requested by user
+
                     try {
                         await fs.remove(filePath);
                         console.log(`[CloudBackup] Temporary local backup deleted: ${filePath}`);
@@ -238,8 +236,6 @@ class CloudBackupHandler {
         const cloudSettings = store.get('cloud_backups') || {};
         const providerData = cloudSettings[providerId];
         if (!providerData) return null;
-
-        // Simple expiry check if possible, or just try to refresh if request fails
         return providerData.tokens.access_token;
     }
 

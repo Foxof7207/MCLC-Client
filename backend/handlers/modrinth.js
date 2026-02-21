@@ -257,7 +257,7 @@ module.exports = (ipcMain, win) => {
                 }
 
                 if (loader !== 'vanilla' && version) {
-                    // map paper-like loaders for modrinth resolution just in case
+
                     const resolveLoader = ['spigot', 'bukkit', 'purpur', 'folia'].includes(loader) ? 'paper' : loader;
 
                     const resolveRes = await resolveDependenciesInternal(data.versionId, [resolveLoader], [version]);
@@ -352,8 +352,6 @@ module.exports = (ipcMain, win) => {
                 headers: { 'User-Agent': 'Antigravity/MinecraftLauncher/1.0 (fernsehheft@pluginhub.de)' }
             });
             const project = response.data;
-
-            // Fetch team members to get the author
             if (project.team) {
                 try {
                     const teamRes = await axios.get(`${MODRINTH_API}/team/${project.team}/members`, {

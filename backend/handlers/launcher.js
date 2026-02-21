@@ -6,8 +6,6 @@ const Store = require('electron-store');
 const store = new Store();
 const backupManager = require('../backupManager');
 const { getProcessStats } = require('../utils/process-utils');
-
-
 module.exports = (ipcMain, mainWindow) => {
 
     const runningInstances = new Map();
@@ -116,8 +114,6 @@ Add-Type -TypeDefinition $code -Language CSharp
     ipcMain.handle('launcher:get-process-stats', async (_, pid) => {
         return await getProcessStats(pid);
     });
-
-
     ipcMain.handle('launcher:kill', async (_, instanceName) => {
         // If the process is already running, kill it
         const proc = childProcesses.get(instanceName);

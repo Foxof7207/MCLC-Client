@@ -8,8 +8,6 @@ const { spawn } = require('child_process');
 const readline = require('readline');
 const { getProcessStats } = require('../utils/process-utils');
 const serverProcesses = new Map();
-
-
 const serverStatsIntervals = new Map();
 
 const serverStartTimes = new Map();
@@ -18,13 +16,11 @@ const serverConsoleBuffers = new Map();
 
 function stripAnsi(text) {
     if (!text) return '';
-    // Strips ANSI escape codes
+
     const ansiRegex = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
     let clean = text.replace(ansiRegex, '');
 
     clean = clean.replace(/[┌┐└┘─│┤├┬┴┼═║╒╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡╢╣╤╥╦╧╨╩╪╫╬■●]/g, ' ');
-
-    // Remove other weird control characters but keep most printable symbols
     return clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
 }
 
@@ -124,14 +120,11 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
 
         const softwareLower = software.toLowerCase();
         let loader = loaderMap[softwareLower];
-
-        // Paper, Purpur, Spigot etc are technically 'paper' in our map, 
-        // but we should check if they are plugins or mods.
         if (!loader || loader === 'vanilla') {
             return false;
         }
 
-        const projectId = 'og7kbNBC'; // Playit-gg Modrinth ID
+        const projectId = 'og7kbNBC';
         const versionsResponse = await axios.get(`https://api.modrinth.com/v2/project/${projectId}/version`, {
             headers: { 'User-Agent': 'Antigravity/MinecraftLauncher/1.0' }
         });
@@ -140,8 +133,6 @@ async function downloadPlayitPlugin(serverDir, software, version, serverName, ma
             console.log('[Servers] No versions found for Playit plugin');
             return false;
         }
-
-        // Broaden matching for paper-like loaders
         const isPaperLike = ['paper', 'spigot', 'bukkit', 'purpur', 'folia'].includes(softwareLower);
         const targetLoaders = isPaperLike ? ['paper', 'spigot', 'bukkit'] : [loader.toLowerCase()];
 
@@ -243,11 +234,6 @@ async function updateServerConfig(serverName, updates) {
     }
     return null;
 }
-// getProcessStats was here, now moved to utils/process-utils.js
-
-
-
-
 async function getServerConfig(serverName) {
     try {
         const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -268,12 +254,8 @@ async function getServerConfig(serverName) {
         return null;
     }
 }
-
-
-
-// Start collecting server stats
 function startServerStatsCollection(serverName, process, mainWindow) {
-    // Clear existing interval if any
+
     if (serverStatsIntervals.has(serverName)) {
         clearInterval(serverStatsIntervals.get(serverName));
     }
@@ -283,19 +265,11 @@ function startServerStatsCollection(serverName, process, mainWindow) {
             if (!process || process.killed) {
                 return;
             }
-
-            // Get process stats
             const stats = await getProcessStats(process.pid);
-
-            // Calculate uptime
             const startTime = serverStartTimes.get(serverName) || Date.now();
             const uptime = Math.floor((Date.now() - startTime) / 1000);
-
-            // Parse player count from console buffer
             const consoleBuffer = serverConsoleBuffers.get(serverName) || [];
             let players = [];
-
-            // Try to extract player list from console output
             for (let i = consoleBuffer.length - 1; i >= 0; i--) {
                 const line = consoleBuffer[i];
                 if (line.includes('players online:')) {
@@ -326,9 +300,6 @@ function startServerStatsCollection(serverName, process, mainWindow) {
 
 module.exports = (ipcMain, mainWindow) => {
     console.log('[Servers] Setting up server handlers...');
-
-    // ==================== EULA FUNCTIONS ====================
-
     ipcMain.handle('server:check-eula', async (event, serverName) => {
         try {
             console.log(`[Servers] Checking EULA for ${serverName}`);
@@ -385,10 +356,6 @@ eula=true
             return { success: false, error: error.message };
         }
     });
-
-    // ==================== SERVER MANAGEMENT ====================
-
-    // Get all servers
     ipcMain.handle('server:get-all', async () => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -403,8 +370,6 @@ eula=true
                     try {
                         let config = await fs.readJson(configPath);
                         let needsUpdate = false;
-
-                        // Check if process is still running
                         const activeProc = serverProcesses.get(config.name);
                         if (activeProc && !activeProc.killed) {
                             if (config.status !== 'running') {
@@ -412,8 +377,6 @@ eula=true
                                 needsUpdate = true;
                             }
                         } else {
-                            // If not running in memory, it should be stopped 
-                            // unless it's a transient state we want to preserve (like downloading/installing)
                             if (config.status !== 'downloading' && config.status !== 'installing') {
                                 if (config.status !== 'stopped') {
                                     config.status = 'stopped';
@@ -422,9 +385,6 @@ eula=true
                             }
                             config.pid = null;
                         }
-
-
-
                         if (needsUpdate) {
                             await fs.writeJson(configPath, config, { spaces: 4 });
                         }
@@ -442,8 +402,6 @@ eula=true
             return [];
         }
     });
-
-    // Get server status
     ipcMain.handle('server:get-status', async (event, name) => {
         try {
             const process = serverProcesses.get(name);
@@ -456,7 +414,7 @@ eula=true
 
             if (await fs.pathExists(configPath)) {
                 const config = await fs.readJson(configPath);
-                // Memory is truth
+
                 const proc = serverProcesses.get(name);
                 if (proc && !proc.killed) return 'running';
 
@@ -476,7 +434,7 @@ eula=true
             if (proc && !proc.killed) {
                 console.log(`[Servers] Force killing server ${name} before quit`);
                 if (process.platform === 'win32') {
-                    // Use execSync to ensure it completes before the app exits
+
                     try {
                         require('child_process').execSync(`taskkill /F /T /PID ${proc.pid}`, { stdio: 'ignore' });
                     } catch (err) {
@@ -487,20 +445,14 @@ eula=true
                 }
             }
         }
-
-
     });
-
-    // Get server logs
     ipcMain.handle('server:get-console', async (event, serverName) => {
         try {
-            // Return from in-memory buffer first
+
             const buffer = serverConsoleBuffers.get(serverName) || [];
             if (buffer.length > 0) {
                 return buffer;
             }
-
-            // Fallback to file if buffer is empty
             const serversDir = path.join(app.getPath('userData'), 'servers');
             const safeName = sanitizeFileName(serverName);
             const serverDir = path.join(serversDir, safeName);
@@ -509,8 +461,6 @@ eula=true
             if (await fs.pathExists(logPath)) {
                 const log = await fs.readFile(logPath, 'utf-8');
                 const lines = log.split('\n').filter(line => line.trim()).slice(-100);
-
-                // Also store in buffer
                 serverConsoleBuffers.set(serverName, lines);
 
                 return lines;
@@ -522,8 +472,6 @@ eula=true
             return [];
         }
     });
-
-    // Get server stats
     ipcMain.handle('server:get-stats', async (event, serverName) => {
         try {
             const process = serverProcesses.get(serverName);
@@ -544,7 +492,7 @@ eula=true
                 cpu: stats.cpu,
                 memory: stats.memory,
                 uptime: uptime,
-                players: [] // Would need parsing from logs
+                players: []
             };
         } catch (error) {
             console.error('[Servers] Error getting stats:', error);
@@ -556,28 +504,18 @@ eula=true
             };
         }
     });
-
-    // Send command to server
     ipcMain.handle('server:send-command', async (event, serverName, command) => {
         try {
             const process = serverProcesses.get(serverName);
             if (!process || !process.stdin) {
                 throw new Error('Server is not running');
             }
-
-            // Remove leading slash if present
             const cleanCommand = command.startsWith('/') ? command.substring(1) : command;
-
-            // Write command to server stdin
             process.stdin.write(cleanCommand + '\n');
-
-            // Add command to console buffer
             const buffer = serverConsoleBuffers.get(serverName) || [];
             buffer.push(`> ${command}`);
             if (buffer.length > 500) buffer.shift();
             serverConsoleBuffers.set(serverName, buffer);
-
-            // Log command to console
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('server:console', {
                     serverName,
@@ -591,8 +529,6 @@ eula=true
             return { success: false, error: error.message };
         }
     });
-
-    // Save server logs
     ipcMain.handle('server:save-logs', async (event, serverName, logs) => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -612,8 +548,6 @@ eula=true
             return { success: false, error: error.message };
         }
     });
-
-    // Create server
     ipcMain.handle('server:create', async (event, data) => {
         let serverDir = null;
         try {
@@ -639,15 +573,13 @@ eula=true
             }
 
             const serversDir = path.join(app.getPath('userData'), 'servers');
-            // Allow frontend to provide an explicit safeName (for rename/unique folders).
-            // Always sanitize the provided value to avoid unsafe paths.
             const safeName = data && data.safeName ? sanitizeFileName(data.safeName) : sanitizeFileName(name);
             serverDir = path.join(serversDir, safeName);
 
             await fs.ensureDir(serverDir);
             await fs.ensureDir(path.join(serverDir, 'logs'));
             await fs.ensureDir(path.join(serverDir, 'plugins'));
-            await fs.ensureDir(path.join(serverDir, 'mods')); // For mod loaders
+            await fs.ensureDir(path.join(serverDir, 'mods'));
 
             const serverConfig = {
                 name: name,
@@ -662,7 +594,7 @@ eula=true
                 status: 'stopped',
                 pid: null,
                 path: serverDir,
-                playitPluginInstalled: false // Track if plugin was installed
+                playitPluginInstalled: false
             };
 
             await fs.writeJson(path.join(serverDir, 'server.json'), serverConfig, { spaces: 2 });
@@ -682,8 +614,6 @@ online-mode=true
 eula=false
 `;
             await fs.writeFile(path.join(serverDir, 'eula.txt'), eulaContent);
-
-            // Download server jar
             if (downloadUrl) {
                 const jarPath = path.join(serverDir, 'server.jar');
 
@@ -709,12 +639,8 @@ eula=false
 
                     throw new Error(`Failed to download server jar: ${downloadError.message}`);
                 }
-
-                // After server jar is downloaded, try to install Playit plugin
                 try {
                     const pluginInstalled = await downloadPlayitPlugin(serverDir, software, version, name, mainWindow);
-
-                    // Update config with plugin status
                     if (pluginInstalled) {
                         serverConfig.playitPluginInstalled = true;
                         await fs.writeJson(path.join(serverDir, 'server.json'), serverConfig, { spaces: 2 });
@@ -727,7 +653,7 @@ eula=false
                         }
                     }
                 } catch (pluginError) {
-                    // Silent fail for plugin
+
                 }
 
                 if (mainWindow && !mainWindow.isDestroyed()) {
@@ -757,8 +683,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // Delete server
     ipcMain.handle('server:delete', async (event, name) => {
         try {
             const process = serverProcesses.get(name);
@@ -781,17 +705,12 @@ eula=false
             if (await fs.pathExists(serverDir)) {
                 await fs.remove(serverDir);
             }
-
-
-
             return { success: true };
         } catch (error) {
             console.error('[Servers] Error deleting server:', error);
             return { success: false, error: error.message };
         }
     });
-
-    // Start server
     ipcMain.handle('server:start', async (event, name) => {
         return await startServerInternal(name, mainWindow);
     });
@@ -812,8 +731,6 @@ eula=false
             if (!await fs.pathExists(jarPath)) {
                 throw new Error('Server jar not found');
             }
-
-            // Check EULA
             if (await fs.pathExists(eulaPath)) {
                 const eulaContent = await fs.readFile(eulaPath, 'utf-8');
                 if (!eulaContent.includes('eula=true')) {
@@ -840,8 +757,6 @@ eula=false
             if (serverProcesses.has(name) && !serverProcesses.get(name).killed) {
                 throw new Error('Server is already running');
             }
-
-            // Clear old console buffer
             serverConsoleBuffers.set(name, []);
 
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -879,22 +794,16 @@ eula=false
 
             rl.on('line', (line) => {
                 console.log(`[${name}] ${line}`);
-
-                // Add to buffer
                 const buffer = serverConsoleBuffers.get(name) || [];
                 buffer.push(line);
                 if (buffer.length > 500) buffer.shift();
                 serverConsoleBuffers.set(name, buffer);
-
-                // Send log to renderer
                 if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.webContents.send('server:console', {
                         serverName: name,
                         log: line
                     });
                 }
-
-                // Check for server ready message
                 if (line.includes('Done') && line.includes('For help, type "help"')) {
                     updateServerConfig(name, { status: 'running' }).then(updatedConfig => {
                         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -904,8 +813,6 @@ eula=false
                                 server: updatedConfig
                             });
                         }
-
-
                     });
                 }
             });
@@ -937,10 +844,6 @@ eula=false
                     clearInterval(serverStatsIntervals.get(name));
                     serverStatsIntervals.delete(name);
                 }
-
-
-
-                // Add exit message to buffer
                 const buffer = serverConsoleBuffers.get(name) || [];
                 buffer.push(`[INFO] Server stopped (exit code: ${code})`);
                 serverConsoleBuffers.set(name, buffer);
@@ -988,9 +891,6 @@ eula=false
             });
 
             startServerStatsCollection(name, serverProcess, mainWindow);
-
-
-
             return { success: true };
         } catch (error) {
             console.error('[Servers] Error starting server:', error);
@@ -1013,8 +913,6 @@ eula=false
             return { success: false, error: error.message };
         }
     }
-
-    // Stop server
     ipcMain.handle('server:stop', async (event, name) => {
         return await stopServerInternal(name, mainWindow);
     });
@@ -1084,9 +982,6 @@ eula=false
                 clearInterval(serverStatsIntervals.get(name));
                 serverStatsIntervals.delete(name);
             }
-
-
-
             await updateServerConfig(name, { status: 'stopped', pid: null });
 
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1102,8 +997,6 @@ eula=false
             return { success: false, error: error.message };
         }
     }
-
-    // Restart server
     ipcMain.handle('server:restart', async (event, name) => {
         try {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1113,23 +1006,15 @@ eula=false
             const buffer = serverConsoleBuffers.get(name) || [];
             buffer.push('[INFO] Restarting server...');
             serverConsoleBuffers.set(name, buffer);
-
-            // First stop
             await stopServerInternal(name, mainWindow);
 
             await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Then start
             return await startServerInternal(name, mainWindow);
         } catch (error) {
             console.error('[Servers] Error restarting server:', error);
             return { success: false, error: error.message };
         }
     });
-
-
-
-    // Open server folder
     ipcMain.handle('server:open-folder', async (event, name) => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -1147,8 +1032,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // Import server
     ipcMain.handle('server:import', async () => {
         try {
             const { dialog } = require('electron');
@@ -1196,8 +1079,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // Duplicate server
     ipcMain.handle('server:duplicate', async (event, name) => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -1238,8 +1119,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // Backup server
     ipcMain.handle('server:backup', async (event, name) => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -1273,8 +1152,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // Download server software
     ipcMain.handle('server:download-software', async (event, data) => {
         try {
             const { platform, version, downloadUrl } = data;
@@ -1290,8 +1167,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // Clear console buffer for a server
     ipcMain.handle('server:clear-console', async (event, serverName) => {
         try {
             serverConsoleBuffers.set(serverName, []);
@@ -1306,8 +1181,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // New handler: Check if Playit plugin is available for a specific software and version
     ipcMain.handle('server:check-playit-available', async (event, software, version) => {
         try {
             const loaderMap = {
@@ -1357,8 +1230,6 @@ eula=false
                     supportedVersions: matchingVersion.game_versions
                 };
             }
-
-            // Check if any version supports this loader (for debugging)
             const anyLoaderVersion = versionsResponse.data.find(v =>
                 v.loaders.some(l => l.toLowerCase() === loader.toLowerCase())
             );
@@ -1377,8 +1248,6 @@ eula=false
             return { available: false, reason: error.message };
         }
     });
-
-    // New handler: Update specific server config properties
     ipcMain.handle('server:update-config', async (event, serverName, updates) => {
         try {
             console.log(`[Servers] Updating config for ${serverName}:`, updates);
@@ -1399,8 +1268,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // New handler: Get single server config
     ipcMain.handle('server:get', async (event, serverName) => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -1422,8 +1289,6 @@ eula=false
             return null;
         }
     });
-
-    // New handler: Manually install Playit plugin for an existing server
     ipcMain.handle('server:install-playit', async (event, serverName) => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -1455,8 +1320,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // New handler: Remove Playit plugin
     ipcMain.handle('server:remove-playit', async (event, serverName) => {
         try {
             const serversDir = path.join(app.getPath('userData'), 'servers');
@@ -1469,8 +1332,6 @@ eula=false
             }
 
             const config = await fs.readJson(configPath);
-
-            // Search for playit jar in plugins and mods
             const searchDirs = [path.join(serverDir, 'plugins'), path.join(serverDir, 'mods')];
             for (const dir of searchDirs) {
                 if (await fs.pathExists(dir)) {
@@ -1492,11 +1353,6 @@ eula=false
             return { success: false, error: error.message };
         }
     });
-
-    // Cleanup on app quit
-
-
-    // Server Settings Handlers
     const serverSettingsPath = path.join(app.getPath('userData'), 'serverSettings.json');
 
     const defaultServerSettings = {
@@ -1561,24 +1417,16 @@ eula=false
 
         for (const line of lines) {
             const trimmed = line.trim();
-
-            // Skip empty lines, but preserve header comments
             if (!trimmed) {
                 continue;
             }
-
-            // Preserve first header comments
             if (trimmed.startsWith('#') && !header) {
                 header += (header ? '\n' : '') + line;
                 continue;
             }
-
-            // Skip other comments (mid-file)
             if (trimmed.startsWith('#')) {
                 continue;
             }
-
-            // Parse key=value pairs
             const eqIndex = line.indexOf('=');
             if (eqIndex > 0) {
                 const key = line.substring(0, eqIndex).trim();
@@ -1596,8 +1444,6 @@ eula=false
      */
     function stringifyPropertiesFile(properties, header) {
         let content = header ? header + '\n' : '';
-
-        // Get list of keys, sorted alphabetically but with important ones first
         const keys = Object.keys(properties).sort();
 
         for (const key of keys) {
@@ -1647,18 +1493,10 @@ eula=false
                 console.log(`[Servers] server.properties not found for ${serverName}`);
                 return { success: false, error: 'server.properties file not found' };
             }
-
-            // Read the current file to preserve header and any properties not in the UI
             const currentContent = await fs.readFile(propertiesPath, 'utf-8');
             const { properties: currentProperties, header } = parsePropertiesFile(currentContent);
-
-            // Merge: keep all current properties and update with new ones
             const mergedProperties = { ...currentProperties, ...properties };
-
-            // Convert back to file format
             const newContent = stringifyPropertiesFile(mergedProperties, header);
-
-            // Write the file
             await fs.writeFile(propertiesPath, newContent);
 
             console.log(`[Servers] Properties saved for ${serverName}. Updated ${Object.keys(properties).length} properties, total ${Object.keys(mergedProperties).length}`);
@@ -1686,8 +1524,6 @@ eula=false
 
             if (!await fs.pathExists(configPath)) return { success: false, error: 'Server not found' };
             const config = await fs.readJson(configPath);
-
-            // Check both mods and plugins folders
             const modsDir = path.join(serverDir, 'mods');
             const pluginsDir = path.join(serverDir, 'plugins');
 

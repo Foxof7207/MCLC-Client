@@ -103,7 +103,7 @@ function Styling() {
     loadCustomPresets();
 
     return () => {
-      // Revert to saved theme if not saved
+
       window.electronAPI.getSettings().then(res => {
         if (res.success && res.settings.theme) {
           const t = res.settings.theme;
@@ -331,7 +331,7 @@ function Styling() {
 
   return (
     <div className="p-10 text-white h-full overflow-y-auto custom-scrollbar">
-      {/* Hero Section */}
+      { }
       <header className="mb-10">
         <h1 className="text-4xl font-black text-white tracking-tight mb-2">
           Launcher Customization
@@ -341,12 +341,12 @@ function Styling() {
         </p>
       </header>
 
-      {/* Main Grid Layout */}
+      { }
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl">
 
-        {/* Left Column - Colors & Themes */}
+        { }
         <div className="lg:col-span-3 space-y-6">
-          {/* Accent & Base Colors */}
+          { }
           <section className="bg-surface/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
             <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-6">
               Accent & Base
@@ -370,7 +370,7 @@ function Styling() {
             </div>
           </section>
 
-          {/* Quick Themes */}
+          { }
           <section className="bg-surface/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em]">
@@ -388,7 +388,7 @@ function Styling() {
             </div>
 
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {/* Custom Presets */}
+              { }
               {customPresets.length > 0 && (
                 <div className="space-y-3">
                   <span className="text-[10px] font-bold text-gray-600 uppercase">Custom</span>
@@ -406,7 +406,7 @@ function Styling() {
                 </div>
               )}
 
-              {/* Built-in Presets */}
+              { }
               <div className="space-y-3">
                 <span className="text-[10px] font-bold text-gray-600 uppercase">Presets</span>
                 <div className="grid grid-cols-1 gap-2">
@@ -423,9 +423,9 @@ function Styling() {
           </section>
         </div>
 
-        {/* Center & Right Columns */}
+        { }
         <div className="lg:col-span-9 space-y-6">
-          {/* Live Preview */}
+          { }
           <section className="bg-surface/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
             <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-6">
               Live Preview
@@ -433,9 +433,9 @@ function Styling() {
             <MiniPreview theme={theme} />
           </section>
 
-          {/* Effects & Atmosphere Grid */}
+          { }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Interactive Effects */}
+            { }
             <section className="bg-surface/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
               <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-6">
                 Interactive Effects
@@ -489,7 +489,7 @@ function Styling() {
               </div>
             </section>
 
-            {/* Atmosphere */}
+            { }
             <section className="bg-surface/50 backdrop-blur-md p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
               <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-6">
                 Atmosphere
@@ -577,7 +577,7 @@ function Styling() {
             </section>
           </div>
 
-          {/* Action Buttons */}
+          { }
           <div className="flex justify-end gap-3">
             <button
               onClick={loadTheme}

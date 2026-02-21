@@ -185,8 +185,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
             if (res.success && res.versions.length > 0) {
                 const version = res.versions[0];
-
-                // Resolve dependencies
                 const depRes = await window.electronAPI.resolveDependencies(version.id, loaders, [server.version]);
 
                 if (depRes.success && depRes.dependencies.length > 1) {
@@ -195,7 +193,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                     setShowDependencyModal(true);
                     setShowInstallModal(false);
                 } else {
-                    // Just install the primary mod
+
                     const file = version.files.find(f => f.primary) || version.files[0];
                     await executeInstallList([{
                         instanceName: selectedServer,

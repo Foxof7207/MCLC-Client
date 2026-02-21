@@ -125,8 +125,6 @@ function Settings() {
             if (res.success) {
                 addNotification("Java runtime deleted", "success");
                 loadJavaRuntimes();
-                // If the deleted runtime was selected, clear the selection?
-                // Probably better to leave it and let user realize, or verify.
             } else {
                 addNotification(`Failed to delete: ${res.error}`, "error");
             }
@@ -217,11 +215,9 @@ function Settings() {
     const handleUpdate = async (key, value) => {
         const newSettings = { ...settings, [key]: value };
         setSettings(newSettings);
-
-        // Save to backend
         try {
             await window.electronAPI.saveSettings(newSettings);
-            // addNotification('Settings saved', 'success'); // Optional: instant feedback
+
         } catch (error) {
             addNotification('Failed to save settings', 'error');
         }
@@ -242,16 +238,10 @@ function Settings() {
             properties: ['openFile'],
             filters: [{ name: 'Java Executable', extensions: ['exe', 'bin'] }]
         });
-
-        // Check if user canceled the dialog
         if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-            return; // Don't update the state if canceled
+            return;
         }
-
-        // Extract the file path string
         const selectedPath = result.filePaths[0];
-
-        // Optional: Validate that it's a Java executable
         if (selectedPath && (selectedPath.toLowerCase().endsWith('.exe') || selectedPath.toLowerCase().endsWith('.bin'))) {
             handleChange('javaPath', selectedPath);
         } else {
@@ -268,21 +258,17 @@ function Settings() {
             addNotification('Please enter a Modrinth ID or search term', 'error');
             return;
         }
-
-        // Check if it's already in the list
         if (settings.autoInstallMods.includes(input)) {
             addNotification('This mod is already in the list', 'warning');
             setAutoInstallModsInput('');
             return;
         }
-
-        // Try to get mod name from search results or API
         let modName = input;
         const foundInSearch = autoInstallModsSearchResults.find(m => m.project_id === input);
         if (foundInSearch) {
             modName = foundInSearch.title;
         } else {
-            // Try to fetch from API
+
             try {
                 const response = await fetch(`https://api.modrinth.com/v2/project/${input}`);
                 if (response.ok) {
@@ -293,8 +279,6 @@ function Settings() {
                 console.error('Failed to fetch mod details:', err);
             }
         }
-
-        // Add the mod
         const newAutoInstallMods = [...(settings.autoInstallMods || []), input];
         handleChange('autoInstallMods', newAutoInstallMods);
         setAutoInstallModsMetadata(prev => ({ ...prev, [input]: modName }));
@@ -339,7 +323,7 @@ function Settings() {
             <h1 className="text-3xl font-bold mb-2">Settings</h1>
             <p className="text-gray-400 mb-10">Manage your launcher preferences.</p>
 
-            {/* Save Button */}
+            { }
             <div className="max-w-3xl mb-6 flex justify-end">
                 <button
                     onClick={handleManualSave}
@@ -353,7 +337,7 @@ function Settings() {
             </div>
 
             <div className="space-y-6 max-w-3xl">
-                {/* General Section */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">General</h2>
 
@@ -373,7 +357,7 @@ function Settings() {
                     </div>
                 </div>
 
-                {/* Java Modal */}
+                { }
                 {showJavaModal && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
                         <div className="bg-[#151515] p-6 rounded-2xl border border-white/10 w-96 shadow-2xl animate-scale-in">
@@ -403,7 +387,7 @@ function Settings() {
                     </div>
                 )}
 
-                {/* Java Runtime Section */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Java Runtime</h2>
 
@@ -456,7 +440,7 @@ function Settings() {
                         </p>
                     </div>
 
-                    {/* Installed Runtimes List */}
+                    { }
                     {installedRuntimes.length > 0 && (
                         <div className="mt-6 border-t border-white/5 pt-6">
                             <div className="flex items-center justify-between mb-4">
@@ -504,7 +488,7 @@ function Settings() {
                     )}
                 </div>
 
-                {/* Memory Allocation Section */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Memory Allocation</h2>
 
@@ -546,7 +530,7 @@ function Settings() {
                     </div>
                 </div>
 
-                {/* Resolution Section */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Resolution</h2>
 
@@ -572,7 +556,7 @@ function Settings() {
                     </div>
                 </div>
 
-                {/* Instance Creation Section */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Instance Creation</h2>
 
@@ -600,7 +584,7 @@ function Settings() {
                     )}
                 </div>
 
-                {/* Launcher Integration Section */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white">Launcher Integration</h2>
 
@@ -640,13 +624,13 @@ function Settings() {
                     />
                 </div>
 
-                {/* Auto Install Mods Management Section */}
+                { }
                 {settings.enableAutoInstallMods && (
                     <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors mt-6">
                         <h2 className="text-lg font-bold mb-6 text-white">Auto Install Mods Management</h2>
                         <p className="text-sm text-gray-400 mb-4">Add mods by entering their Modrinth ID or searching by name. These mods will be automatically installed in every new instance.</p>
 
-                        {/* Search / Add Input */}
+                        { }
                         <div className="mb-6">
                             <label className="block text-gray-400 text-sm font-medium mb-2">Add Auto Install Mod</label>
                             <div className="flex gap-2 mb-3">
@@ -673,7 +657,7 @@ function Settings() {
                                 </button>
                             </div>
 
-                            {/* Search Results */}
+                            { }
                             {autoInstallModsSearchResults.length > 0 && (
                                 <div className="bg-black/20 border border-white/10 rounded-lg overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
                                     {autoInstallModsSearchResults.map((mod) => (
@@ -693,7 +677,7 @@ function Settings() {
                             )}
                         </div>
 
-                        {/* Current Auto Install Mods List */}
+                        { }
                         {(settings.autoInstallMods || []).length > 0 ? (
                             <div>
                                 <div className="flex items-center justify-between mb-3">
@@ -742,7 +726,7 @@ function Settings() {
                     </div>
                 )}
 
-                {/* Cloud Backup Section */}
+                { }
                 <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                     <h2 className="text-lg font-bold mb-6 text-white flex items-center gap-2">
                         <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -754,7 +738,7 @@ function Settings() {
                     <p className="text-sm text-gray-400 mb-6">Backup your worlds and instances to your favorite cloud storage. Access them from anywhere and restore them easily if something goes wrong.</p>
 
                     <div className="space-y-6">
-                        {/* Provider Selection */}
+                        { }
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {[
                                 { id: 'GOOGLE_DRIVE', name: 'Google Drive', icon: 'M12 2L2 20h20L12 2z' },
@@ -800,7 +784,7 @@ function Settings() {
                             ))}
                         </div>
 
-                        {/* Cloud Backup Settings */}
+                        { }
                         <div className="pt-6 border-t border-white/5 space-y-4">
                             <ToggleBox
                                 checked={settings.cloudBackupSettings?.enabled || false}
@@ -839,7 +823,7 @@ function Settings() {
                 </div>
             </div>
 
-            {/* Maintenance Section */}
+            { }
             <div className="bg-surface/50 px-8 py-6 rounded-2xl border border-white/5 mt-6 hover:border-white/10 transition-colors">
                 <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
@@ -893,7 +877,7 @@ function Settings() {
                 </div>
             </div>
 
-            {/* Soft Reset Modal */}
+            { }
             {showSoftResetModal && (
                 <ConfirmationModal
                     title="Soft Reset Application?"
@@ -905,7 +889,7 @@ function Settings() {
                 />
             )}
 
-            {/* Factory Reset Modal */}
+            { }
             {showFactoryResetModal && (
                 <ConfirmationModal
                     title="⚠ FACTORY RESET ⚠"

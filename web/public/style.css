@@ -246,7 +246,6 @@ input:checked+.slider:before {
     transform: translateX(16px);
 }
 
-/* Custom Inputs */
 input[type="text"],
 input[type="url"],
 textarea {
@@ -300,7 +299,6 @@ button.primary:hover {
     border-radius: 8px;
 }
 
-/* Dashboard Tabs */
 .tabs {
     display: flex;
     gap: 10px;

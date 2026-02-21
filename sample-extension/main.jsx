@@ -34,8 +34,6 @@ const StatsMonitor = ({ context }) => {
 
         return () => clearInterval(interval);
     }, [context]);
-
-    // Always render, but dim if offline
     const isOffline = !stats;
     const cpuDisplay = isOffline ? '-' : `${stats.cpu}%`;
     const memDisplay = isOffline ? '-' : `${stats.memory} MB`;

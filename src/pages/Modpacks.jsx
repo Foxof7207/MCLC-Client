@@ -31,10 +31,8 @@ const Modpacks = () => {
 
     const handleInstall = async (pack) => {
         if (installingPack) return;
-
-        // Get versions to find the latest .mrpack file
         try {
-            setInstallingPack(pack.slug); // Show loading state on button
+            setInstallingPack(pack.slug);
 
             const versions = await window.electronAPI.getModVersions(pack.slug, [], []);
 
@@ -43,8 +41,6 @@ const Modpacks = () => {
                 setInstallingPack(null);
                 return;
             }
-
-            // Simple Logic: Pick the first (latest) version
             const latestVersion = versions[0];
             const primaryFile = latestVersion.files.find(f => f.primary) || latestVersion.files[0];
 
@@ -53,14 +49,9 @@ const Modpacks = () => {
                 setInstallingPack(null);
                 return;
             }
-
-            // 2. Call backend to install
-            // Use the Modpack Title as the instance name default
             const res = await window.electronAPI.installModpack(primaryFile.url, pack.title);
 
             if (res.success) {
-                // Success! The backend will send progress events.
-                // We could navigate to dashboard or show a toast.
                 alert(`Started installing ${pack.title}. Check Dashboard/Downloads for progress.`);
             } else {
                 alert(`Failed to install: ${res.error}`);
@@ -131,8 +122,8 @@ const Modpacks = () => {
                                         onClick={() => handleInstall(pack)}
                                         disabled={installingPack === pack.slug}
                                         className={`px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg ${installingPack === pack.slug
-                                                ? 'bg-gray-600 cursor-not-allowed text-gray-300'
-                                                : 'bg-primary hover:bg-primary-hover text-black hover:scale-105 active:scale-95'
+                                            ? 'bg-gray-600 cursor-not-allowed text-gray-300'
+                                            : 'bg-primary hover:bg-primary-hover text-black hover:scale-105 active:scale-95'
                                             }`}
                                     >
                                         {installingPack === pack.slug ? (

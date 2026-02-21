@@ -95,7 +95,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         const loadVersionsForSoftware = async () => {
             setLoadingVersions(true);
             try {
-                // Ignore platforms not supported by mcutils, or gracefully handle them
+
                 const response = await fetch(`https://mcutils.com/api/server-jars/${selectedSoftware}`);
 
                 if (!response.ok) {
@@ -133,7 +133,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
 
     const loadPlatforms = async () => {
         try {
-            // Using mcutils platforms
+
             const list = [
                 { type: 'vanilla', name: 'Vanilla' },
                 { type: 'paper', name: 'Paper' },
@@ -190,10 +190,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         setIsCreating(true);
         const nameToUse = newServerName.trim() || "New Server";
         const newPort = parseInt(serverPort) || 25565;
-
-        // Port collisions intentionally allowed; multiple servers may use the same port.
-
-        // Prepare server payload
         const downloadUrl = `https://mcutils.com/api/server-jars/${selectedSoftware}/${selectedVersion}/download`;
 
         const serverData = {
@@ -206,11 +202,9 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
             icon: newServerIcon || DEFAULT_ICON,
             downloadUrl: downloadUrl
         };
-
-        // Check for existing server with same display name
         const existing = servers.find(s => s.name && s.name.toLowerCase() === nameToUse.toLowerCase());
         if (existing) {
-            // Show choice modal: overwrite / rename / other name
+
             setConflictServer(existing);
             setConflictOtherName(nameToUse);
             setPendingServerData(serverData);
@@ -218,8 +212,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
             setIsCreating(false);
             return;
         }
-
-        // No conflict -> proceed
         await doCreate(serverData);
     };
 
@@ -271,7 +263,7 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         if (!pendingServerData) return;
         setIsCreating(true);
         try {
-            // Find a unique folder name by appending (1), (2), ... and checking backend for existence
+
             let counter = 1;
             let candidateRaw;
             while (true) {
@@ -302,8 +294,6 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
             addNotification('Please enter a valid name', 'error');
             return;
         }
-
-        // Check collision again
         const existing = servers.find(s => s.name && s.name.toLowerCase() === newName.toLowerCase());
         if (existing) {
             addNotification('That name is still in use. Choose another.', 'error');

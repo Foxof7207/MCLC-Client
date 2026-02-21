@@ -6,32 +6,32 @@ function ThemeCard({ theme, onApply, onDelete, isCustom = false }) {
             onClick={onApply}
             className="group relative overflow-hidden rounded-xl border border-white/5 hover:border-primary/30 transition-all duration-300 hover:scale-[1.02] active:scale-95"
         >
-            {/* Color Preview */}
+            { }
             <div className="h-20 relative overflow-hidden">
-                <div 
+                <div
                     className="absolute inset-0 opacity-40"
                     style={{ background: theme.bg }}
                 />
-                <div 
+                <div
                     className="absolute inset-0"
-                    style={{ 
+                    style={{
                         background: `linear-gradient(135deg, ${theme.primary}20 0%, transparent 100%)`
                     }}
                 />
-                <div 
+                <div
                     className="absolute bottom-2 left-2 w-8 h-8 rounded-lg shadow-lg border-2 border-white/20"
-                    style={{ 
+                    style={{
                         background: theme.primary,
                         boxShadow: `0 0 20px ${theme.primary}60`
                     }}
                 />
-                <div 
+                <div
                     className="absolute bottom-2 right-2 w-6 h-6 rounded-md opacity-60"
                     style={{ background: theme.surface }}
                 />
             </div>
-            
-            {/* Theme Name */}
+
+            { }
             <div className="bg-surface/80 backdrop-blur-sm p-3 border-t border-white/5">
                 <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-300 group-hover:text-white transition-colors">

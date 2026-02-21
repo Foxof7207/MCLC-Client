@@ -1,4 +1,3 @@
-// Navbar Scroll Effect
 const navbar = document.getElementById('navbar');
 window.addEventListener('scroll', () => {
     if (window.scrollY > 50) {
@@ -7,11 +6,7 @@ window.addEventListener('scroll', () => {
         navbar.classList.remove('scrolled');
     }
 });
-
-// Helper for standardizing paths (global)
 window.fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
-
-// Reveal Animations on Scroll
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -26,8 +21,6 @@ const revealElements = document.querySelectorAll('.reveal');
 revealElements.forEach(el => {
     revealObserver.observe(el);
 });
-
-// Parallax/Hover Effect for Hero (Subtle)
 const hero = document.getElementById('home');
 if (hero) {
     hero.addEventListener('mousemove', (e) => {
@@ -37,8 +30,6 @@ if (hero) {
         if (reveal) reveal.style.transform = `translate(${moveX}px, ${moveY}px)`;
     });
 }
-
-// Auth Check & Dynamic Nav
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
 });
@@ -57,7 +48,7 @@ async function checkAuth() {
         }
     } catch (err) {
         console.error('[MCLC] Auth check failed:', err);
-        // Fallback to unauthenticated state
+
     }
 
     try {
@@ -66,8 +57,6 @@ async function checkAuth() {
         const mobileMenu = document.getElementById('mobile-menu');
 
         if (!rightGroup) return;
-
-        // Reset containers
         let authSection = document.getElementById('nav-auth-section');
         if (authSection) authSection.remove();
 
@@ -97,18 +86,14 @@ async function checkAuth() {
                 </a>
             `;
         }
-
-        // SWAP ORDER: Download button must exist in rightGroup
         if (downloadBtn) {
-            // Find parent if it's wrapped
+
             const wrapper = downloadBtn.closest('.hidden.md\\:block') || downloadBtn;
             rightGroup.appendChild(wrapper);
             rightGroup.appendChild(authSection);
         } else {
             rightGroup.appendChild(authSection);
         }
-
-        // Mobile Auth
         if (mobileMenu) {
             const mobileAuthDiv = mobileMenu.querySelector('.px-6') || mobileMenu;
             let mobileAuthSection = document.getElementById('mobile-auth-section');
@@ -149,18 +134,14 @@ async function checkAuth() {
         console.error('[MCLC] Failed to render auth UI:', e);
     }
 }
-
-// Mobile Menu Toggle Logic
 function toggleMenu() {
     const menu = document.getElementById('mobile-menu');
     const btn = document.getElementById('mobile-menu-btn');
     if (menu) {
         menu.classList.toggle('hidden');
-        menu.classList.toggle('open'); // For CSS transitions if used
+        menu.classList.toggle('open');
     }
 }
-
-// Auto-bind mobile menu button if it exists
 document.addEventListener('DOMContentLoaded', () => {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     if (mobileBtn) {

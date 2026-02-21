@@ -18,22 +18,6 @@
     font-family: 'Poppins', sans-serif;
 }
 
-/* body {
-    background-color: var(--bg-dark);
-    color: var(--text-main);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    padding-top: 80px;
-} */
-
-/* Global Navbar Standards */
-/* nav {
-    height: 80px;
-    display: flex;
-    align-items: center;
-} */
-
 .nav-container {
     max-width: 1400px;
     margin: 0 auto;
@@ -73,14 +57,9 @@ h1 {
     background-clip: text;
 
     color: white;
-    /* WICHTIG */
-    /* ENTFERNEN: -webkit-text-fill-color: transparent; */
-
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
 }
 
-
-/* Standardized buttons to prevent glitches */
 .btn-logout {
     background: none;
     border: 1px solid var(--border-light);
@@ -277,7 +256,6 @@ input:checked+.slider:before {
     transform: translateX(16px);
 }
 
-/* Custom Inputs */
 input[type="text"],
 input[type="url"],
 textarea {
@@ -331,7 +309,6 @@ button.primary:hover {
     border-radius: 8px;
 }
 
-/* Dashboard Tabs */
 .tabs {
     display: flex;
     gap: 10px;

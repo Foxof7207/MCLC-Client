@@ -9,8 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script>
-        tailwind.config = {
+    <script>        tailwind.config = {
             theme: {
                 extend: {
                     colors: {
@@ -24,13 +23,10 @@
                     },
                 }
             }
-        }
-    </script>
+        }</script>
 </head>
 
 <body class="bg-background text-gray-200 selection:bg-primary/30 antialiased">
-
-    <!-- Navbar -->
     <nav class="fixed top-0 left-0 right-0 z-[100] transition-all duration-300 bg-background/80 backdrop-blur-md border-b border-white/5 h-20"
         id="navbar">
         <div class="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between h-full">
@@ -49,7 +45,7 @@
     </nav>
 
     <div class="pt-40 pb-20 px-6 max-w-5xl mx-auto">
-        <!-- Profile Header -->
+
         <div class="flex flex-col items-center text-center mb-20">
             <div class="relative group mb-8">
                 <div class="absolute inset-0 bg-primary/20 blur-3xl rounded-full opacity-50"></div>
@@ -64,15 +60,13 @@
                 <span id="user-joined">Joined ...</span>
             </div>
         </div>
-
-        <!-- Contributions -->
         <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-4">
             Contributions
             <span id="ext-count" class="text-xs bg-white/5 px-3 py-1 rounded-full text-gray-400">0</span>
         </h2>
 
         <div id="extensions-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Loaded via JS -->
+
             <div
                 class="col-span-full py-20 text-center text-gray-600 font-bold border-2 border-dashed border-white/5 rounded-[2.5rem]">
                 No extensions published by this user yet.
@@ -80,8 +74,7 @@
         </div>
     </div>
 
-    <script>
-        async function loadUserProfile() {
+    <script>        async function loadUserProfile() {
             const params = new URLSearchParams(window.location.search);
             const username = params.get('u');
             if (!username) {
@@ -95,11 +88,7 @@
                 const data = await res.json();
 
                 const { user, extensions } = data;
-
-                // Helper for paths
                 const fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
-
-                // Update Profile
                 const avatarUrl = fixPath(user.avatar);
                 document.getElementById('user-avatar').src = avatarUrl;
                 document.getElementById('user-name').textContent = user.username;
@@ -107,17 +96,13 @@
                 document.getElementById('user-role').textContent = user.role === 'admin' ? 'Administrator' : 'Developer';
                 document.getElementById('user-joined').textContent = `Joined ${new Date(user.created_at).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}`;
                 document.getElementById('ext-count').textContent = extensions.length;
-
-                // Update Title
                 document.title = `MCLC - ${user.username}'s Profile`;
-
-                // Render Extensions
                 if (extensions.length > 0) {
                     const grid = document.getElementById('extensions-grid');
                     grid.innerHTML = extensions.map(ext => `
                         <a href="/extensions/${ext.identifier}" class="group bg-surface/50 border border-white/5 p-4 rounded-[2rem] hover:border-primary/50 transition-all transform hover:-translate-y-1">
                             <div class="aspect-video rounded-2xl overflow-hidden mb-4 bg-background relative">
-                                <img src="${fixPath(ext.banner_path)}" 
+                                <img src="${fixPath(ext.banner_path)}"
                                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                                 <div class="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
                                     ${ext.type}
@@ -137,8 +122,7 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadUserProfile);
-    </script>
+        document.addEventListener('DOMContentLoaded', loadUserProfile);</script>
     <script src="../main.js?v=5"></script>
 </body>
 

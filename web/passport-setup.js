@@ -32,31 +32,25 @@ passport.use(new GoogleStrategy({
             let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
             if (ip && ip.includes(',')) ip = ip.split(',')[0].trim();
             const now = new Date();
-
-            // Check if user exists
             const [rows] = await pool.query('SELECT * FROM users WHERE google_id = ?', [profile.id]);
 
             if (rows.length > 0) {
                 const user = rows[0];
-
-                // Check for ban
                 if (user.banned) {
                     if (user.ban_expires && new Date(user.ban_expires) < now) {
-                        // Ban expired
+
                         await pool.query('UPDATE users SET banned = FALSE, ban_reason = NULL, ban_expires = NULL WHERE id = ?', [user.id]);
                     } else {
                         return done(null, false, { message: user.ban_reason || 'You are banned from this platform.' });
                     }
                 }
-
-                // Update IP and last login
                 await pool.query('UPDATE users SET last_login = ?, ip_address = ? WHERE id = ?', [now, ip, user.id]);
                 user.last_login = now;
                 user.ip_address = ip;
 
                 return done(null, user);
             } else {
-                // New user, create
+
                 const newUser = {
                     google_id: profile.id,
                     username: profile.displayName,

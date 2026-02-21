@@ -1,9 +1,7 @@
 const { ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
-
-// Mock dialog and win
-const win = { webContents: { send: () => {} } };
+const win = { webContents: { send: () => { } } };
 
 try {
     console.log('Testing instances.js load...');

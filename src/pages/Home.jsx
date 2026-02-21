@@ -242,8 +242,6 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
         const today = getToday();
         const randomIndex = Math.floor(Math.random() * modIds.length);
         const newId = modIds[randomIndex];
-
-        // Neue Mod mit Datum speichern
         const data = {
             date: today,
             id: newId
@@ -503,7 +501,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                             <div className="flex items-center gap-3 text-gray-500 text-sm"><div className="w-5 h-5 border-2 border-white/20 border-t-primary rounded-full animate-spin"></div>Loading mod...</div>
                         ) : modOfTheDay ? (
                             <div className="rounded-xl overflow-hidden border border-white/5 bg-surface/30 hover:bg-surface/50 transition-all">
-                                {/* Header - Featured Image */}
+                                { }
                                 <div className="relative w-full h-40 bg-gradient-to-br from-primary/20 to-background overflow-hidden">
                                     {modOfTheDay.featured_image ? (
                                         <img
@@ -544,15 +542,13 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                     )}
                                     <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
                                 </div>
-
-
-                                {/* Footer */}
+                                { }
                                 <div className="p-4">
 
-                                    {/* Top Row */}
+                                    { }
                                     <div className="flex gap-3 mb-3">
 
-                                        {/* Icon */}
+                                        { }
                                         <div className="flex-shrink-0">
                                             {modOfTheDay.icon_url && (
                                                 <img
@@ -562,12 +558,10 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                                 />
                                             )}
                                         </div>
-
-
-                                        {/* Title, Author, Stats */}
+                                        { }
                                         <div className="min-w-0 flex-1">
 
-                                            {/* Title + Author */}
+                                            { }
                                             <div className="flex items-center gap-2 flex-wrap">
 
                                                 <h3 className="text-sm font-bold text-white truncate">
@@ -579,12 +573,10 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                                 </span>
 
                                             </div>
-
-
-                                            {/* Stats */}
+                                            { }
                                             <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
 
-                                                {/* Downloads */}
+                                                { }
                                                 <div className="flex items-center gap-1">
 
                                                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -598,9 +590,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                                     </span>
 
                                                 </div>
-
-
-                                                {/* Followers */}
+                                                { }
                                                 <div className="flex items-center gap-1">
 
                                                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -614,9 +604,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                                     </span>
 
                                                 </div>
-
-
-                                                {/* Updated */}
+                                                { }
                                                 {modOfTheDay.updated && (
 
                                                     <span className="text-gray-500">
@@ -630,13 +618,10 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                         </div>
 
                                     </div>
-
-
-
-                                    {/* Loaders + Tags */}
+                                    { }
                                     <div className="flex flex-wrap gap-1.5 mb-3">
 
-                                        {/* Loaders */}
+                                        { }
                                         {modOfTheDay.loaders?.map(loader => (
 
                                             <span
@@ -647,9 +632,7 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                             </span>
 
                                         ))}
-
-
-                                        {/* Tags */}
+                                        { }
                                         {modOfTheDay.categories?.slice(0, 4).map(cat => (
 
                                             <span
@@ -662,19 +645,13 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                         ))}
 
                                     </div>
-
-
-
-                                    {/* Summary */}
+                                    { }
                                     <p className="text-xs text-gray-400 line-clamp-2 mb-4">
 
                                         {modOfTheDay.description || 'No description available'}
 
                                     </p>
-
-
-
-                                    {/* Buttons */}
+                                    { }
                                     <div className="flex gap-2">
 
                                         <a
@@ -685,8 +662,6 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                                         >
                                             Modrinth
                                         </a>
-
-
                                         <button
                                             onClick={loadNewModOfTheDay}
                                             className="flex-1 px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs font-bold transition-all border border-white/10"
@@ -762,11 +737,6 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
                     <p className="text-gray-600 text-sm">Play an instance to see it here</p>
                 </div>
             )}
-
-
-
-
-
             { }
             {selectedModpack && (
                 <div

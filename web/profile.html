@@ -9,8 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script>
-        tailwind.config = {
+    <script>        tailwind.config = {
             theme: {
                 extend: {
                     colors: {
@@ -25,13 +24,10 @@
                     },
                 }
             }
-        }
-    </script>
+        }</script>
 </head>
 
 <body class="bg-background text-gray-200 selection:bg-primary/30 antialiased">
-
-    <!-- Navbar -->
     <nav class="fixed top-0 left-0 right-0 z-[100] transition-all duration-300 bg-background/80 backdrop-blur-md border-b border-white/5"
         id="navbar">
         <div class="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between h-full">
@@ -50,8 +46,6 @@
     </nav>
 
     <div class="pt-32 pb-20 px-6 max-w-5xl mx-auto">
-
-        <!-- Profile Header -->
         <div class="flex flex-col md:flex-row items-center gap-8 mb-16">
             <div class="w-32 h-32 rounded-full border-4 border-surface overflow-hidden relative group">
                 <img id="profile-avatar" src="" alt="Avatar" class="w-full h-full object-cover bg-surface">
@@ -68,8 +62,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Edit Profile Modal (Hidden) -->
         <div id="edit-profile-form" class="hidden bg-surface border border-white/5 p-8 rounded-3xl mb-12">
             <h2 class="text-2xl font-bold text-white mb-6">Edit Profile</h2>
             <form id="profileForm" class="space-y-6">
@@ -103,11 +95,7 @@
                 </div>
             </form>
         </div>
-
-        <!-- Upload Extension -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
-
-            <!-- Upload Form -->
             <div class="lg:col-span-1">
                 <div class="bg-surface/50 border border-white/5 p-8 rounded-3xl sticky top-32">
                     <h2 class="text-2xl font-bold text-white mb-6">Upload Extension</h2>
@@ -166,8 +154,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- My Extensions List -->
             <div class="lg:col-span-2">
                 <h2 class="text-2xl font-bold text-white mb-6">My Extensions</h2>
                 <div id="my-extensions-list" class="space-y-4">
@@ -178,10 +164,7 @@
 
     </div>
 
-    <script>
-        let currentUser = null;
-
-        // Load Profile Data
+    <script>        let currentUser = null;
         async function loadProfile() {
             try {
                 const res = await fetch('/auth/current_user');
@@ -189,23 +172,17 @@
                 currentUser = await res.json();
 
                 if (!currentUser || !currentUser.id) {
-                    window.location.href = '/auth/google'; // Redirect to login
+                    window.location.href = '/auth/google';
                     return;
                 }
 
                 const fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
-
-                // Update UI
                 document.getElementById('profile-username').textContent = currentUser.username;
                 document.getElementById('profile-bio').textContent = currentUser.bio || 'No bio yet.';
                 document.getElementById('profile-avatar').src = fixPath(currentUser.avatar);
-
-                // Form values
                 document.getElementById('input-username').value = currentUser.username;
                 document.getElementById('input-bio').value = currentUser.bio || '';
                 document.getElementById('input-avatar').value = currentUser.avatar || '';
-
-                // Admin check
                 if (currentUser.role === 'admin') {
                     document.getElementById('admin-link').classList.remove('hidden');
                 }
@@ -216,8 +193,6 @@
                 window.location.href = '/auth/google';
             }
         }
-
-        // Load My Extensions
         async function loadMyExtensions() {
             try {
                 const res = await fetch('/api/user/extensions');
@@ -258,8 +233,6 @@
         function toggleEditProfile() {
             document.getElementById('edit-profile-form').classList.toggle('hidden');
         }
-
-        // Profile Update
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData();
@@ -278,10 +251,8 @@
             });
 
             toggleEditProfile();
-            loadProfile(); // Reload
+            loadProfile();
         });
-
-        // Extension Upload
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -304,8 +275,7 @@
             }
         });
 
-        loadProfile();
-    </script>
+        loadProfile();</script>
     <script src="main.js?v=5"></script>
 </body>
 

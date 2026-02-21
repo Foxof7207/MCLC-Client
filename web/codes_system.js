@@ -1,16 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-
-// Configuration
 const CODES_DIR = path.join(__dirname, 'codes');
-
-// Ensure codes directory exists
 if (!fs.existsSync(CODES_DIR)) {
     console.log(`[CodesSystem] Creating codes directory: ${CODES_DIR}`);
     fs.mkdirSync(CODES_DIR, { recursive: true });
 }
-
-// Cleanup old codes (older than 7 days)
 function cleanupOldCodes() {
     console.log('[CodesSystem] Running cleanup for old codes...');
     const now = Date.now();
@@ -39,13 +33,9 @@ function cleanupOldCodes() {
         });
     });
 }
-
-// Run cleanup every hour
 setInterval(cleanupOldCodes, 60 * 60 * 1000);
-// Run on startup
-cleanupOldCodes();
 
-// Generate a random 8-character code
+cleanupOldCodes();
 function generateCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let code;
@@ -57,12 +47,8 @@ function generateCode() {
     } while (fs.existsSync(path.join(CODES_DIR, `${code}.json`)));
     return code;
 }
-
-// Export the setup function to attach routes to the app
 module.exports = function (app, ADMIN_PASSWORD) {
     console.log('[CodesSystem] Initializing routes...');
-
-    // Save Modpack (accessible at both /api/codes/save and /api/modpack/save for compatibility)
     function handleSave(req, res) {
         try {
             const { name, mods, resourcePacks, shaders, instanceVersion, instanceLoader, keybinds } = req.body;
@@ -78,7 +64,7 @@ module.exports = function (app, ADMIN_PASSWORD) {
                 shaders: shaders || [],
                 keybinds: keybinds || null,
                 created: Date.now(),
-                expires: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
+                expires: Date.now() + (7 * 24 * 60 * 60 * 1000),
                 uses: 0
             };
 
@@ -94,8 +80,6 @@ module.exports = function (app, ADMIN_PASSWORD) {
     }
     app.post('/api/codes/save', handleSave);
     app.post('/api/modpack/save', handleSave);
-
-    // List all Codes (Admin)
     app.get('/api/codes/list', (req, res) => {
         try {
             const clientPass = req.query.password;
@@ -131,9 +115,6 @@ module.exports = function (app, ADMIN_PASSWORD) {
             res.status(500).json({ success: false, error: error.message });
         }
     });
-
-    // Get Modpack by Code (for launcher import — increments uses)
-    // Available at both paths for backwards compatibility with launcher client
     function handleGetCode(req, res) {
         try {
             const { code } = req.params;
@@ -141,8 +122,6 @@ module.exports = function (app, ADMIN_PASSWORD) {
 
             if (fs.existsSync(filePath)) {
                 const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-
-                // Increment uses
                 data.uses = (data.uses || 0) + 1;
                 fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 
@@ -159,8 +138,6 @@ module.exports = function (app, ADMIN_PASSWORD) {
     }
     app.get('/api/codes/:code', handleGetCode);
     app.get('/api/modpack/:code', handleGetCode);
-
-    // Delete Code (Admin)
     app.delete('/api/codes/:code', (req, res) => {
         try {
             const clientPass = req.query.password;

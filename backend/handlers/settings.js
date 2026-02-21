@@ -29,7 +29,7 @@ module.exports = (ipcMain) => {
             enabled: true,
             onLaunch: true,
             onClose: true,
-            interval: 60, // minutes
+            interval: 60,
             maxBackups: 10
         }
     };

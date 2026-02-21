@@ -239,8 +239,6 @@ const electronAPI = {
         ipcRenderer.on('server:plugin-progress', subscription);
         return () => ipcRenderer.removeListener('server:plugin-progress', subscription);
     },
-
-    // Extensions
     getExtensions: () => ipcRenderer.invoke('extensions:list'),
     installExtension: (sourcePath) => ipcRenderer.invoke('extensions:install', sourcePath),
     removeExtension: (id) => ipcRenderer.invoke('extensions:remove', id),
@@ -252,7 +250,7 @@ const electronAPI = {
     },
     getActiveProcesses: () => ipcRenderer.invoke('launcher:get-active-processes'),
     getProcessStats: (pid) => ipcRenderer.invoke('launcher:get-process-stats', pid),
-    // Generic invoke for extensions to call their OWN backend
+
     invokeExtension: (extId, channel, ...args) => ipcRenderer.invoke(`ext:${extId}:${channel}`, ...args),
     onExtensionMessage: (extId, channel, callback) => {
         const subscription = (_event, ...args) => callback(...args);
@@ -260,8 +258,6 @@ const electronAPI = {
         return () => ipcRenderer.removeListener(`ext:${extId}:${channel}`, subscription);
     },
     fetchMarketplace: () => ipcRenderer.invoke('extensions:fetch-marketplace'),
-
-    // Cloud Backups
     cloudLogin: (providerId) => ipcRenderer.invoke('cloud:login', providerId),
     cloudLogout: (providerId) => ipcRenderer.invoke('cloud:logout', providerId),
     cloudGetStatus: () => ipcRenderer.invoke('cloud:get-status'),

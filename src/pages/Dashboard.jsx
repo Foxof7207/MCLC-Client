@@ -217,7 +217,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
 
     useEffect(() => {
         loadInstances();
-        // Backend connectivity test
+
         const testBackend = async () => {
             try {
                 const pong = await window.electronAPI.ping();
@@ -653,7 +653,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-hidden pr-1 flex flex-col relative w-full h-full">
-                    {/* Instances Section */}
+                    { }
                     <div className="flex-1 min-h-0 overflow-hidden pr-1 flex flex-col">
                         {groupMethod !== 'none' ? (
                             <div className="h-full overflow-y-auto custom-scrollbar pb-20">

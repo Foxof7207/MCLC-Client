@@ -12,14 +12,14 @@ function ColorPicker({ label, value, onChange }) {
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     className="w-12 h-12 rounded-xl cursor-pointer border-2 border-white/10 hover:border-primary/50 transition-all shadow-lg"
-                    style={{ 
+                    style={{
                         background: value,
                         WebkitAppearance: 'none',
                         MozAppearance: 'none',
                         appearance: 'none'
                     }}
                 />
-                <div 
+                <div
                     className="absolute inset-0 rounded-xl pointer-events-none"
                     style={{
                         background: value,

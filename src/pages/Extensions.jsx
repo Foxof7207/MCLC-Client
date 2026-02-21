@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useExtensions } from '../context/ExtensionContext';
 
 const Extensions = () => {
-    const { installedExtensions, refreshExtensions, unloadExtension, toggleExtension } = useExtensions(); // Use Context
+    const { installedExtensions, refreshExtensions, unloadExtension, toggleExtension } = useExtensions();
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [loading, setLoading] = useState(true);
 
@@ -26,7 +26,7 @@ const Extensions = () => {
 
     const handleRemove = async (id) => {
         if (!window.electronAPI) return;
-        // Unload first
+
         await unloadExtension(id);
         const result = await window.electronAPI.removeExtension(id);
         if (result.success) {
@@ -66,7 +66,7 @@ const Extensions = () => {
                 ) : (
                     installedExtensions.map(ext => (
                         <div key={ext.id} className={`p-5 rounded-2xl border flex items-center gap-5 transition-all group backdrop-blur-md ${ext.enabled ? 'bg-surface/20 border-white/10' : 'bg-surface/5 border-white/5 opacity-70'}`}>
-                            {/* Icon / Placeholder */}
+                            { }
                             <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold shadow-inner overflow-hidden flex-shrink-0 ${ext.enabled ? 'bg-primary/20 text-primary' : 'bg-gray-800 text-gray-500'}`}>
                                 {ext.iconPath ? (
                                     <img
@@ -93,7 +93,7 @@ const Extensions = () => {
                             </div>
 
                             <div className="flex items-center gap-6">
-                                {/* Toggle Switch */}
+                                { }
                                 <label className="flex items-center cursor-pointer relative">
                                     <input
                                         type="checkbox"

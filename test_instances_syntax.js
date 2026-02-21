@@ -1,7 +1,4 @@
-
 const path = require('path');
-
-// Mock dependencies
 const ipcMainMock = {
     handle: (channel, callback) => {
         console.log(`[Mock] Registered handler: ${channel}`);
@@ -15,8 +12,6 @@ const winMock = {
         }
     }
 };
-
-// Mock electron app
 const electronMock = {
     app: {
         getPath: (name) => {
@@ -33,15 +28,13 @@ const electronMock = {
         openPath: async () => { }
     }
 };
-
-
 console.log('Test script: verifying syntax and basic loading...');
 
 try {
-    // Check syntax only first
+
     const fs = require('fs');
     const code = fs.readFileSync('./backend/handlers/instances.js', 'utf8');
-    new Function(code); // Syntax check triggers error if invalid
+    new Function(code);
     console.log('Syntax check passed.');
 } catch (e) {
     console.error('Syntax error:', e.message);

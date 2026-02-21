@@ -15,8 +15,6 @@ const AdmZip = require('adm-zip');
 const archiver = require('archiver');
 const { spawn } = require('child_process');
 const nbt = require('prismarine-nbt');
-
-// Initialize these lazily when the handler is registered
 let appData;
 let instancesDir;
 let globalBackupsDir;
@@ -346,7 +344,7 @@ async function installNeoForgeLoader(instanceDir, mcVersion, loaderVersion, onPr
 
 module.exports = (ipcMain, win) => {
     try {
-        // Initialize paths now that app is ready
+
         if (!appData) {
             appData = app.getPath('userData');
             instancesDir = path.join(appData, 'instances');
@@ -355,8 +353,6 @@ module.exports = (ipcMain, win) => {
         }
 
         console.log('--- INSTANCES HANDLER INIT START ---');
-
-        // Define helper functions at the top scope of the exported function
         const startBackgroundInstall = async (finalName, config, cleanInstall = false, isMigration = false) => {
             const dir = path.join(instancesDir, finalName);
             const { version, loader, loaderVersion: existingLoaderVer } = config;
@@ -592,8 +588,6 @@ module.exports = (ipcMain, win) => {
                             await downloadFile(mod.url, dest);
                         }
                     }
-
-                    // Install optimization mods if enabled
                     try {
                         const settingsPath = path.join(appData, 'settings.json');
                         let settings = {};
@@ -601,7 +595,7 @@ module.exports = (ipcMain, win) => {
                             settings = await fs.readJson(settingsPath);
                         }
 
-                        if (settings.optimization !== false) { // default true
+                        if (settings.optimization !== false) {
                             sendProgress(85, 'Installing optimization mods...');
                             appendLog('Installing optimization mods...');
 
@@ -633,7 +627,7 @@ module.exports = (ipcMain, win) => {
                                 'NRjRiSSD',
                                 'LQ3K71Q1'
                             ];
-                            const fallbackMods = ['GchcoXML', '4ZqxOvjD']; // fallback if YL57xq9U unavailable
+                            const fallbackMods = ['GchcoXML', '4ZqxOvjD'];
 
                             let modsToInstallList = [...primaryMods];
                             let installedPhosphor = false;
@@ -667,7 +661,7 @@ module.exports = (ipcMain, win) => {
                                             }
                                         }
                                     } else if (projectId === 'YL57xq9U' && !installedPhosphor) {
-                                        // Try fallback mods if Phosphor is not available
+
                                         appendLog('Phosphor not available, trying fallback mods...');
                                         for (const fallbackId of fallbackMods) {
                                             try {
@@ -738,8 +732,6 @@ module.exports = (ipcMain, win) => {
                     } catch (e) {
                         appendLog(`Optimization mods installation failed: ${e.message}`);
                     }
-
-                    // Install auto install mods if enabled
                     try {
                         const settingsPath = path.join(appData, 'settings.json');
                         let settings = {};
@@ -947,7 +939,7 @@ module.exports = (ipcMain, win) => {
 
                 if (manifest.minecraft.modLoaders && manifest.minecraft.modLoaders.length > 0) {
                     const loaderInfo = manifest.minecraft.modLoaders[0];
-                    const id = loaderInfo.id; // e.g., forge-47.2.0
+                    const id = loaderInfo.id;
                     if (id.startsWith('forge-')) {
                         loaderType = 'Forge';
                         loaderVersion = id.replace('forge-', '');
@@ -1047,9 +1039,6 @@ module.exports = (ipcMain, win) => {
                 return { success: false, error: e.message };
             }
         };
-
-
-        // Move this to the top to ensure it's registered
         console.log('[Instances] Stage 2: Registering instance:unified-import-v3...');
         ipcMain.handle('instance:unified-import-v3', async (_) => {
             console.log('[Backend] IPC Received: instance:unified-import-v3');
@@ -1295,9 +1284,6 @@ module.exports = (ipcMain, win) => {
                 return { success: false, error: e.message };
             }
         });
-
-        // Function moved to top
-
         console.log('[Instances] Checkpoint 3: About to register instance:get-all');
 
         ipcMain.handle('instance:get-all', async () => {
@@ -1459,8 +1445,6 @@ module.exports = (ipcMain, win) => {
                 return new Promise((resolve, reject) => {
                     output.on('close', async () => {
                         console.log(`[Instances] World backup created: ${backupFile}`);
-
-                        // Trigger cloud upload if enabled
                         try {
                             const settingsPath = path.join(app.getPath('userData'), 'settings.json');
                             if (await fs.pathExists(settingsPath)) {
@@ -2309,7 +2293,7 @@ module.exports = (ipcMain, win) => {
         });
 
         console.log('[Instances] Instance handlers registered.');
-        // Log before registering theme handlers
+
         console.log('[Instances] Registering theme handlers...');
 
         ipcMain.handle('theme:get-custom-presets', async () => {
@@ -2386,8 +2370,6 @@ module.exports = (ipcMain, win) => {
                 return { success: false, error: e.message };
             }
         });
-
-        // Theme Export Handler
         ipcMain.handle('theme:export-custom-preset', async (_, preset) => {
             try {
                 const { filePath } = await dialog.showSaveDialog(win, {
@@ -2406,8 +2388,6 @@ module.exports = (ipcMain, win) => {
                 return { success: false, error: e.message };
             }
         });
-
-        // Theme Import Handler
         ipcMain.handle('theme:import-custom-preset', async () => {
             console.log('[Theme] Import triggered');
             try {
@@ -2419,8 +2399,6 @@ module.exports = (ipcMain, win) => {
 
                 if (filePaths && filePaths.length > 0) {
                     const content = await fs.readJson(filePaths[0]);
-
-                    // Validate basic theme structure
                     const requiredFields = ['name', 'handle', 'primary', 'bg', 'surface'];
                     const missing = requiredFields.filter(field => !content[field]);
 
@@ -2431,9 +2409,6 @@ module.exports = (ipcMain, win) => {
                     const userData = app.getPath('userData');
                     const presetsDir = path.join(userData, 'custom_themes');
                     await fs.ensureDir(presetsDir);
-
-                    // Ensure unique handle just in case, but overwrite is also fine if user intends it. 
-                    // Let's overwrite for simplicity as per user request to "import" it.
                     const targetPath = path.join(presetsDir, `${content.handle}.json`);
                     await fs.writeJson(targetPath, content, { spaces: 4 });
 
@@ -2447,8 +2422,6 @@ module.exports = (ipcMain, win) => {
         });
 
         console.log('[Instances] All theme handlers registered successfully.');
-
-        // App Maintenance Handlers
         ipcMain.handle('app:soft-reset', async () => {
             console.log('[Maintenance] Soft reset triggered');
             try {
@@ -2456,13 +2429,13 @@ module.exports = (ipcMain, win) => {
                 const items = await fs.readdir(userData);
 
                 for (const item of items) {
-                    if (item === 'instances') continue; // PRESERVE INSTANCES
+                    if (item === 'instances') continue;
 
                     const itemPath = path.join(userData, item);
                     try {
                         await fs.remove(itemPath);
                     } catch (err) {
-                        // Log and ignore EBUSY errors for system files
+
                         if (err.code === 'EBUSY') {
                             console.warn(`[Maintenance] Skipping locked file: ${item}`);
                         } else {
@@ -2492,7 +2465,7 @@ module.exports = (ipcMain, win) => {
                     try {
                         await fs.remove(itemPath);
                     } catch (err) {
-                        // Log and ignore EBUSY errors for system files
+
                         if (err.code === 'EBUSY') {
                             console.warn(`[Maintenance] Skipping locked file: ${item}`);
                         } else {
