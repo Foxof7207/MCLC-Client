@@ -42,8 +42,6 @@ async function downloadFile(url, destPath, onProgress) {
 
 async function extractTarGz(source, destination) {
     await fs.ensureDir(destination);
-    // Use system tar command (available on Linux/Mac and Win10+)
-    // -x: extract, -z: gzip, -f: file, -C: directory
     await execAsync(`tar -xzf "${source}" -C "${destination}"`);
 }
 
@@ -63,8 +61,6 @@ async function installJava(version, runtimesDir, onProgress) {
     }
 
     if (process.arch === 'arm64') arch = 'aarch64';
-    
-    // Adoptium API query
     const apiUrl = `${ADOPTIUM_API}/assets/feature_releases/${version}/ga?architecture=${arch}&heap_size=normal&image_type=jdk&jvm_impl=hotspot&os=${osName}`;
     console.log(`[JavaUtils] Querying: ${apiUrl}`);
 
@@ -77,14 +73,7 @@ async function installJava(version, runtimesDir, onProgress) {
     const downloadUrl = binary.package.link;
     const fileName = binary.package.name;
     const releaseName = res.data[0].release_name;
-
-    // Correct executable name based on OS
     const javaBinName = process.platform === 'win32' ? 'java.exe' : 'java';
-    
-    // Path where it *should* be after extraction
-    // Adoptium archives usually contain a root folder with the release name, but sometimes it varies.
-    // We'll extract to runtimesDir and search.
-
     await fs.ensureDir(runtimesDir);
     const tempPath = path.join(runtimesDir, fileName);
 
@@ -104,25 +93,21 @@ async function installJava(version, runtimesDir, onProgress) {
     }
 
     await fs.remove(tempPath);
-
-    // Find the java binary
     const subdirs = await fs.readdir(runtimesDir);
     for (const dir of subdirs) {
         const potentialPath = path.join(runtimesDir, dir, 'bin', javaBinName);
-        // Loose check or specific check
+
         if ((dir.includes(`jdk-${version}`) || dir.includes(`jre-${version}`) || dir === releaseName)) {
             if (await fs.pathExists(potentialPath)) {
-                // Ensure executable permission on Unix
+
                 if (process.platform !== 'win32') {
                     await fs.chmod(potentialPath, 0o755);
                 }
                 return { success: true, path: potentialPath };
             }
         }
-        // Fallback: check deeper if needed, but normally it's release_name/bin/java
-        // Or just checking any subfolder's bin/java
         if (await fs.pathExists(potentialPath)) {
-             if (process.platform !== 'win32') {
+            if (process.platform !== 'win32') {
                 await fs.chmod(potentialPath, 0o755);
             }
             return { success: true, path: potentialPath };

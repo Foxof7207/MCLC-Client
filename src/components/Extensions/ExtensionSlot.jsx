@@ -43,6 +43,4 @@ const ExtensionSlot = ({ name, className, context }) => {
         </div>
     );
 };
-
-
 export default ExtensionSlot;

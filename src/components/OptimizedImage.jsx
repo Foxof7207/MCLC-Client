@@ -14,7 +14,7 @@ const OptimizedImage = ({ src, alt, className, fallback, ...props }) => {
                     observer.disconnect();
                 }
             },
-            { rootMargin: '100px' } // Load slightly before they enter the viewport
+            { rootMargin: '100px' }
         );
 
         if (imgRef.current) {

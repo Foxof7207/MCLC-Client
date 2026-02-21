@@ -36,8 +36,6 @@ class BackupManager {
         }
 
         await fs.ensureDir(instanceBackupsDir);
-
-        // Naming convention: WorldName_YYYY-MM-DD_HH-mm.zip
         const timestamp = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').slice(0, 16);
         const fileName = `${instanceName}_${timestamp}.zip`;
         const filePath = path.join(instanceBackupsDir, fileName);
@@ -45,8 +43,6 @@ class BackupManager {
         return new Promise((resolve, reject) => {
             const output = fs.createWriteStream(filePath);
             const archive = archiver('zip', { zlib: { level: 9 } });
-
-            // Handle errors explicitly
             output.on('error', (err) => {
                 console.error('[BackupManager] WriteStream error:', err);
                 if (err.code === 'ENOSPC') {
@@ -57,8 +53,6 @@ class BackupManager {
 
             output.on('close', async () => {
                 console.log(`[BackupManager] Backup created: ${fileName} (${archive.pointer()} bytes)`);
-
-                // Track last backup time in instance.json
                 try {
                     const configPath = path.join(instanceDir, 'instance.json');
                     if (await fs.pathExists(configPath)) {
@@ -71,18 +65,12 @@ class BackupManager {
                 }
 
                 await this.cleanupBackups(instanceName);
-
-                // Cloud Upload Logic
                 try {
                     const settingsPath = path.join(app.getPath('userData'), 'settings.json');
                     if (await fs.pathExists(settingsPath)) {
                         const settings = await fs.readJson(settingsPath);
                         if (settings.cloudBackupSettings?.enabled && settings.cloudBackupSettings?.provider) {
                             console.log(`[BackupManager] Triggering cloud upload for ${instanceName} to ${settings.cloudBackupSettings.provider}`);
-                            // We need to access the cloud backup handler. 
-                            // Since it's an Electron handler, we might want to emit an event or call it directly if shared.
-                            // For simplicity, let's assume we can require it or use a global.
-                            // Better: Have the cloudBackup handler listen for 'backup:created' events.
                             app.emit('backup:created', { providerId: settings.cloudBackupSettings.provider, filePath, instanceName });
                         }
                     }
@@ -110,8 +98,6 @@ class BackupManager {
     async cleanupBackups(instanceName) {
         const instanceBackupsDir = path.join(this.backupsDir, instanceName);
         if (!(await fs.pathExists(instanceBackupsDir))) return;
-
-        // Load settings to get maxBackups
         const settingsPath = path.join(app.getPath('userData'), 'settings.json');
         let maxBackups = 10;
         if (await fs.pathExists(settingsPath)) {
@@ -129,7 +115,7 @@ class BackupManager {
                 path: path.join(instanceBackupsDir, f),
                 time: fs.statSync(path.join(instanceBackupsDir, f)).mtime.getTime()
             }))
-            .sort((a, b) => b.time - a.time); // Newest first
+            .sort((a, b) => b.time - a.time);
 
         if (backupFiles.length > maxBackups) {
             const toDelete = backupFiles.slice(maxBackups);

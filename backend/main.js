@@ -132,15 +132,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-    // Register custom protocol for extensions to load assets (e.g. extension://my-extension/assets/img.png)
     protocol.registerFileProtocol('extension', (request, callback) => {
         const url = request.url.replace(/^extension:\/\//, '');
         try {
-            const decodedUrl = decodeURIComponent(url); // e.g. "my-extension/assets/img.png"
+            const decodedUrl = decodeURIComponent(url);
             const extensionsDir = path.join(app.getPath('userData'), 'extensions');
             const filePath = path.normalize(path.join(extensionsDir, decodedUrl));
 
-            // Prevent directory traversal attacks
             if (!filePath.startsWith(extensionsDir)) {
                 return callback({ error: -2 });
             }

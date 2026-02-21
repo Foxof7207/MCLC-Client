@@ -13,8 +13,6 @@ async function getCachedProfile(token) {
         console.log('[ProfileCache] Returning cached profile');
         return cached.data;
     }
-
-    // Handle concurrent requests for the same token
     if (pendingFetches.has(token)) {
         console.log('[ProfileCache] Waiting for existing fetch...');
         return pendingFetches.get(token);

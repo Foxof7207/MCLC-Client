@@ -17,9 +17,9 @@ import {
 } from '@heroicons/react/24/solid';
 
 const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange }) => {
-    const [view, setView] = useState('mode-select'); // 'mode-select' | 'setup'
-    const [mode, setMode] = useState('backup'); // 'backup' | 'import'
-    const [type, setType] = useState('local'); // 'local' | 'cloud'
+    const [view, setView] = useState('mode-select');
+    const [mode, setMode] = useState('backup');
+    const [type, setType] = useState('local');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedItems, setSelectedItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -77,7 +77,7 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
                 }
                 addNotification(`Successfully backed up ${successCount} world(s)`, 'success');
             } else {
-                // Import
+
                 const settings = await window.electronAPI.getSettings();
                 const provider = settings.settings.cloudBackupSettings?.provider || 'GOOGLE_DRIVE';
 
@@ -86,7 +86,7 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
                     if (type === 'local') {
                         res = await window.electronAPI.restoreLocalBackup(instance.name, itemId);
                     } else {
-                        // Cloud import
+
                         const backupItem = cloudBackups.find(b => b.id === itemId);
                         if (!backupItem) continue;
 
@@ -99,7 +99,7 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
                         if (downloadRes.success) {
                             addNotification(`Restoring ${backupItem.name}...`, 'info');
                             res = await window.electronAPI.restoreLocalBackup(instance.name, fileName);
-                            // Cleanup temp file after restore
+
                             await window.electronAPI.removeFile(tempPath);
                         } else {
                             addNotification(`Download failed: ${downloadRes.error}`, 'error');

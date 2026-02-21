@@ -113,8 +113,6 @@ function createWindow() {
     require('../backend/handlers/java')(ipcMain);
     const discord = require('../backend/handlers/discord');
     discord.initRPC();
-
-    // Initialize Backup Manager
     const backupManager = require('../backend/backupManager');
     backupManager.init(ipcMain);
     const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -210,13 +208,11 @@ app.whenReady().then(() => {
 
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
-
-    // Unified Deep Link / File Handler
     const handleDeepLink = (argv) => {
         const file = argv.find(arg => arg.endsWith('.mcextension'));
         if (file) {
             console.log('[Main] file opened:', file);
-            // Wait for window to be ready if it's not
+
             if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isLoading()) {
                 mainWindow.webContents.send('extension:open-file', file);
                 if (mainWindow.isMinimized()) mainWindow.restore();
@@ -228,14 +224,12 @@ app.whenReady().then(() => {
             }
         }
     };
-
-    // Windows / Linux: Second Instance Lock
     const gotTheLock = app.requestSingleInstanceLock();
     if (!gotTheLock) {
         app.quit();
     } else {
         app.on('second-instance', (event, commandLine, workingDirectory) => {
-            // Someone tried to run a second instance, we should focus our window.
+
             if (mainWindow) {
                 if (mainWindow.isMinimized()) mainWindow.restore();
                 mainWindow.focus();
@@ -245,20 +239,14 @@ app.whenReady().then(() => {
     }
 
     createWindow();
-
-    // Handle init
     handleDeepLink(process.argv);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 });
-
-// macOS: open-file
 app.on('open-file', (event, path) => {
     event.preventDefault();
-    // We need to store this or send it to the window
-    // For simplicity, we just log it for now as the user is likely on Windows
     console.log('[Main] macOS open-file:', path);
 });
 

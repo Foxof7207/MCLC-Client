@@ -11,11 +11,11 @@ require('dotenv').config();
 const pool = require('./database');
 const http = require('http');
 const { Server } = require("socket.io");
-require('./passport-setup'); // Import passport configuration
+require('./passport-setup');
 const codesSystem = require('./codes_system');
 
 const app = express();
-app.set('trust proxy', 1); // Trust the Plesk proxy
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -29,69 +29,55 @@ const PORT = process.env.PORT || 3001;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 const NEWS_FILE = path.join(__dirname, 'news.json');
 const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
-
-// --- Middleware ---
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-// Session Config
 app.use(session({
     secret: process.env.SESSION_SECRET || 'mclc-secret-key-change-me',
     resave: false,
     saveUninitialized: false,
     proxy: true,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Only secure in production
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000
     }
 }));
-
-// Passport Init
 app.use(passport.initialize());
 app.use(passport.session());
-
-// --- Analytics Storage ---
-// In-memory active sessions
-// Map<SocketID, { version: string, os: string, isPlaying: boolean, instance: string, startTime: number }>
 const activeSessions = new Map();
-
-// Persistent stats structure
 let stats = {
-    // Downloads by category
+
     downloads: {
-        mod: {},        // { "Fabric API": 120 }
+        mod: {},
         resourcepack: {},
         shader: {},
         modpack: {}
     },
-    // Daily tracking
-    launchesPerDay: {}, // { "2023-10-27": 150 }
-    // User base
-    clientVersions: {}, // { "1.0.0": 10 }
+
+    launchesPerDay: {},
+
+    clientVersions: {},
     software: {
-        client: {}, // { "Fabric": 10, "Vanilla": 5 }
+        client: {},
         server: {}
     },
     gameVersions: {
-        client: {}, // { "1.21": 8 }
+        client: {},
         server: {}
     }
 };
-
-// Load analytics
 if (fs.existsSync(ANALYTICS_FILE)) {
     try {
         const loaded = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
-        // Migration: If old format, convert
+
         if (loaded.totalDownloads && !loaded.downloads) {
-            stats.downloads.mod = loaded.totalDownloads; // Assume old are mods
+            stats.downloads.mod = loaded.totalDownloads;
             stats.launchesPerDay = loaded.launchesPerDay || {};
             stats.clientVersions = loaded.clientVersions || {};
         } else {
-            stats = { ...stats, ...loaded }; // Merge to ensure structure
-            // Ensure new structures exist
+            stats = { ...stats, ...loaded };
+
             if (!stats.software) stats.software = { client: {}, server: {} };
             if (!stats.gameVersions) stats.gameVersions = { client: {}, server: {} };
         }
@@ -107,13 +93,9 @@ const saveAnalytics = () => {
         if (err) console.error("Error saving analytics:", err);
     });
 };
-
-// Save every 30 seconds
 setInterval(saveAnalytics, 30 * 1000);
-
-// --- Socket.IO Logic ---
 io.on('connection', (socket) => {
-    // Default session data
+
     activeSessions.set(socket.id, {
         version: 'unknown',
         os: 'unknown',
@@ -121,41 +103,30 @@ io.on('connection', (socket) => {
         instance: null,
         startTime: Date.now()
     });
-
-    // Send initial live stats to THIS client (if they are admin) or just broadcast update to admins
-    // Actually we should just emit live stats to admins whenever connection changes
     emitLiveStats();
-
-    // 1. Client Register (On Startup)
     socket.on('register', (data) => {
         const session = activeSessions.get(socket.id);
         if (session) {
             session.version = data.version || 'unknown';
             session.os = data.os || 'unknown';
-            session.username = data.username || 'Anonymous'; // Store username
+            session.username = data.username || 'Anonymous';
             session.uuid = data.uuid || null;
             activeSessions.set(socket.id, session);
         }
-
-        // Update persistent version stats
         if (data.version) {
             stats.clientVersions[data.version] = (stats.clientVersions[data.version] || 0) + 1;
         }
 
         emitLiveStats();
     });
-
-    // 2. Client Status Update (isPlaying)
     socket.on('update-status', (data) => {
         const session = activeSessions.get(socket.id);
         if (session) {
-            // Check if we just started playing
+
             if (data.isPlaying && !session.isPlaying) {
-                // Persistent tracking on Launch
+
                 const today = new Date().toISOString().split('T')[0];
                 stats.launchesPerDay[today] = (stats.launchesPerDay[today] || 0) + 1;
-
-                // Track Software and Game Version
                 const mode = data.mode === 'server' ? 'server' : 'client';
                 if (data.software) {
                     stats.software[mode][data.software] = (stats.software[mode][data.software] || 0) + 1;
@@ -171,16 +142,14 @@ io.on('connection', (socket) => {
             activeSessions.set(socket.id, session);
         }
         emitLiveStats();
-        // Also emit persistent stats update because launchesPerDay changed
+
         io.to('admin').emit('live-update', {
             live: getLiveStats(),
             persistent: stats
         });
     });
-
-    // 2.5 Track Creation (e.g. Server created in Dashboard)
     socket.on('track-creation', (data) => {
-        // data: { software: "paper", version: "1.21.1", mode: "server" }
+
         const mode = data.mode === 'server' ? 'server' : 'client';
         console.log(`[Analytics] Track Creation (${mode}):`, data.software, data.version);
         if (data.software) {
@@ -196,25 +165,18 @@ io.on('connection', (socket) => {
             persistent: stats
         });
     });
-
-    // 3. Track Download
     socket.on('track-download', (data) => {
-        // data: { type: "mod", name: "Fabric API", id: "P7dR8mSH", username: "..." }
+
         const type = data.type || 'mod';
         const key = data.name || data.id || 'unknown';
         const session = activeSessions.get(socket.id);
         const username = data.username || (session ? session.username : 'Anonymous');
-
-        // Initialize category if missing (safety)
         if (!stats.downloads[type]) stats.downloads[type] = {};
 
         if (key) {
             stats.downloads[type][key] = (stats.downloads[type][key] || 0) + 1;
 
             saveAnalytics();
-
-            // Notify admins - Send FULL stats update to keep UI in sync
-            // Attach username to the event for the real-time log
             io.to('admin').emit('new-download', { ...data, username });
             io.to('admin').emit('live-update', {
                 live: getLiveStats(),
@@ -222,12 +184,10 @@ io.on('connection', (socket) => {
             });
         }
     });
-
-    // 4. Admin Subscribe
     socket.on('admin-subscribe', (password) => {
         if (password === ADMIN_PASSWORD) {
             socket.join('admin');
-            // Send full initial state
+
             socket.emit('init-stats', {
                 live: getLiveStats(),
                 persistent: stats
@@ -250,7 +210,7 @@ function getLiveStats() {
     const playingInstances = {};
 
     activeSessions.forEach((session) => {
-        // Only count as active users those who have registered (launcher client)
+
         if (session.version && session.version !== 'unknown') {
             activeUsers++;
             if (session.isPlaying) {
@@ -276,12 +236,9 @@ function getLiveStats() {
 function emitLiveStats() {
     io.to('admin').emit('live-update', {
         live: getLiveStats(),
-        persistent: stats // Always send persistent stats too for simplicity
+        persistent: stats
     });
 }
-
-
-// Multer Storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadDir = path.join(__dirname, 'public/uploads');
@@ -294,10 +251,6 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage: storage });
-
-// --- Routes ---
-
-// Auth Routes
 app.get('/auth/google', (req, res, next) => {
     if (req.query.returnTo) {
         req.session.returnTo = req.query.returnTo;
@@ -332,8 +285,6 @@ app.get('/api/user', (req, res) => {
         res.status(500).json({ error: 'Auth check failed', details: err.message });
     }
 });
-
-// Middleware to check authentication
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) {
         return next();
@@ -347,15 +298,13 @@ function ensureAdmin(req, res, next) {
     }
     res.status(403).json({ error: 'Forbidden' });
 }
-
-// 1. Extensions API
 app.get('/api/extensions', async (req, res) => {
     const { search } = req.query;
     try {
         const [extensions] = await pool.query(`
-            SELECT extensions.*, users.username as developer 
-            FROM extensions 
-            LEFT JOIN users ON extensions.user_id = users.id 
+            SELECT extensions.*, users.username as developer
+            FROM extensions
+            LEFT JOIN users ON extensions.user_id = users.id
             WHERE extensions.status = "approved"
             ${search ? 'AND (extensions.name LIKE ? OR extensions.description LIKE ?)' : ''}
         `, search ? [`%${search}%`, `%${search}%`] : []);
@@ -382,14 +331,12 @@ app.post('/api/extensions/upload', ensureAuthenticated, upload.fields([
         await connection.beginTransaction();
 
         try {
-            // 1. Insert into extensions (Metadata)
+
             const [extResult] = await connection.query(
                 'INSERT INTO extensions (user_id, name, identifier, summary, description, type, visibility, banner_path, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [req.user.id, name, identifier, summary, description, type || 'extension', visibility || 'public', bannerFilename, extensionFilename]
             );
             const extensionId = extResult.insertId;
-
-            // 2. Insert into extension_versions (Initial version)
             await connection.query(
                 'INSERT INTO extension_versions (extension_id, version, changelog, file_path, downloads, status) VALUES (?, ?, ?, ?, ?, ?)',
                 [extensionId, version || '1.0.0', 'Initial upload', extensionFilename, 0, 'pending']
@@ -427,8 +374,6 @@ app.post('/api/extensions/update/:id', ensureAuthenticated, upload.fields([
         }
 
         const bannerPath = files && files.bannerImage ? files.bannerImage[0].filename : null;
-
-        // If admin, update directly. If user, save to draft.
         if (req.user.role === 'admin') {
             let updateFields = [];
             let queryParams = [];
@@ -443,18 +388,16 @@ app.post('/api/extensions/update/:id', ensureAuthenticated, upload.fields([
                 queryParams.push(id);
                 await pool.query(`UPDATE extensions SET ${updateFields.join(', ')} WHERE id = ?`, queryParams);
             }
-
-            // Even if an admin edits their own extension, if it was action_required, it should return to pending.
             await pool.query('UPDATE extensions SET status = "pending" WHERE id = ? AND status = "action_required"', [id]);
 
             res.json({ success: true, message: 'Updated directly (Admin)' });
         } else {
-            // Save to Metadata Draft
+
             await pool.query(
                 'INSERT INTO extension_metadata_drafts (extension_id, name, summary, description, banner_path, status) VALUES (?, ?, ?, ?, ?, ?)',
                 [id, name, summary, description, bannerPath, 'pending']
             );
-            // Reset extension status back to pending if it was action_required
+
             await pool.query('UPDATE extensions SET status = "pending" WHERE id = ? AND status = "action_required"', [id]);
 
             res.json({ success: true, message: 'Metadata draft submitted for review' });
@@ -464,8 +407,6 @@ app.post('/api/extensions/update/:id', ensureAuthenticated, upload.fields([
         res.status(500).json({ error: 'Database error', details: err.message });
     }
 });
-
-// New Version Upload
 app.post('/api/extensions/:id/version', ensureAuthenticated, upload.single('extensionFile'), async (req, res) => {
     const { id } = req.params;
     const { version, changelog } = req.body;
@@ -482,7 +423,7 @@ app.post('/api/extensions/:id/version', ensureAuthenticated, upload.single('exte
             'INSERT INTO extension_versions (extension_id, version, changelog, file_path, status) VALUES (?, ?, ?, ?, ?)',
             [id, version, changelog, req.file.filename, 'pending']
         );
-        // Reset extension status back to pending if it was action_required
+
         await pool.query('UPDATE extensions SET status = "pending" WHERE id = ? AND status = "action_required"', [id]);
 
         res.json({ success: true });
@@ -495,18 +436,16 @@ app.post('/api/extensions/:id/version', ensureAuthenticated, upload.single('exte
 app.get('/api/extensions/i/:identifier', async (req, res) => {
     const { identifier } = req.params;
     try {
-        // 1. Get Extension Metadata
+
         const [rows] = await pool.query(`
             SELECT extensions.*, users.username as developer, users.avatar as developer_avatar
-            FROM extensions 
-            LEFT JOIN users ON extensions.user_id = users.id 
+            FROM extensions
+            LEFT JOIN users ON extensions.user_id = users.id
             WHERE extensions.identifier = ?
         `, [identifier]);
 
         if (rows.length === 0) return res.status(404).json({ error: 'Extension not found' });
         const extension = rows[0];
-
-        // 2. Get All Approved Versions
         const [versions] = await pool.query(
             'SELECT * FROM extension_versions WHERE extension_id = ? AND status = "approved" ORDER BY created_at DESC',
             [extension.id]
@@ -534,7 +473,7 @@ app.get('/api/extensions/:id/versions', ensureAuthenticated, async (req, res) =>
 app.delete('/api/extensions/versions/:vid', ensureAuthenticated, async (req, res) => {
     const vid = req.params.vid;
     try {
-        // Check ownership of the extension this version belongs to
+
         const [ext] = await pool.query(`
             SELECT extensions.user_id FROM extensions
             JOIN extension_versions ON extensions.id = extension_versions.extension_id
@@ -552,15 +491,11 @@ app.delete('/api/extensions/versions/:vid', ensureAuthenticated, async (req, res
         res.status(500).json({ error: 'Database error' });
     }
 });
-
-// Extension Deletion
 app.delete('/api/extensions/:id', ensureAuthenticated, async (req, res) => {
     const { id } = req.params;
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
-
-        // 1. Verify Ownership
         const [ext] = await connection.query('SELECT user_id FROM extensions WHERE id = ?', [id]);
         if (ext.length === 0) {
             await connection.rollback();
@@ -571,8 +506,6 @@ app.delete('/api/extensions/:id', ensureAuthenticated, async (req, res) => {
             await connection.rollback();
             return res.status(403).json({ error: 'Unauthorized: You do not own this extension' });
         }
-
-        // 2. Delete related data
         await connection.query('DELETE FROM extension_versions WHERE extension_id = ?', [id]);
         await connection.query('DELETE FROM extension_metadata_drafts WHERE extension_id = ?', [id]);
         await connection.query('DELETE FROM extensions WHERE id = ?', [id]);
@@ -587,8 +520,6 @@ app.delete('/api/extensions/:id', ensureAuthenticated, async (req, res) => {
         if (connection) connection.release();
     }
 });
-
-// User Specific Endpoints
 app.get('/api/user/extensions', ensureAuthenticated, async (req, res) => {
     try {
         const isAdmin = req.user && req.user.role === 'admin';
@@ -654,8 +585,6 @@ app.post('/api/user/update', ensureAuthenticated, upload.single('avatarFile'), a
         res.status(500).json({ error: 'Failed to update profile' });
     }
 });
-
-// Developer Profile API
 app.get('/api/users/p/:username', async (req, res) => {
     try {
         const [userRows] = await pool.query('SELECT id, username, avatar, bio, role, created_at FROM users WHERE username = ?', [req.params.username]);
@@ -669,8 +598,6 @@ app.get('/api/users/p/:username', async (req, res) => {
         res.status(500).json({ error: 'Database error' });
     }
 });
-
-// Admin User Management
 app.get('/api/admin/users', ensureAdmin, async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT id, username, email, ip_address, role, last_login, banned, warn_count, created_at FROM users ORDER BY created_at DESC');
@@ -682,7 +609,7 @@ app.get('/api/admin/users', ensureAdmin, async (req, res) => {
 
 app.post('/api/admin/users/:id/:action', ensureAdmin, async (req, res) => {
     const { id, action } = req.params;
-    const { reason, duration } = req.body; // duration in hours
+    const { reason, duration } = req.body;
 
     try {
         if (action === 'warn') {
@@ -707,14 +634,12 @@ app.post('/api/admin/users/:id/:action', ensureAdmin, async (req, res) => {
         res.status(500).json({ error: 'Database error' });
     }
 });
-
-// Admin Extension Endpoints
 app.get('/api/admin/extensions/all', ensureAdmin, async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT extensions.*, users.username as developer 
-            FROM extensions 
-            LEFT JOIN users ON extensions.user_id = users.id 
+            SELECT extensions.*, users.username as developer
+            FROM extensions
+            LEFT JOIN users ON extensions.user_id = users.id
             ORDER BY created_at DESC
         `);
         res.json(rows);
@@ -726,9 +651,9 @@ app.get('/api/admin/extensions/all', ensureAdmin, async (req, res) => {
 app.get('/api/admin/extensions/pending', ensureAdmin, async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT extensions.*, users.username as developer 
-            FROM extensions 
-            LEFT JOIN users ON extensions.user_id = users.id 
+            SELECT extensions.*, users.username as developer
+            FROM extensions
+            LEFT JOIN users ON extensions.user_id = users.id
             WHERE extensions.status = "pending"
         `);
         res.json(rows);
@@ -760,8 +685,6 @@ app.post('/api/admin/drafts/:did/:action', ensureAdmin, async (req, res) => {
             const [drafts] = await pool.query('SELECT * FROM extension_metadata_drafts WHERE id = ?', [did]);
             if (drafts.length === 0) return res.status(404).json({ error: 'Draft not found' });
             const draft = drafts[0];
-
-            // Update Extension
             let updates = [];
             let params = [];
             if (draft.name) { updates.push('name = ?'); params.push(draft.name); }
@@ -829,8 +752,6 @@ app.post('/api/admin/extensions/:id/:action', ensureAdmin, async (req, res) => {
 
     try {
         await pool.query('UPDATE extensions SET status = ? WHERE id = ?', [status, id]);
-
-        // Fetch extension details for notification
         const [ext] = await pool.query('SELECT user_id, name FROM extensions WHERE id = ?', [id]);
         if (ext.length > 0) {
             const userId = ext[0].user_id;
@@ -841,7 +762,7 @@ app.post('/api/admin/extensions/:id/:action', ensureAdmin, async (req, res) => {
             if (status === 'approved') {
                 msg = `Your extension "${name}" has been approved!`;
                 type = 'success';
-                // Auto-approve all pending versions when the main project is approved
+
                 await pool.query('UPDATE extension_versions SET status = "approved" WHERE extension_id = ? AND status = "pending"', [id]);
             } else if (status === 'rejected') {
                 msg = `Your extension "${name}" was rejected. Reason: ${reason || 'No reason specified'}`;
@@ -860,29 +781,19 @@ app.post('/api/admin/extensions/:id/:action', ensureAdmin, async (req, res) => {
         res.status(500).json({ error: 'Database error', details: err.message });
     }
 });
-
-// 2. Original Upload API (Compatibility)
 app.post('/api/upload', upload.single('image'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ success: false, error: 'No file uploaded' });
     }
-    // Return the URL to access the file
-    // Assumes server is reachable at same host/port as this request
-    // Or we return a relative path and the frontend constructs full URL?
-    // Let's return full URL based on request host for convenience
     const protocol = req.protocol;
     const host = req.get('host');
     const fullUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
 
     res.json({ success: true, url: fullUrl });
 });
-
-// 2. Public endpoint for Launcher
 app.get('/news.json', (req, res) => {
     res.json(getNews());
 });
-
-// 3. Admin API
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
     if (password === ADMIN_PASSWORD) {
@@ -908,7 +819,7 @@ app.post('/api/news', (req, res) => {
     try {
         saveNews(news);
         console.log(`[News] Saved ${news.length} items to ${NEWS_FILE}`);
-        // Verify the save
+
         const verify = getNews();
         console.log(`[News] Verify: file now contains ${verify.length} items`);
         res.json({ success: true });
@@ -917,9 +828,6 @@ app.post('/api/news', (req, res) => {
         res.status(500).json({ success: false, error: 'Failed to write news: ' + err.message });
     }
 });
-
-// Serve landing page (current directory or website/ subdir)
-// --- Error Handling Middleware (Last) ---
 app.use((err, req, res, next) => {
     console.error(`[Server Error] ${req.method} ${req.url}:`, err);
     res.status(500).json({
@@ -942,7 +850,7 @@ console.log(`[Static] Serving admin from: ${path.resolve(adminPublicPath)}`);
 const staticOptions = {
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html')) {
-            // Force browser to always revalidate HTML files so cached `<script>` hashes/tags update
+
             res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         }
     }
@@ -950,30 +858,16 @@ const staticOptions = {
 
 app.use(express.static(websitePath, staticOptions));
 app.use(express.static(adminPublicPath, staticOptions));
-
-// Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
-
-// Dynamic route for individual extension pages
 app.get('/extensions/:identifier', (req, res) => {
-    // If the identifier corresponds to a file that exists, let express.static handle it
-    // But since we want dynamic pages, we'll serve the template
     res.sendFile(path.join(__dirname, 'extension_detail.html'), { headers: { 'Cache-Control': 'no-cache, must-revalidate' } });
 });
-
-// Initialize Codes System
 codesSystem(app, ADMIN_PASSWORD);
-
-// Initialize news.json if not exists
 if (!fs.existsSync(NEWS_FILE)) {
     fs.writeFileSync(NEWS_FILE, JSON.stringify([], null, 2));
 }
-
-// Simple text-based "database"
 const getNews = () => JSON.parse(fs.readFileSync(NEWS_FILE, 'utf8'));
 const saveNews = (data) => fs.writeFileSync(NEWS_FILE, JSON.stringify(data, null, 2));
-
-// Analytics API
 app.get('/api/analytics', (req, res) => {
     if (req.query.password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
     res.json({
@@ -986,8 +880,6 @@ const { createTables } = require('./db_init');
 
 server.listen(PORT, async () => {
     console.log(`News Admin Server (with Socket.IO, Auth, Extensions) running on port ${PORT}`);
-
-    // Automatically initialize database tables
     try {
         await createTables();
     } catch (err) {

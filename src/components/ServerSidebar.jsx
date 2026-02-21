@@ -8,7 +8,7 @@ function ServerSidebar({ currentView, setView, onLogout }) {
             try {
                 const res = await window.electronAPI.getSettings();
                 if (res.success) setSettings(res.settings);
-            } catch (e) {}
+            } catch (e) { }
         };
         loadSettings();
 

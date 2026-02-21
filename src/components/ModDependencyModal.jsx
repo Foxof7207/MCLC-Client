@@ -12,7 +12,7 @@ function ModDependencyModal({ mods, onConfirm, onCancel }) {
 
     const toggleAll = () => {
         if (selectedIds.size === mods.length) {
-            // Only keep primary mod if possible
+
             const primary = mods.find(m => m.isPrimary);
             setSelectedIds(new Set(primary ? [primary.projectId] : []));
         } else {
@@ -27,16 +27,16 @@ function ModDependencyModal({ mods, onConfirm, onCancel }) {
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-[#151515] w-full max-w-lg rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-scale-in">
-                {/* Header */}
+                { }
                 <div className="p-6 border-b border-white/5 bg-white/[0.02]">
                     <h2 className="text-xl font-bold text-white tracking-tight">Confirm mods selection</h2>
                     <p className="text-gray-400 text-sm mt-1">Downloading {mods.length} mods including dependencies</p>
                 </div>
 
-                {/* List */}
+                { }
                 <div className="flex-1 overflow-y-auto max-h-[50vh] custom-scrollbar p-3 space-y-1">
                     {mods.map((mod) => (
-                        <div 
+                        <div
                             key={mod.projectId}
                             onClick={() => toggleMod(mod.projectId)}
                             className={`flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-all hover:bg-white/[0.05] group ${selectedIds.has(mod.projectId) ? 'bg-primary/5' : 'opacity-40 grayscale'}`}
@@ -52,9 +52,9 @@ function ModDependencyModal({ mods, onConfirm, onCancel }) {
                             </div>
 
                             <div className="relative">
-                                <img 
-                                    src={mod.iconUrl || 'https://cdn.modrinth.com/placeholder.svg'} 
-                                    alt="" 
+                                <img
+                                    src={mod.iconUrl || 'https://cdn.modrinth.com/placeholder.svg'}
+                                    alt=""
                                     className="w-10 h-10 rounded-lg shadow-lg relative z-10"
                                     onError={(e) => e.target.src = 'https://cdn.modrinth.com/placeholder.svg'}
                                 />
@@ -76,9 +76,9 @@ function ModDependencyModal({ mods, onConfirm, onCancel }) {
                     ))}
                 </div>
 
-                {/* Footer */}
+                { }
                 <div className="p-6 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
-                    <button 
+                    <button
                         onClick={toggleAll}
                         className="text-sm font-bold text-gray-400 hover:text-white transition-all flex items-center gap-3 group"
                     >
@@ -91,7 +91,7 @@ function ModDependencyModal({ mods, onConfirm, onCancel }) {
                     </button>
 
                     <div className="flex gap-4">
-                         <button
+                        <button
                             onClick={onCancel}
                             className="px-6 py-2.5 rounded-xl text-gray-400 font-bold hover:text-white hover:bg-white/[0.05] transition-all"
                         >

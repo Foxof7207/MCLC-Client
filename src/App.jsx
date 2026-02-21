@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExtensionProvider } from './context/ExtensionContext';
 import { Analytics } from './services/Analytics';
 import ExtensionSlot from './components/Extensions/ExtensionSlot';
-
-
 const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Home = React.lazy(() => import('./pages/Home'));
@@ -21,7 +19,7 @@ const Extensions = React.lazy(() => import('./pages/Extensions'));
 
 import Sidebar from './components/Sidebar';
 import ServerSidebar from './components/ServerSidebar';
-// Minigames removed
+
 import RightPanel from './components/RightPanel';
 
 class ErrorBoundary extends React.Component {
@@ -176,8 +174,6 @@ function App() {
                 }
                 return next;
             });
-
-            // Cleanup active downloads for servers too if applicable
             setActiveDownloads(prev => {
                 const next = { ...prev };
                 if (status === 'stopped' || status === 'error' || status === 'ready' || status === 'deleted' || status === 'running' || status === 'starting' || status === 'stopping') {
@@ -213,8 +209,6 @@ function App() {
         };
 
         const removeLaunchProgressListener = window.electronAPI.onLaunchProgress((e) => {
-            // We intentionally do NOT add launch progress to the downloads list anymore
-            // based on the user's request.
         });
 
         const removeWindowStateListener = window.electronAPI.onWindowStateChange((maximized) => {
@@ -447,17 +441,17 @@ function App() {
                                             </svg>
                                         )}
                                     </button>
-                                    {/* Minigames menu removed */}
+                                    { }
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Extension Slot: Header Center */}
+                    { }
                     <ExtensionSlot name="header.center" className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" />
 
                     <div className="flex items-center gap-4 no-drag h-full">
-                        {/* Extension Slot: Header Right */}
+                        { }
                         <ExtensionSlot name="header.right" className="flex items-center gap-2 mr-2" />
 
                         { }
@@ -576,7 +570,7 @@ function App() {
                             style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
                         >
                             <div className="flex-1 overflow-hidden bg-surface/20 rounded-2xl relative flex flex-col">
-                                {/* Performance: Transition indicator for heavy page renders */}
+                                { }
                                 {isPending && (
                                     <div className="absolute top-0 left-0 w-full h-1 z-[100] overflow-hidden bg-white/5">
                                         <div className="h-full bg-primary/50 animate-progress-fast"></div>
@@ -623,7 +617,7 @@ function App() {
                                     )}
 
                                     { }
-                                    {/* Minigames mode removed */}
+                                    { }
                                 </React.Suspense>
                             </div>
                         </main>
@@ -650,7 +644,7 @@ function App() {
                 )}
             </div>
 
-            {/* Extension Slot: Global App Overlay (for floating modals, arbitrary elements) */}
+            { }
             <ExtensionSlot name="app.overlay" className="absolute inset-0 pointer-events-none z-[9999] *:pointer-events-auto" />
         </ExtensionProvider>
     );

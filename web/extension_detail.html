@@ -17,8 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
 
-    <script>
-        tailwind.config = {
+    <script>        tailwind.config = {
             theme: {
                 extend: {
                     colors: {
@@ -36,8 +35,7 @@
                     },
                 },
             },
-        };
-    </script>
+        };</script>
     <style>
         #extension-description h1 {
             font-size: 2rem;
@@ -169,21 +167,17 @@
             </div>
         </div>
     </nav>
-
-    <!-- Project Hero Header -->
     <section class="relative pt-32 pb-16 px-6 overflow-hidden">
         <div id="hero-banner-bg" class="absolute inset-0 z-0 opacity-20 blur-3xl scale-125 pointer-events-none">
-            <!-- Dynamic Banner Image will be set here -->
+
         </div>
 
         <div class="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-12">
-            <!-- Big Banner/Icon -->
+
             <div
                 class="w-full md:w-3/5 aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-surface/50">
                 <img id="extension-banner" src="/resources/icon.png" alt="Banner" class="w-full h-full object-cover">
             </div>
-
-            <!-- Header Info -->
             <div class="w-full md:w-2/5 text-center md:text-left">
                 <div class="flex items-center justify-center md:justify-start gap-3 mb-4">
                     <span id="extension-type"
@@ -211,10 +205,8 @@
 
     <section class="pb-32 px-6">
         <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
-
-            <!-- Main Content -->
             <div class="lg:col-span-8 space-y-12">
-                <!-- Overview -->
+
                 <div class="bg-surface/30 border border-white/5 p-8 md:p-12 rounded-[2.5rem] backdrop-blur-md">
                     <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                         <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -228,8 +220,6 @@
                         ...
                     </div>
                 </div>
-
-                <!-- Installation -->
                 <div class="bg-surface/30 border border-white/5 p-8 md:p-12 rounded-[2.5rem] backdrop-blur-md">
                     <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                         <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -266,10 +256,8 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Sidebar -->
             <div class="lg:col-span-4 space-y-8">
-                <!-- Info Card -->
+
                 <div class="bg-surface/50 border border-white/10 p-8 rounded-[2.5rem] sticky top-28">
                     <h3 class="text-xl font-bold text-white mb-6 tracking-tight">Project Info</h3>
 
@@ -331,7 +319,7 @@
                             </svg>
                         </div>
                         <div id="version-history-list" class="space-y-1">
-                            <!-- Loaded via JS -->
+
                         </div>
                     </div>
                 </div>
@@ -340,9 +328,7 @@
         </div>
     </section>
 
-    <script>
-        // Fetch Extension Data
-        async function loadExtensionData() {
+    <script>        async function loadExtensionData() {
             const pathParts = window.location.pathname.split('/');
             const identifier = pathParts[pathParts.length - 1];
 
@@ -350,13 +336,9 @@
                 const response = await fetch(`/api/extensions/i/${identifier}`);
                 if (!response.ok) throw new Error('Not found');
                 const ext = await response.json();
-
-                // Update UI
                 document.title = `MCLC - ${ext.name}`;
                 document.getElementById('extension-name').textContent = ext.name;
                 document.getElementById('extension-summary').textContent = ext.summary || ext.name;
-
-                // Markdown Rendering
                 marked.setOptions({ breaks: true, gfm: true });
                 const rawDescription = ext.description || 'No description provided.';
                 const htmlDescription = marked.parse(rawDescription);
@@ -380,15 +362,11 @@
 
                 const bannerImg = fixPath(ext.banner_path);
                 document.getElementById('extension-banner').src = bannerImg;
-
-                // Set background blurred image
                 document.getElementById('hero-banner-bg').style.backgroundImage = `url('${bannerImg}')`;
                 document.getElementById('hero-banner-bg').style.backgroundSize = 'cover';
                 document.getElementById('hero-banner-bg').style.backgroundPosition = 'center';
-
-                // Version & Download Logic
                 const versions = ext.versions || [];
-                const latestVersion = versions.length > 0 ? versions[0] : null; // Sorted by created_at DESC in backend
+                const latestVersion = versions.length > 0 ? versions[0] : null;
 
                 const downloadBtn = document.getElementById('download-btn');
 
@@ -396,28 +374,23 @@
                     downloadBtn.href = fixPath(latestVersion.file_path);
                     downloadBtn.setAttribute('download', `${ext.identifier}-${latestVersion.version}.zip`);
                 } else if (ext.file_path) {
-                    // Fallback for legacy
+
                     downloadBtn.href = fixPath(ext.file_path);
                 } else {
                     downloadBtn.classList.add('opacity-50', 'cursor-not-allowed');
                     downloadBtn.removeAttribute('href');
                     downloadBtn.textContent = 'Unavailable';
                 }
-
-                // Render Version History
                 const historyList = document.getElementById('version-history-list');
                 if (historyList) {
                     if (versions.length === 0 && !ext.file_path) {
                         historyList.innerHTML = '<div class="text-gray-500 text-sm italic py-2">No accessible versions.</div>';
                     } else {
-                        // If we have legacy file_path but no versions table entries, show "1.0.0" as fallback? 
-                        // The migration script should have created version 1.0.0 though.
-
                         historyList.innerHTML = versions.slice(0, 5).map((v, index) => `
                             <div class="flex items-center justify-between group py-2 relative">
-                                <!-- Connecting Line -->
+
                                 ${index !== versions.length - 1 ? '<div class="absolute left-[5px] top-8 bottom-[-10px] w-px bg-white/10"></div>' : ''}
-                                
+
                                 <div class="flex items-center gap-3">
                                     <div class="w-2.5 h-2.5 rounded-full ${index === 0 ? 'bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]' : 'bg-white/20'} shrink-0 relative z-10"></div>
                                     <div>
@@ -448,8 +421,7 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadExtensionData);
-    </script>
+        document.addEventListener('DOMContentLoaded', loadExtensionData);</script>
 
 </body>
 

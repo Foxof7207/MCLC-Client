@@ -7,8 +7,6 @@ import { Analytics } from '../services/Analytics';
 import ToggleBox from '../components/ToggleBox';
 import ExtensionSlot from '../components/Extensions/ExtensionSlot';
 import BackupManagerModal from '../components/BackupManagerModal';
-
-
 function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate }) {
     const [activeTab, setActiveTab] = useState('content');
     const [contentView, setContentView] = useState('mods');
@@ -117,7 +115,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     };
 
     useEffect(() => {
-        loadWorlds(); // Load worlds initially for backup modal support
+        loadWorlds();
         if (activeTab === 'content') {
             if (contentView === 'mods') loadMods();
             if (contentView === 'resourcepacks') loadResourcePacks();
@@ -148,7 +146,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             handleSearch();
         }
         if (activeTab === 'worlds') {
-            // loadCloudBackups removed as per migration to BackupManagerModal
+
         }
     }, [sortMethod, searchOffset, activeTab]);
     useEffect(() => {
@@ -230,7 +228,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     };
 
     const handleWorldBackupManager = (world) => {
-        // Option to focus on a specific world if needed later
+
         setShowBackupManager(true);
     };
 
@@ -874,7 +872,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 <button onClick={() => setActiveTab('logs')} className={TAB_CLASSES('logs')}>Logs</button>
             </div>
 
-            {/* Main content area */}
+            { }
             <div className="flex-1 overflow-hidden p-8 pt-4">
                 {activeTab === 'content' && (
                     <div className="h-full flex flex-col">
@@ -1291,7 +1289,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                     )}
                                 </div>
 
-                                {/* Pagination - always visible at bottom */}
+                                { }
                                 <div className="flex justify-between items-center bg-surface p-2 rounded-xl border border-white/5 shrink-0 mt-4">
                                     <button
                                         onClick={handlePrevPage}
@@ -1326,7 +1324,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 {
                     activeTab === 'worlds' && (
                         <div className="flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar flex-1 min-h-0">
-                            {/* Local Worlds Section */}
+                            { }
                             <div className="space-y-4">
                                 <h2 className="text-white font-bold text-sm uppercase tracking-widest opacity-50 flex items-center gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1342,7 +1340,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                     ) : (
                                         worlds.map(world => (
                                             <div key={world.folderName} className="bg-surface/40 rounded-2xl border border-white/5 hover:border-white/10 transition-all flex flex-col group overflow-hidden shadow-lg hover:shadow-primary/5">
-                                                {/* World Image/Icon */}
+                                                { }
                                                 <div className="relative h-32 bg-background-dark/50 overflow-hidden shrink-0">
                                                     {world.hasIcon ? (
                                                         <img src={world.iconData} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -1351,7 +1349,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                                             🌍
                                                         </div>
                                                     )}
-                                                    {/* Game Mode Badge */}
+                                                    { }
                                                     <div className="absolute top-3 left-3 flex gap-2">
                                                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-lg ${world.gameMode === 'Creative' ? 'bg-purple-500/80 text-white' :
                                                             world.gameMode === 'Survival' ? 'bg-red-500/80 text-white' :
@@ -1366,7 +1364,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                                             </span>
                                                         )}
                                                     </div>
-                                                    {/* Version Badge */}
+                                                    { }
                                                     <div className="absolute bottom-3 right-3">
                                                         <span className="bg-black/60 backdrop-blur-md text-white/70 px-2 py-0.5 rounded-md text-[10px] font-bold border border-white/5">
                                                             {world.version || 'Unknown'}
@@ -1374,7 +1372,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                                     </div>
                                                 </div>
 
-                                                {/* World info */}
+                                                { }
                                                 <div className="p-4 flex-1 flex flex-col">
                                                     <h3 className="text-white font-bold text-lg truncate group-hover:text-primary transition-colors mb-1" title={world.name}>
                                                         {world.name}
@@ -1395,7 +1393,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                                                         </div>
                                                     </div>
 
-                                                    {/* Quick Actions */}
+                                                    { }
                                                     <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/5">
                                                         <button
                                                             onClick={() => handleOpenWorldFolder(world)}
@@ -1756,7 +1754,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
             }
 
             { }
-            {/* World Delete Modal */}
+            { }
             {
                 worldToDelete && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -1791,7 +1789,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 )
             }
 
-            {/* Mod Delete Modal */}
+            { }
             {
                 modToDelete && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -1826,7 +1824,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 )
             }
 
-            {/* Backup Manager Modal */}
+            { }
             {
                 showBackupManager && (
                     <BackupManagerModal

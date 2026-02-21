@@ -12,8 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        tailwind.config = {
+    <script>        tailwind.config = {
             theme: {
                 extend: {
                     colors: {
@@ -31,13 +30,10 @@
                     }
                 }
             }
-        }
-    </script>
+        }</script>
 </head>
 
 <body class="bg-background text-gray-200 selection:bg-primary/30 antialiased overflow-x-hidden">
-
-    <!-- Navbar (Minimal for Dashboard) -->
     <nav class="fixed top-0 left-0 right-0 z-[100] transition-all duration-300 bg-background/80 backdrop-blur-xl border-b border-white/5"
         id="navbar">
         <div class="max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between h-20">
@@ -46,10 +42,8 @@
                 <span class="text-xl font-bold tracking-tighter text-white">MCLC <span
                         class="text-primary/50 text-xs ml-1 uppercase tracking-widest">Dashboard</span></span>
             </a>
-
-            <!-- Right Side: Notifications + Download + Auth -->
             <div class="flex items-center gap-4" id="nav-right-group">
-                <!-- Notifications -->
+
                 <div class="relative" id="notification-group">
                     <button onclick="toggleNotifications()" id="notification-btn"
                         class="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-all relative">
@@ -60,8 +54,6 @@
                         <span id="notification-badge"
                             class="absolute top-2 right-2 w-4 h-4 bg-primary text-black text-[10px] font-bold flex items-center justify-center rounded-full hidden">0</span>
                     </button>
-
-                    <!-- Notifications Dropdown -->
                     <div id="notification-dropdown"
                         class="absolute right-0 mt-4 w-80 bg-surface/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl hidden z-[200]">
                         <div class="p-4 border-b border-white/5 flex justify-between items-center">
@@ -84,12 +76,8 @@
     </nav>
 
     <div class="flex pt-20 min-h-screen">
-
-        <!-- Sidebar -->
         <aside
             class="w-72 border-r border-white/5 bg-background sticky top-20 h-[calc(100vh-80px)] hidden lg:flex flex-col p-8">
-
-            <!-- Sidebar Profile -->
             <div class="mb-10 px-2 flex flex-col items-center text-center">
                 <div class="relative group">
                     <div
@@ -170,11 +158,7 @@
                 </a>
             </div>
         </aside>
-
-        <!-- Main Content Area -->
         <main class="flex-1 p-8 lg:p-16 max-w-6xl mx-auto">
-
-            <!-- Tab: Home -->
             <section id="tab-home" class="tab-content">
                 <div class="bg-surface/30 p-12 rounded-[3rem] border border-white/5 mb-12 relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl rounded-full -mr-32 -mt-32">
@@ -230,8 +214,6 @@
                     </button>
                 </div>
             </section>
-
-            <!-- Tab: Profile -->
             <section id="tab-profile" class="tab-content hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <h2 class="text-4xl font-black text-white mb-10 tracking-tight">Customize Profile</h2>
                 <div class="bg-surface border border-white/5 p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
@@ -276,8 +258,6 @@
                     </form>
                 </div>
             </section>
-
-            <!-- Tab: Analytics -->
             <section id="tab-analytics"
                 class="tab-content hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <h2 class="text-4xl font-black text-white mb-10 tracking-tight">Statistics Overview</h2>
@@ -311,8 +291,6 @@
                 </div>
 
             </section>
-
-            <!-- Tab: Extensions -->
             <section id="tab-extensions"
                 class="tab-content hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
@@ -326,15 +304,11 @@
                         Upload New
                     </button>
                 </div>
-
-                <!-- Upload Section (Hidden) -->
                 <div id="upload-section" class="hidden mb-12 animate-in slide-in-from-top-4 duration-300">
                     <div
                         class="bg-surface/50 border border-white/10 p-10 rounded-[2.5rem] shadow-2xl overflow-hidden relative">
                         <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl rounded-full -mr-32 -mt-32">
                         </div>
-
-                        <!-- Close Button -->
                         <button type="button"
                             onclick="document.getElementById('upload-section').classList.add('hidden')"
                             class="absolute top-8 right-8 text-gray-500 hover:text-white transition-all z-50">
@@ -343,19 +317,15 @@
                                     d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
-
-                        <!-- Editor Tabs -->
                         <div id="editor-tabs" class="flex gap-4 mb-8 hidden border-b border-white/5 pb-4">
                             <button type="button" onclick="switchTab('details')" id="tab-details"
                                 class="px-6 py-2 rounded-xl bg-primary text-black font-bold transition-all">Details</button>
                             <button type="button" onclick="switchTab('versions')" id="tab-versions"
                                 class="px-6 py-2 rounded-xl bg-white/5 text-gray-400 hover:text-white font-bold transition-all">Versions</button>
                         </div>
-
-                        <!-- Panel: Details (Metadata) -->
                         <div id="panel-details">
                             <form id="uploadForm" class="flex flex-col gap-10 relative z-10">
-                                <!-- Warning for Updates -->
+
                                 <div id="update-warning"
                                     class="hidden p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-[2rem] flex gap-6 items-center animate-in slide-in-from-top-2 duration-300">
                                     <div
@@ -379,9 +349,9 @@
                                 </div>
 
                                 <input type="hidden" name="id" id="edit-extension-id">
-                                <!-- Top Section: Banner + Info -->
+
                                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                                    <!-- Left: Banner Upload -->
+
                                     <div class="lg:col-span-5 space-y-6">
                                         <div>
                                             <label
@@ -420,8 +390,6 @@
                                                 class="w-full text-xs text-gray-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary/10 file:text-primary hover:file:bg-primary transition-all border border-white/5 p-2 rounded-2xl bg-black/20">
                                         </div>
                                     </div>
-
-                                    <!-- Right: Metadata -->
                                     <div class="lg:col-span-7 space-y-6">
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div class="space-y-2">
@@ -483,7 +451,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- Bottom Section: Markdown Description -->
+
                                 <div class="space-y-4">
                                     <div class="flex items-center justify-between px-1">
                                         <label
@@ -500,7 +468,7 @@
                                     </div>
 
                                     <div class="bg-background/50 border border-white/5 rounded-[2rem] overflow-hidden">
-                                        <!-- Toolbar -->
+
                                         <div
                                             class="flex items-center gap-1 p-2 bg-white/5 border-b border-white/5 overflow-x-auto no-scrollbar">
                                             <button type="button" onclick="insertMarkdown('bold')"
@@ -560,8 +528,6 @@
                                                         d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                                 </svg></button>
                                         </div>
-
-                                        <!-- Split View -->
                                         <div class="grid grid-cols-1 md:grid-cols-2">
                                             <textarea id="markdown-editor" name="description" required
                                                 class="w-full h-80 bg-transparent p-6 text-white focus:outline-none border-b md:border-b-0 md:border-r border-white/5 resize-none font-mono text-sm leading-relaxed"
@@ -587,10 +553,8 @@
                                 </div>
                             </form>
                         </div>
-
-                        <!-- Panel: Versions -->
                         <div id="panel-versions" class="hidden relative z-10">
-                            <!-- New Version Upload -->
+
                             <div class="bg-black/20 rounded-2xl p-6 mb-8 border border-white/5">
                                 <h3 class="text-lg font-bold text-white mb-4">Upload New Version</h3>
                                 <form id="versionForm" class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
@@ -620,8 +584,6 @@
                                     </div>
                                 </form>
                             </div>
-
-                            <!-- Versions List -->
                             <h3 class="text-lg font-bold text-white mb-4">Version History</h3>
                             <div class="overflow-hidden bg-surface/30 border border-white/5 rounded-2xl">
                                 <table class="w-full text-left border-collapse">
@@ -635,21 +597,17 @@
                                         </tr>
                                     </thead>
                                     <tbody id="versions-table-body" class="text-sm divide-y divide-white/5">
-                                        <!-- Loaded via JS -->
+
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- My Extensions List -->
                 <div id="my-extensions-list">
-                    <!-- Loaded via JS -->
+
                 </div>
             </section>
-
-            <!-- Tab: User Management (Admin Only) -->
             <section id="tab-users" class="tab-content hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                     <div>
@@ -688,15 +646,13 @@
                             </tr>
                         </thead>
                         <tbody id="users-list-body">
-                            <!-- Loaded via JS -->
+
                         </tbody>
                     </table>
                 </div>
             </section>
 
         </main>
-
-        <!-- Deletion Confirmation Modal -->
         <div id="delete-modal"
             class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-6">
             <div
@@ -724,12 +680,9 @@
     </div>
 
     <script src="main.js?v=5"></script>
-    <script>
-        let currentUser = null;
+    <script>        let currentUser = null;
         let myExtensions = [];
         let currentExtensionId = null;
-
-        // Helper for paths
         const fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
 
         async function markAsRead(id, e) {
@@ -804,8 +757,6 @@
 
                 currentUser = data.user;
                 const userAvatar = fixPath(currentUser.avatar);
-
-                // Update Profile Elements
                 ['profile-name', 'home-username'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.textContent = currentUser.username;
@@ -816,22 +767,16 @@
 
                 const roleEl = document.getElementById('profile-role');
                 if (roleEl) roleEl.textContent = currentUser.role === 'admin' ? 'Administrator' : 'Developer';
-
-                // Populate Customize Profile Fields
                 const inputUser = document.getElementById('input-username');
                 const inputAvatar = document.getElementById('input-avatar');
                 const inputBio = document.getElementById('input-bio');
                 if (inputUser) inputUser.value = currentUser.username;
                 if (inputAvatar) inputAvatar.value = currentUser.avatar || '';
                 if (inputBio) inputBio.value = currentUser.bio || '';
-
-                // Show Admin Hub if applicable
                 if (currentUser.role === 'admin') {
                     document.getElementById('admin-hub-btn-sidebar')?.classList.remove('hidden');
                     document.getElementById('btn-users')?.classList.remove('hidden');
                 }
-
-                // Non-critical background loads
                 try {
                     await loadMyExtensions();
                 } catch (e) {
@@ -851,16 +796,12 @@
                         console.warn('Failed to load admin users:', e);
                     }
                 }
-
-                // Check for ?edit=ID deep link
                 const urlParams = new URLSearchParams(window.location.search);
                 const editId = urlParams.get('edit');
                 if (editId) {
                     showTab('extensions');
                     setTimeout(() => startEdit(parseInt(editId)), 500);
                 }
-
-                // Close dropdown on click outside
                 document.addEventListener('click', (e) => {
                     const dropdown = document.getElementById('notification-dropdown');
                     const btn = document.getElementById('notification-btn');
@@ -868,26 +809,20 @@
                         dropdown.classList.add('hidden');
                     }
                 });
-
-
             } catch (err) {
                 console.error('Failed to init dashboard:', err);
             }
         }
 
         function showTab(tabId) {
-            // Hide all
+
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active', 'bg-primary/10', 'text-primary'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.add('text-gray-400'));
-
-            // Show current
             document.getElementById('tab-' + tabId).classList.remove('hidden');
             const activeBtn = document.getElementById('btn-' + tabId);
             activeBtn.classList.add('active', 'bg-primary/10', 'text-primary');
             activeBtn.classList.remove('text-gray-400');
-
-            // Scroll to top of main
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -904,8 +839,6 @@
                 }
                 const data = await res.json();
                 myExtensions = Array.isArray(data) ? data : [];
-
-                // Stats
                 document.getElementById('stat-extensions').textContent = myExtensions.length;
                 document.getElementById('stat-approved').textContent = myExtensions.filter(e => e.status === 'approved').length;
                 document.getElementById('stat-pending').textContent = myExtensions.filter(e => e.status === 'pending').length;
@@ -930,7 +863,7 @@
                         <div class="relative w-full aspect-[21/9] overflow-hidden bg-black/40">
                             <img src="${bannerUrl}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-80">
                             <div class="absolute inset-0 bg-gradient-to-t from-surface to-transparent"></div>
-                            
+
                             <div class="absolute top-4 left-4 flex gap-2">
                                 <span class="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${getStatusStyle(ext.status)}">
                                     ${statusLabel}
@@ -943,18 +876,18 @@
                                 <div class="text-[10px] text-primary font-black uppercase tracking-[0.2em] mb-1">${typeLabel}</div>
                                 <h3 class="font-black text-white text-2xl group-hover:text-primary transition-colors tracking-tight line-clamp-1">${ext.name}</h3>
                             </div>
-                            
+
                             <p class="text-gray-500 text-sm line-clamp-2 mb-6 flex-grow">${ext.summary || ext.description || 'No description provided.'}</p>
-                            
+
                                     <div class="pt-6 border-t border-white/5 flex items-center justify-between">
                                         <div class="flex items-center gap-3">
-                                            <button onclick="startEdit(${ext.id}, 'versions')" 
+                                            <button onclick="startEdit(${ext.id}, 'versions')"
                                                 ${isRejected ? 'disabled' : ''}
                                                 class="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary text-primary hover:text-black rounded-xl font-bold transition-all text-[10px] border border-primary/20 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed" title="Version History">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                                                 Version History
                                             </button>
-                                            <button onclick="startEdit(${ext.id}, 'details')" 
+                                            <button onclick="startEdit(${ext.id}, 'details')"
                                                 ${isRejected ? 'disabled' : ''}
                                                 class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-all text-[10px] border border-white/10 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed" title="Update Extension">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -982,8 +915,6 @@
             if (status === 'action_required') return 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/20';
             return 'bg-blue-500/20 text-blue-400 border border-blue-500/20';
         }
-
-        // Banner Preview Logic
         document.getElementById('bannerFile').addEventListener('change', function (e) {
             const file = e.target.files[0];
             const preview = document.getElementById('banner-preview');
@@ -999,8 +930,6 @@
                 reader.readAsDataURL(file);
             }
         });
-
-        // Forms
         document.getElementById('profileForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
@@ -1023,7 +952,7 @@
                     method: 'POST',
                     body: formData
                 });
-                initDashboard(); // Refresh
+                initDashboard();
             } catch (err) {
                 console.error(err);
             }
@@ -1075,8 +1004,6 @@
             btn.innerHTML = originalText;
             btn.disabled = false;
         };
-
-        // Markdown Editor Logic
         const editor = document.getElementById('markdown-editor');
         const preview = document.getElementById('markdown-preview');
 
@@ -1090,8 +1017,6 @@
                 preview.innerHTML = '<div class="text-gray-600 italic">Preview will appear here...</div>';
                 return;
             }
-
-            // Configure marked for line breaks
             marked.setOptions({
                 breaks: true,
                 gfm: true
@@ -1101,8 +1026,6 @@
             const cleanHtml = DOMPurify.sanitize(html);
             preview.innerHTML = cleanHtml;
         }
-
-        // Admin User Logic
         let allUsers = [];
         async function loadAdminUsers() {
             const list = document.getElementById('users-list-body');
@@ -1208,19 +1131,15 @@
             const isHidden = section.classList.contains('hidden');
 
             if (isHidden) {
-                // Prepare for NEW UPLOAD
+
                 currentExtensionId = null;
                 document.getElementById('uploadForm').reset();
                 document.getElementById('edit-extension-id').value = '';
-
-                // UI State for New Upload
                 document.getElementById('editor-tabs').classList.add('hidden');
                 document.getElementById('panel-details').classList.remove('hidden');
                 document.getElementById('panel-versions').classList.add('hidden');
                 document.getElementById('initial-file-upload').classList.remove('hidden');
                 document.getElementById('update-warning').classList.add('hidden');
-
-                // Banner Reset
                 document.getElementById('banner-preview').classList.add('hidden');
                 document.getElementById('banner-placeholder').classList.remove('hidden');
 
@@ -1243,16 +1162,10 @@
             currentExtensionId = ext.id;
             const section = document.getElementById('upload-section');
             section.classList.remove('hidden');
-
-            // UI State for Editing
             document.getElementById('editor-tabs').classList.remove('hidden');
             document.getElementById('initial-file-upload').classList.add('hidden');
             document.getElementById('update-warning').classList.remove('hidden');
-
-            // Switch to requested tab
             switchTab(tab);
-
-            // Populate Form (Details)
             const form = document.getElementById('uploadForm');
             document.getElementById('edit-extension-id').value = ext.id;
             form.querySelector('input[name="name"]').value = ext.name;
@@ -1261,8 +1174,6 @@
             form.querySelector('select[name="type"]').value = ext.type;
             form.querySelector('select[name="visibility"]').value = ext.visibility;
             document.getElementById('markdown-editor').value = ext.description || '';
-
-            // Banner Preview
             const bannerPreview = document.getElementById('banner-preview');
             const bannerPlaceholder = document.getElementById('banner-placeholder');
             if (ext.banner_path) {
@@ -1275,8 +1186,6 @@
             }
 
             updatePreview();
-
-            // Load Versions
             loadVersions(ext.id);
 
             section.scrollIntoView({ behavior: 'smooth' });
@@ -1350,8 +1259,6 @@
                 alert('Error deleting version');
             }
         }
-
-        // Project Deletion Flow
         let deleteId = null;
         let expectedDeleteString = "";
 
@@ -1362,8 +1269,6 @@
             document.getElementById('delete-confirm-input').value = "";
             document.getElementById('delete-confirm-btn').disabled = true;
             document.getElementById('delete-modal').classList.remove('hidden');
-
-            // Input Listener
             const input = document.getElementById('delete-confirm-input');
             input.oninput = () => {
                 document.getElementById('delete-confirm-btn').disabled = input.value !== expectedDeleteString;
@@ -1400,8 +1305,6 @@
                 btn.innerHTML = originalText;
             }
         }
-
-        // Handle Version Upload Form
         document.getElementById('versionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
@@ -1483,8 +1386,6 @@
 
             editor.value = text.substring(0, start) + replacement + text.substring(end);
             editor.focus();
-
-            // Reset selection
             const newPos = start + (selectedText ? replacement.length : replacement.length - cursorOffset);
             editor.setSelectionRange(newPos, newPos);
 
@@ -1495,32 +1396,23 @@
         let statusChartInstance = null;
 
         function renderAnalyticsCharts(extensions) {
-            // Destroy existing charts if they exist
+
             if (downloadsChartInstance) downloadsChartInstance.destroy();
             if (statusChartInstance) statusChartInstance.destroy();
 
             if (!extensions || extensions.length === 0) return;
-
-            // 1. Downloads Bar Chart Data
-            // Only take the top 10 extensions by downloads to keep the chart readable
             const topExtensions = [...extensions].sort((a, b) => b.downloads - a.downloads).slice(0, 10);
 
             const labels = topExtensions.map(e => e.name);
             const data = topExtensions.map(e => e.downloads);
-
-            // 2. Status Doughnut Chart Data
             const counts = { approved: 0, pending: 0, rejected: 0, action_required: 0 };
             extensions.forEach(e => {
                 if (counts[e.status] !== undefined) {
                     counts[e.status]++;
                 }
             });
-
-            // Set default font color for Chart.js
             Chart.defaults.color = '#a0aec0';
             Chart.defaults.font.family = 'Outfit, sans-serif';
-
-            // Render Downloads Chart
             const ctxDownloads = document.getElementById('downloadsChart').getContext('2d');
             downloadsChartInstance = new Chart(ctxDownloads, {
                 type: 'bar',
@@ -1556,8 +1448,6 @@
                     }
                 }
             });
-
-            // Render Status Chart
             const ctxStatus = document.getElementById('statusChart').getContext('2d');
             statusChartInstance = new Chart(ctxStatus, {
                 type: 'doughnut',
@@ -1566,10 +1456,10 @@
                     datasets: [{
                         data: [counts.approved, counts.pending, counts.action_required, counts.rejected],
                         backgroundColor: [
-                            '#3b82f6', // blue-500
-                            '#eab308', // yellow-500
-                            '#f97316', // orange-500
-                            '#ef4444'  // red-500
+                            '#3b82f6',
+                            '#eab308',
+                            '#f97316',
+                            '#ef4444'
                         ],
                         borderWidth: 0,
                         hoverOffset: 4
@@ -1592,19 +1482,14 @@
                 }
             });
         }
-
-        // Init
         initDashboard();
-        showTab('home');
-
-    </script>
+        showTab('home');</script>
 
     <style>
         .active {
             position: relative;
         }
 
-        /* Markdown Preview Styles */
         #markdown-preview h1 {
             font-size: 1.5rem;
             font-weight: 800;

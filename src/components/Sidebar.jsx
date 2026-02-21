@@ -11,7 +11,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
             try {
                 const res = await window.electronAPI.getSettings();
                 if (res.success) setSettings(res.settings);
-            } catch (e) {}
+            } catch (e) { }
         };
         loadSettings();
 
@@ -133,7 +133,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
 
             <div className="flex-1"></div>
 
-            {/* Settings Button */}
+            { }
             <button
                 onClick={() => setView('settings')}
                 className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all group relative ${currentView === 'settings'
@@ -167,7 +167,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                     <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 border-4 border-transparent border-r-[#0d0d0d]"></div>
                 </div>
             </button>
-            {/* Bottom Slot */}
+            { }
             <ExtensionSlot name="sidebar.bottom" className="w-full flex flex-col items-center gap-2 mt-2" />
         </div>
     );
