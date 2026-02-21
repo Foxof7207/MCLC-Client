@@ -861,7 +861,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
 
             { }
             <div className="px-8 mt-4">
-                <ExtensionSlot name="instance.details" context={{ instanceName: instance.name, status, isRunning }} className="w-full flex gap-4 overflow-x-auto" />
+                <ExtensionSlot name="instance.details" context={{ instanceName: instance.name, status, isRunning }} className="w-full flex gap-4 overflow-visible" />
             </div>
 
             { }
