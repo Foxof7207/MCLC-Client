@@ -709,6 +709,27 @@ app.post('/api/admin/users/:id/:action', ensureAdmin, async (req, res) => {
 });
 
 // Admin Extension Endpoints
+// Reset Stats
+app.post('/api/admin/reset-stats', (req, res) => {
+    if (req.body.password === ADMIN_PASSWORD) {
+        stats = {
+            downloads: { mod: {}, resourcepack: {}, shader: {}, modpack: {} },
+            launchesPerDay: {},
+            clientVersions: {},
+            software: { client: {}, server: {} },
+            gameVersions: { client: {}, server: {} }
+        };
+        saveAnalytics();
+        io.to('admin').emit('init-stats', {
+            live: getLiveStats(),
+            persistent: stats
+        });
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ error: 'Unauthorized' });
+    }
+});
+
 app.get('/api/admin/extensions/all', ensureAdmin, async (req, res) => {
     try {
         const [rows] = await pool.query(`

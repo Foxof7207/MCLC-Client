@@ -82,7 +82,17 @@
                     Disconnected
                 </div>
             </div>
-            <button onclick="logout()" class="btn-logout">LOGOUT</button>
+            style="display:flex !important; flex-direction: row !important; gap:10px !important; position: relative
+            !important; float: right !important;">
+            <button onclick="resetAllData()"
+                style="background:#e74c3c !important; border-color:#e74c3c !important; color:white !important; position: relative !important; left: auto !important; right: auto !important; top: auto !important; display: inline-block !important; width: auto !important;">
+                RESET DATA
+            </button>
+            <button onclick="logout()"
+                style="background:rgba(255,255,255,0.1) !important; border: 1px solid rgba(255,255,255,0.2) !important; color:white !important; position: relative !important; left: auto !important; right: auto !important; top: auto !important; display: inline-block !important; width: auto !important;">
+                LOGOUT
+            </button>
+        </div>
         </div>
     </header>
 
@@ -91,7 +101,6 @@
             <div id="tab-dashboard" class="nav-tab active" onclick="switchView('dashboard')">Dashboard</div>
             <div id="tab-list" class="nav-tab" onclick="switchView('list')">News List</div>
             <div id="tab-add" class="nav-tab" onclick="switchView('add')">Add News</div>
-            <div id="tab-extensions" class="nav-tab" onclick="switchView('extensions')">Extensions</div>
             <div id="tab-codes" class="nav-tab" onclick="switchView('codes')">Codes</div>
         </div>
 
@@ -247,20 +256,6 @@
             </div>
         </div>
 
-        <!-- EXTENSIONS MODERATION -->
-        <div id="section-extensions" class="view-section">
-            <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                    <h3 style="color:var(--text-main); margin:0;">Pending Extensions</h3>
-                    <button onclick="loadPendingExtensions()" class="tab-btn">Refresh</button>
-                </div>
-                <div id="pending-extensions-list" style="display:flex; flex-direction:column; gap:15px;">
-                    <!-- Loaded via JS -->
-                    <p style="text-align:center; color:var(--text-muted); padding:20px;">Loading pending extensions...
-                    </p>
-                </div>
-            </div>
-        </div>
 
         <!-- CODES MANAGEMENT -->
         <div id="section-codes" class="view-section">
@@ -317,68 +312,6 @@
             if (tab) tab.classList.add('active');
 
             if (v === 'codes') loadCodes();
-            if (v === 'extensions') loadPendingExtensions();
-        }
-
-        // --- Extension Moderation Logic ---
-        async function loadPendingExtensions() {
-            const list = document.getElementById('pending-extensions-list');
-            list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">Loading...</p>';
-
-            try {
-                const res = await fetch(`/api/admin/extensions/pending`);
-                const extensions = await res.json();
-
-                if (extensions.length === 0) {
-                    list.innerHTML = '<p style="text-align:center; color:var(--text-muted); padding:20px;">No pending extensions to review.</p>';
-                    return;
-                }
-
-                list.innerHTML = extensions.map(ext => `
-                    <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-light); padding:20px; border-radius:12px; display:flex; gap:20px; align-items:start;">
-                        <img src="${ext.banner_path ? '/uploads/' + ext.banner_path : 'resources/icon.png'}" style="width:160px; aspect-ratio:16/9; object-cover:cover; border-radius:8px; border:1px solid var(--border-light);">
-                        <div style="flex:1;">
-                            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
-                                <div>
-                                    <h4 style="color:white; margin:0; font-size:1.2rem;">${ext.name}</h4>
-                                    <code style="font-size:0.7rem; color:var(--primary); font-family:monospace;">${ext.identifier || 'no-id'}</code>
-                                </div>
-                                <div style="text-align:right;">
-                                    <span class="badge ${ext.type === 'theme' ? 'bg-gray' : 'bg-green'}">${ext.type.toUpperCase()}</span>
-                                    <div style="font-size:0.7rem; color:var(--text-muted); margin-top:5px;">by ${ext.developer}</div>
-                                </div>
-                            </div>
-                            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:15px;">${ext.summary || 'No summary.'}</p>
-                            <div style="display:flex; gap:10px;">
-                                <button onclick="approveExtension(${ext.id})" style="background:var(--primary); border:none; color:black; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.8rem;">APPROVE</button>
-                                <button onclick="rejectExtension(${ext.id})" style="background:var(--danger); border:none; color:white; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.8rem;">REJECT</button>
-                                <a href="/uploads/${ext.file_path}" download style="background:rgba(255,255,255,0.1); color:white; padding:8px 16px; border-radius:6px; text-decoration:none; font-size:0.8rem; font-weight:bold;">DOWNLOAD FILE</a>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                console.error(err);
-                list.innerHTML = '<p style="text-align:center; color:red; padding:20px;">Failed to load extensions.</p>';
-            }
-        }
-
-        async function approveExtension(id) {
-            if (!confirm('Approve this extension? It will be public instantly.')) return;
-            try {
-                const res = await fetch(`/api/admin/extensions/${id}/approve`, { method: 'POST' });
-                if (res.ok) loadPendingExtensions();
-                else alert('Failed to approve');
-            } catch (err) { console.error(err); }
-        }
-
-        async function rejectExtension(id) {
-            if (!confirm('Reject this extension?')) return;
-            try {
-                const res = await fetch(`/api/admin/extensions/${id}/reject`, { method: 'POST' });
-                if (res.ok) loadPendingExtensions();
-                else alert('Failed to reject');
-            } catch (err) { console.error(err); }
         }
 
         // --- News Logic ---
@@ -442,6 +375,29 @@
             renderNews();
         };
 
+        // --- RESET DATA ---
+        async function resetAllData() {
+            if (!confirm('Are you absolutely sure you want to RESET ALL DATA?\nThis will permanently delete all download statistics, player history, and cannot be undone!')) return;
+            if (!confirm('FINAL WARNING: This will set everything back to 0. Proceed?')) return;
+
+            try {
+                const res = await fetch('/api/admin/reset-stats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('All data has been reset to 0.');
+                } else {
+                    alert('Failed to reset data: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Connection error while resetting data.');
+            }
+        }
+
         // --- CODES LOGIC ---
         async function loadCodes() {
             const tbody = document.getElementById('codes-table-body');
@@ -501,7 +457,7 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    loadCodes(); // Refresh
+                    loadCodes();
                 } else {
                     alert('Failed to delete code: ' + (data.error || 'Unknown error'));
                 }
@@ -679,7 +635,13 @@
 
             let totalDl = 0;
             if (statsData.downloads) {
-                Object.values(statsData.downloads).forEach(cat => Object.values(cat).forEach(c => totalDl += c));
+                Object.values(statsData.downloads).forEach(cat => {
+                    if (typeof cat === 'object' && cat !== null) {
+                        Object.values(cat).forEach(c => totalDl += (parseInt(c) || 0));
+                    } else if (typeof cat === 'number' || typeof cat === 'string') {
+                        totalDl += (parseInt(cat) || 0);
+                    }
+                });
             }
             const downloadsEl = document.getElementById('stat-total-downloads');
             if (downloadsEl) downloadsEl.innerText = totalDl;
@@ -794,7 +756,6 @@
             updateActivityChart(active, playing);
         }, 3000);
 
-        // --- Start Everything ---
         // --- Form Submission ---
         document.getElementById('addForm').addEventListener('submit', async (e) => {
             e.preventDefault();
