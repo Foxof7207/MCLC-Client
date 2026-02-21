@@ -44,7 +44,7 @@ function createWindow() {
             preload: path.join(__dirname, '../backend/preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: false,
+            sandbox: true,
             v8CacheOptions: 'bypassHeatCheck'
         },
     });
@@ -142,19 +142,21 @@ function createWindow() {
     mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-state', false));
 }
 
-app.whenReady().then(() => {
+function setupAppMediaProtocol() {
     protocol.handle('app-media', (request) => {
         try {
             const url = new URL(request.url);
+            const decodedPath = decodeURIComponent(url.pathname);
+            const resolvedPath = path.resolve(decodedPath);
 
-            let decodedPath = decodeURIComponent(url.pathname);
-            if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(decodedPath)) {
-                decodedPath = decodedPath.slice(1);
+            // Security: Ensure the path is within the app's data directory (V6)
+            const userDataPath = app.getPath('userData');
+            if (!resolvedPath.startsWith(userDataPath)) {
+                console.error(`[Main] Blocked app-media attempt to access path outside userData: ${resolvedPath}`);
+                return new Response('Access Denied', { status: 403 });
             }
-            if (!decodedPath || decodedPath === '/' || !require('fs').existsSync(decodedPath)) {
-                return new Response('Not Found', { status: 404 });
-            }
-            return net.fetch(pathToFileURL(decodedPath).toString());
+
+            return net.fetch(pathToFileURL(resolvedPath).toString());
         } catch (e) {
             console.error('Protocol error:', e);
             return new Response(null, { status: 404 });
@@ -218,36 +220,40 @@ app.whenReady().then(() => {
 
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
-    const handleDeepLink = (argv) => {
-        const file = argv.find(arg => arg.endsWith('.mcextension'));
-        if (file) {
-            console.log('[Main] file opened:', file);
+}
 
-            if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isLoading()) {
+const handleDeepLink = (argv) => {
+    const file = argv.find(arg => arg.endsWith('.mcextension'));
+    if (file) {
+        console.log('[Main] file opened:', file);
+
+        if (mainWindow && mainWindow.webContents && !mainWindow.webContents.isLoading()) {
+            mainWindow.webContents.send('extension:open-file', file);
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        } else if (mainWindow) {
+            mainWindow.once('ready-to-show', () => {
                 mainWindow.webContents.send('extension:open-file', file);
-                if (mainWindow.isMinimized()) mainWindow.restore();
-                mainWindow.focus();
-            } else if (mainWindow) {
-                mainWindow.once('ready-to-show', () => {
-                    mainWindow.webContents.send('extension:open-file', file);
-                });
-            }
+            });
         }
-    };
-    const gotTheLock = app.requestSingleInstanceLock();
-    if (!gotTheLock) {
-        app.quit();
-    } else {
-        app.on('second-instance', (event, commandLine, workingDirectory) => {
-
-            if (mainWindow) {
-                if (mainWindow.isMinimized()) mainWindow.restore();
-                mainWindow.focus();
-                handleDeepLink(commandLine);
-            }
-        });
     }
+};
 
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+            handleDeepLink(commandLine);
+        }
+    });
+}
+
+app.whenReady().then(() => {
+    setupAppMediaProtocol();
     createWindow();
     handleDeepLink(process.argv);
 
@@ -276,6 +282,7 @@ app.whenReady().then(() => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 });
+
 app.on('open-file', (event, path) => {
     event.preventDefault();
     console.log('[Main] macOS open-file:', path);

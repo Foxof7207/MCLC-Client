@@ -1536,29 +1536,56 @@ module.exports = (ipcMain, win) => {
             return backupsDir;
         });
 
-        ipcMain.handle('instance:restore-local-backup', async (_, instanceName, backupFileName) => {
+        ipcMain.handle('instance:restore-local-backup', async (_, instanceName, backupPath) => {
+            const instanceDir = path.join(instancesDir, instanceName);
+            const targetSavesDir = path.join(instanceDir, 'saves');
+
             try {
-                const backupPath = path.isAbsolute(backupFileName)
-                    ? backupFileName
-                    : path.join(globalBackupsDir, instanceName, backupFileName);
-
-                const targetSavesDir = path.join(instancesDir, instanceName, 'saves');
-
-                if (!await fs.pathExists(backupPath)) throw new Error('Backup file not found');
+                if (!await fs.pathExists(backupPath)) return { success: false, error: 'Backup file not found' };
 
                 const zip = new AdmZip(backupPath);
-                zip.extractAllTo(targetSavesDir, true);
+                const zipEntries = zip.getEntries();
+
+                for (const entry of zipEntries) {
+                    if (entry.isDirectory) continue;
+
+                    const entryName = entry.entryName;
+                    const normalizedEntry = path.normalize(entryName);
+
+                    // Security: Prevent path traversal (V10)
+                    if (normalizedEntry.startsWith('..') || path.isAbsolute(normalizedEntry)) {
+                        console.warn(`[Instances] Skipping suspicious entry in backup ZIP: ${entryName}`);
+                        continue;
+                    }
+
+                    const destPath = path.join(targetSavesDir, normalizedEntry);
+                    if (!destPath.startsWith(targetSavesDir)) {
+                        console.warn(`[Instances] Blocked attempt to write outside saves directory: ${destPath}`);
+                        continue;
+                    }
+
+                    await fs.ensureDir(path.dirname(destPath));
+                    await fs.writeFile(destPath, entry.getData());
+                }
 
                 return { success: true };
             } catch (e) {
+                console.error('[Instances] Restore error:', e);
                 return { success: false, error: e.message };
             }
         });
 
         ipcMain.handle('instance:remove-file', async (_, filePath) => {
             try {
-                if (await fs.pathExists(filePath)) {
-                    await fs.remove(filePath);
+                // Security: Ensure the path is within the instances directory
+                const resolvedPath = path.resolve(filePath);
+                if (!resolvedPath.startsWith(instancesDir)) {
+                    console.error(`[Instances] Blocked attempt to delete file outside instances directory: ${resolvedPath}`);
+                    return { success: false, error: 'Access denied: Path is outside of instances directory' };
+                }
+
+                if (await fs.pathExists(resolvedPath)) {
+                    await fs.remove(resolvedPath);
                     return { success: true };
                 }
                 return { success: false, error: 'File not found' };
