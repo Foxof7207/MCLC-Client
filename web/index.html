@@ -333,16 +333,16 @@
 
           return {
             version: release.tag_name.startsWith('v') ? release.tag_name : 'v' + release.tag_name,
-            win: getAsset('.exe') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-Setup.exe`,
-            deb: getAsset('.deb') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-Setup.deb`,
-            rpm: getAsset('.rpm') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-Setup.rpm`
+            win: getAsset('.exe') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.exe`,
+            deb: getAsset('.deb') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.deb`,
+            rpm: getAsset('.rpm') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.rpm`
           };
         } catch (error) {
           return {
             version: 'v1.3.3',
-            win: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-Setup.exe',
-            deb: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-Setup.deb',
-            rpm: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-Setup.rpm'
+            win: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.exe',
+            deb: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.deb',
+            rpm: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.rpm'
           };
         }
       }
