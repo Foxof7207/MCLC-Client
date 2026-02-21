@@ -43,6 +43,10 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
     const [isCreating, setIsCreating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef(null);
+    const [showNameConflictModal, setShowNameConflictModal] = useState(false);
+    const [conflictServer, setConflictServer] = useState(null);
+    const [conflictOtherName, setConflictOtherName] = useState('');
+    const [pendingServerData, setPendingServerData] = useState(null);
     const serverSoftware = [
         { value: 'vanilla', label: 'Vanilla' },
         { value: 'paper', label: 'Paper' },
@@ -157,6 +161,11 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         }
     };
 
+    const sanitizeFileNameFrontend = (name) => {
+        if (!name) return '';
+        return name.replace(/[^a-z0-9()\-\. ]/gi, '_').toLowerCase();
+    };
+
     const resetCreateForm = () => {
         setNewServerName('');
         setNewServerIcon(DEFAULT_ICON);
@@ -182,38 +191,52 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         const nameToUse = newServerName.trim() || "New Server";
         const newPort = parseInt(serverPort) || 25565;
 
-        // Check for port collision
-        if (servers.some(s => s.port === newPort && s.name.toLowerCase() !== nameToUse.toLowerCase())) {
-            addNotification('Another server is already using this port.', 'error');
+        // Port collisions intentionally allowed; multiple servers may use the same port.
+
+        // Prepare server payload
+        const downloadUrl = `https://mcutils.com/api/server-jars/${selectedSoftware}/${selectedVersion}/download`;
+
+        const serverData = {
+            name: nameToUse,
+            version: selectedVersion,
+            software: selectedSoftware,
+            port: newPort,
+            maxPlayers: parseInt(maxPlayers) || 20,
+            memory: parseInt(serverMemory) || 1024,
+            icon: newServerIcon || DEFAULT_ICON,
+            downloadUrl: downloadUrl
+        };
+
+        // Check for existing server with same display name
+        const existing = servers.find(s => s.name && s.name.toLowerCase() === nameToUse.toLowerCase());
+        if (existing) {
+            // Show choice modal: overwrite / rename / other name
+            setConflictServer(existing);
+            setConflictOtherName(nameToUse);
+            setPendingServerData(serverData);
+            setShowNameConflictModal(true);
             setIsCreating(false);
             return;
         }
 
+        // No conflict -> proceed
+        await doCreate(serverData);
+    };
+
+    const doCreate = async (serverData) => {
+        setIsCreating(true);
         try {
-
-            console.log(`Using mcutils.com for ${selectedSoftware}/${selectedVersion}`);
-            const downloadUrl = `https://mcutils.com/api/server-jars/${selectedSoftware}/${selectedVersion}/download`;
-
-            const serverData = {
-                name: nameToUse,
-                version: selectedVersion,
-                software: selectedSoftware,
-                port: newPort,
-                maxPlayers: parseInt(maxPlayers) || 20,
-                memory: parseInt(serverMemory) || 1024,
-                icon: newServerIcon || DEFAULT_ICON,
-                downloadUrl: downloadUrl
-            };
-
+            console.log(`Using mcutils.com for ${serverData.software}/${serverData.version}`);
             console.log('Sending server data:', serverData);
 
             const result = await window.electronAPI.createServer(serverData);
 
             if (result && result.success) {
                 setShowCreateModal(false);
+                setShowNameConflictModal(false);
                 await loadServers();
-                addNotification(`Started creating server: ${result.serverName || nameToUse}`, 'success');
-                Analytics.trackServerCreation(selectedSoftware, selectedVersion);
+                addNotification(`Started creating server: ${result.serverName || serverData.name}`, 'success');
+                Analytics.trackServerCreation(serverData.software, serverData.version);
             } else {
                 const errorMsg = result?.error || 'Unknown error occurred';
                 addNotification(`Failed to create server: ${errorMsg}`, 'error');
@@ -225,6 +248,73 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         } finally {
             setIsCreating(false);
         }
+    };
+
+    const performOverwrite = async () => {
+        if (!conflictServer || !pendingServerData) return;
+        setIsCreating(true);
+        try {
+            await window.electronAPI.deleteServer(conflictServer.name);
+            await doCreate(pendingServerData);
+        } catch (err) {
+            console.error('Overwrite failed:', err);
+            addNotification(`Overwrite failed: ${err.message}`, 'error');
+        } finally {
+            setIsCreating(false);
+            setShowNameConflictModal(false);
+            setConflictServer(null);
+            setPendingServerData(null);
+        }
+    };
+
+    const performRename = async () => {
+        if (!pendingServerData) return;
+        setIsCreating(true);
+        try {
+            // Find a unique folder name by appending (1), (2), ... and checking backend for existence
+            let counter = 1;
+            let candidateRaw;
+            while (true) {
+                candidateRaw = `${pendingServerData.name} (${counter})`;
+                const exists = await window.electronAPI.getServer(candidateRaw);
+                if (!exists) break;
+                counter++;
+                if (counter > 200) break;
+            }
+
+            const dataWithSafe = { ...pendingServerData, safeName: candidateRaw };
+            await doCreate(dataWithSafe);
+        } catch (err) {
+            console.error('Rename create failed:', err);
+            addNotification(`Rename failed: ${err.message}`, 'error');
+        } finally {
+            setIsCreating(false);
+            setShowNameConflictModal(false);
+            setConflictServer(null);
+            setPendingServerData(null);
+        }
+    };
+
+    const performUseOtherName = async () => {
+        if (!pendingServerData) return;
+        const newName = (conflictOtherName || '').trim();
+        if (!newName) {
+            addNotification('Please enter a valid name', 'error');
+            return;
+        }
+
+        // Check collision again
+        const existing = servers.find(s => s.name && s.name.toLowerCase() === newName.toLowerCase());
+        if (existing) {
+            addNotification('That name is still in use. Choose another.', 'error');
+            return;
+        }
+
+        const data = { ...pendingServerData, name: newName };
+        await doCreate(data);
+        setShowNameConflictModal(false);
+        setConflictServer(null);
+        setPendingServerData(null);
     };
 
     const handleFileSelect = (e) => {
@@ -587,6 +677,32 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                     </button>
                 </div>,
                 document.body
+            )}
+
+            {showNameConflictModal && (
+                <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 999999, background: 'transparent' }}>
+                    <div className="bg-surface border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-2">Name already exists</h3>
+                        <p className="text-sm text-gray-400 mb-4">A server named "{conflictServer?.name}" already exists. Choose how to proceed:</p>
+
+                        <div className="grid grid-cols-1 gap-3 mb-4">
+                            <button onClick={performOverwrite} className="w-full bg-red-500/20 text-red-400 px-4 py-2 rounded-xl font-bold">Overwrite existing</button>
+                            <button onClick={performRename} className="w-full bg-primary/20 text-primary px-4 py-2 rounded-xl font-bold">Create with folder suffix (rename folder)</button>
+                        </div>
+
+                        <div className="pt-2 border-t border-white/5">
+                            <label className="block text-gray-400 text-sm font-bold mb-2">Choose another name</label>
+                            <div className="flex gap-2">
+                                <input value={conflictOtherName} onChange={(e) => setConflictOtherName(e.target.value)} className="flex-1 bg-background border border-white/10 rounded-xl p-3 text-white" />
+                                <button onClick={performUseOtherName} className="bg-primary px-4 py-2 rounded-xl font-bold">Use Name</button>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end mt-4">
+                            <button onClick={() => { setShowNameConflictModal(false); setPendingServerData(null); setConflictServer(null); }} className="px-4 py-2 rounded-xl text-gray-400">Cancel</button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             { }

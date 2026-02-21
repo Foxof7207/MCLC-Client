@@ -634,7 +634,9 @@ eula=true
             }
 
             const serversDir = path.join(app.getPath('userData'), 'servers');
-            const safeName = sanitizeFileName(name);
+            // Allow frontend to provide an explicit safeName (for rename/unique folders).
+            // Always sanitize the provided value to avoid unsafe paths.
+            const safeName = data && data.safeName ? sanitizeFileName(data.safeName) : sanitizeFileName(name);
             const serverDir = path.join(serversDir, safeName);
 
             await fs.ensureDir(serverDir);
