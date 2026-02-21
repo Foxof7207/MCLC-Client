@@ -33,6 +33,7 @@ function sanitizeFileName(name) {
 }
 
 async function downloadServerJar(url, destination, serverName, mainWindow) {
+    let writer = null;
     try {
         console.log(`[Servers] Downloading from URL: ${url}`);
         if (!url || typeof url !== 'string') {
@@ -41,7 +42,7 @@ async function downloadServerJar(url, destination, serverName, mainWindow) {
         const parsedUrl = new URL(url);
         console.log(`[Servers] Parsed URL: ${parsedUrl.toString()}`);
 
-        const writer = createWriteStream(destination);
+        writer = createWriteStream(destination);
         const response = await axios({
             method: 'get',
             url: url,
@@ -86,6 +87,9 @@ async function downloadServerJar(url, destination, serverName, mainWindow) {
             });
         });
     } catch (error) {
+        if (writer) {
+            writer.close();
+        }
         console.error('[Servers] Error in downloadServerJar:', error);
         if (error.response) {
             console.error('[Servers] Error response data:', error.response.data);
@@ -611,6 +615,7 @@ eula=true
 
     // Create server
     ipcMain.handle('server:create', async (event, data) => {
+        let serverDir = null;
         try {
             console.log('[Servers] Received server data:', JSON.stringify(data, null, 2));
 
@@ -637,7 +642,7 @@ eula=true
             // Allow frontend to provide an explicit safeName (for rename/unique folders).
             // Always sanitize the provided value to avoid unsafe paths.
             const safeName = data && data.safeName ? sanitizeFileName(data.safeName) : sanitizeFileName(name);
-            const serverDir = path.join(serversDir, safeName);
+            serverDir = path.join(serversDir, safeName);
 
             await fs.ensureDir(serverDir);
             await fs.ensureDir(path.join(serverDir, 'logs'));
@@ -696,6 +701,12 @@ eula=false
                     console.log(`[Servers] Server jar downloaded successfully for ${name}`);
                 } catch (downloadError) {
                     console.error(`[Servers] Failed to download server jar:`, downloadError);
+
+                    if (await fs.pathExists(serverDir)) {
+                        console.log(`[Servers] Cleaning up failed server installation at ${serverDir}`);
+                        await fs.remove(serverDir);
+                    }
+
                     throw new Error(`Failed to download server jar: ${downloadError.message}`);
                 }
 
@@ -733,6 +744,16 @@ eula=false
         } catch (error) {
             console.error('[Servers] Error creating server:', error);
             console.error('[Servers] Error stack:', error.stack);
+
+            if (serverDir && await fs.pathExists(serverDir)) {
+                console.log(`[Servers] Cleaning up failed server installation at ${serverDir}`);
+                try {
+                    await fs.remove(serverDir);
+                } catch (cleanupError) {
+                    console.error('[Servers] Failed to clean up server directory:', cleanupError);
+                }
+            }
+
             return { success: false, error: error.message };
         }
     });

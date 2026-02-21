@@ -157,7 +157,7 @@ function App() {
                 return next;
             });
 
-            if (status === 'stopped' || status === 'error' || status === 'ready' || status === 'deleted' || status === 'running') {
+            if (status === 'stopped' || status === 'error' || status === 'ready' || status === 'deleted' || status === 'running' || status === 'starting' || status === 'stopping') {
                 setActiveDownloads(prev => {
                     const next = { ...prev };
                     delete next[instanceName];
@@ -180,7 +180,7 @@ function App() {
             // Cleanup active downloads for servers too if applicable
             setActiveDownloads(prev => {
                 const next = { ...prev };
-                if (status === 'stopped' || status === 'error' || status === 'ready' || status === 'deleted' || status === 'running') {
+                if (status === 'stopped' || status === 'error' || status === 'ready' || status === 'deleted' || status === 'running' || status === 'starting' || status === 'stopping') {
                     delete next[serverName];
                 }
                 return next;
@@ -213,33 +213,8 @@ function App() {
         };
 
         const removeLaunchProgressListener = window.electronAPI.onLaunchProgress((e) => {
-            if (!e.instanceName) return;
-
-            setActiveDownloads(prev => {
-                const percent = Math.round(e.percent || ((e.done / e.total) * 100) || 0);
-                const isSkipEvent = e.type === 'check' || percent >= 100 || (e.total <= 0 && e.type !== 'download');
-
-                if (isSkipEvent) {
-                    if (prev[e.instanceName]) {
-                        const next = { ...prev };
-                        delete next[e.instanceName];
-                        return next;
-                    }
-                    return prev;
-                }
-
-                const isSignificantLaunchEvent = e.type === 'download' || e.type === 'assets' || e.type === 'natives' || e.type === 'classes';
-
-                if (!isSignificantLaunchEvent) return prev;
-
-                const next = { ...prev };
-                next[e.instanceName] = {
-                    progress: percent,
-                    status: `Downloading ${e.task || 'Minecraft'}`,
-                    type: 'launch'
-                };
-                return next;
-            });
+            // We intentionally do NOT add launch progress to the downloads list anymore
+            // based on the user's request.
         });
 
         const removeWindowStateListener = window.electronAPI.onWindowStateChange((maximized) => {

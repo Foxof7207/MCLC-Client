@@ -576,35 +576,46 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         const { cpu, memory, playerCount, timestamps } = serverStats.history;
 
         if (cpu.length < 2) return;
-        const drawChart = (data, color, yOffset, chartHeight, maxValue) => {
+        const drawChart = (data, color, yOffset, chartHeight, rawMaxValue) => {
+            const maxValue = Math.max(rawMaxValue, 1);
             const points = data.map((value, index) => ({
-                x: (index / (data.length - 1)) * width,
-                y: yOffset + chartHeight - (value / maxValue) * chartHeight
+                x: 10 + (index / Math.max(data.length - 1, 1)) * (width - 20),
+                y: yOffset + chartHeight - (Math.min(Math.max(value, 0), maxValue) / maxValue) * chartHeight
             }));
+
             ctx.beginPath();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
             ctx.moveTo(points[0].x, points[0].y);
 
-            for (let i = 1; i < points.length; i++) {
-                ctx.lineTo(points[i].x, points[i].y);
+            for (let i = 1; i < points.length - 1; i++) {
+                const xc = (points[i].x + points[i + 1].x) / 2;
+                const yc = (points[i].y + points[i + 1].y) / 2;
+                ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+            }
+            if (points.length > 1) {
+                ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
             }
 
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
             ctx.stroke();
+
             ctx.lineTo(points[points.length - 1].x, yOffset + chartHeight);
             ctx.lineTo(points[0].x, yOffset + chartHeight);
             ctx.closePath();
 
             ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.1)');
             ctx.fill();
-            points.forEach(point => {
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
-                ctx.fillStyle = color;
-                ctx.fill();
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+
+            points.forEach((point, i) => {
+                if (i % 5 === 0 || i === points.length - 1) {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
             });
             ctx.fillStyle = '#9CA3AF';
             ctx.font = '10px Inter, sans-serif';
@@ -627,7 +638,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         ctx.fillStyle = '#FFFFFF';
         ctx.font = '12px Inter, sans-serif';
         ctx.fillText('Active Players', 10, 340);
-        drawChart(playerCount, 'rgb(245, 158, 11)', 310, 120, server.maxPlayers || 20);
+        drawChart(playerCount, 'rgb(245, 158, 11)', 310, 120, Math.max(server.maxPlayers || 20, Math.max(...playerCount)));
     };
 
     const handleSendCommand = async (e) => {
@@ -795,33 +806,29 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
         const lowerSoftware = software.toLowerCase();
 
         if (lowerSoftware === 'vanilla') return 'vanilla';
+        if (['magma', 'mohist', 'arclight', 'ketting', 'spongeforge', 'catserver'].includes(lowerSoftware)) return 'hybrid';
         if (['forge', 'neoforge', 'quilt', 'fabric'].includes(lowerSoftware)) return 'fabric-like';
         if (['bukkit', 'spigot', 'paper', 'purpur', 'folia'].includes(lowerSoftware)) return 'paper-like';
         return 'vanilla';
     };
 
-    const getModTabName = () => {
-        const loaderType = getLoaderType();
-        if (loaderType === 'fabric-like') return 'Mods';
-        if (loaderType === 'paper-like') return 'Plugins';
-        return null;
-    };
-
-    const getProjectType = () => {
-        const loaderType = getLoaderType();
-        if (loaderType === 'fabric-like') return 'mod';
-        // Modrinth doesn't have plugin type, we'll search for spigot mods
-        if (loaderType === 'paper-like') return 'mod';
-        return null;
-    };
-
     const shouldShowModTab = () => {
-        return getLoaderType() !== 'vanilla';
+        const type = getLoaderType();
+        return type === 'fabric-like' || type === 'hybrid';
     };
 
-    const getLoaderForModrinth = () => {
+    const shouldShowPluginTab = () => {
+        const type = getLoaderType();
+        return type === 'paper-like' || type === 'hybrid';
+    };
+
+    const getLoaderForModrinth = (tabType) => {
         const software = server.software || 'vanilla';
         const lowerSoftware = software.toLowerCase();
+
+        if (tabType === 'plugins' && getLoaderType() === 'hybrid') {
+            return 'paper';
+        }
 
         if (lowerSoftware === 'forge') return 'forge';
         if (lowerSoftware === 'neoforge') return 'neoforge';
@@ -839,14 +846,22 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
 
         setIsSearchingMods(true);
         try {
-            const loader = getLoaderForModrinth();
+            const isPlugin = activeTab === 'plugins' || getLoaderType() === 'paper-like';
+            const loader = getLoaderForModrinth(activeTab);
             const facets = [];
+
             if (loader !== 'vanilla') {
-                facets.push([`categories:${loader}`]);
+                if (isPlugin && getLoaderType() === 'hybrid') {
+                    facets.push(['categories:paper', 'categories:spigot', 'categories:bukkit']);
+                } else {
+                    facets.push([`categories:${loader}`]);
+                }
             }
 
+            facets.push(['server_side:required', 'server_side:optional']);
+
             const result = await window.electronAPI.modrinthSearch(query, facets, {
-                projectType: 'mod',
+                projectType: isPlugin ? 'plugin' : 'mod',
                 limit: 10
             });
 
@@ -871,8 +886,12 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
 
         setLoadingVersions(prev => new Set(prev).add(projectId));
         try {
-            const loaders = [getLoaderForModrinth()];
-            const result = await window.electronAPI.modrinthGetVersions(projectId, loaders, [server.version]);
+            const isPlugin = activeTab === 'plugins' || getLoaderType() === 'paper-like';
+            const loaders = isPlugin
+                ? ['bukkit', 'spigot', 'paper', 'purpur', 'folia']
+                : [getLoaderForModrinth(activeTab)];
+
+            const result = await window.electronAPI.getModVersions(projectId, loaders, [server.version]);
 
             if (result.success) {
                 setModVersions(prev => ({
@@ -924,7 +943,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                 versionId: versionId,
                 filename: file.filename,
                 url: file.url,
-                projectType: getLoaderType() === 'paper-like' ? 'plugin' : 'mod',
+                projectType: activeTab === 'plugins' || getLoaderType() === 'paper-like' ? 'plugin' : 'mod',
                 isServer: true
             });
 
@@ -982,7 +1001,7 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                                     }
                                 }}
                             >
-                                https:
+                                https://aka.ms/MinecraftEULA
                             </a>).
                         </p>
                         <div className="flex gap-3 justify-end">
@@ -1379,7 +1398,18 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                             : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
-                        {getModTabName()}
+                        Mods
+                    </button>
+                )}
+                {shouldShowPluginTab() && (
+                    <button
+                        onClick={() => setActiveTab('plugins')}
+                        className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors ${activeTab === 'plugins'
+                            ? 'bg-primary/20 text-primary border-b-2 border-primary'
+                            : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        Plugins
                     </button>
                 )}
                 <button
@@ -2039,17 +2069,17 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
                     </div>
                 )}
 
-                {activeTab === 'mods' && (
+                {['mods', 'plugins'].includes(activeTab) && (
                     <div className="flex flex-col h-full">
                         <div className="mb-4">
-                            <h2 className="text-lg font-bold text-white mb-3">{getModTabName()} Management</h2>
+                            <h2 className="text-lg font-bold text-white mb-3">{activeTab === 'plugins' ? 'Plugin' : 'Mod'} Management</h2>
 
                             <div className="flex gap-2 mb-4">
                                 <input
                                     type="text"
                                     value={modSearch}
                                     onChange={(e) => setModSearch(e.target.value)}
-                                    placeholder={`Search ${getModTabName().toLowerCase()}...`}
+                                    placeholder={`Search ${activeTab === 'plugins' ? 'plugins' : 'mods'}...`}
                                     className="flex-1 bg-background border border-white/10 rounded-lg px-4 py-2 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                                     onKeyUp={(e) => {
                                         if (e.key === 'Enter') {
@@ -2134,13 +2164,13 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
 
                             {modSearch && !isSearchingMods && modSearchResults.length === 0 && (
                                 <div className="flex items-center justify-center h-48 text-gray-400">
-                                    No {getModTabName().toLowerCase()} found matching your search
+                                    No {activeTab === 'plugins' ? 'plugins' : 'mods'} found matching your search
                                 </div>
                             )}
 
                             {!modSearch && modSearchResults.length === 0 && (
                                 <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                                    <p>Search for {getModTabName().toLowerCase()} to install</p>
+                                    <p>Search for {activeTab === 'plugins' ? 'plugins' : 'mods'} to install</p>
                                 </div>
                             )}
                         </div>

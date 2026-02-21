@@ -1791,6 +1791,41 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
                 )
             }
 
+            {/* Mod Delete Modal */}
+            {
+                modToDelete && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                        <div className="bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+                            <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-2xl flex items-center justify-center text-3xl mb-4 mx-auto">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-white text-center mb-2">Delete {modToDelete.type === 'mod' ? 'Mod' : modToDelete.type === 'shader' ? 'Shader' : 'Resource pack'}?</h3>
+                            <p className="text-gray-400 text-center mb-6">
+                                Are you sure you want to delete <span className="text-white font-bold">"{modToDelete.name}"</span>?
+                                <br />
+                                <span className="text-red-500/80 text-sm mt-2 block">This action cannot be undone.</span>
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setModToDelete(null)}
+                                    className="flex-1 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteMod}
+                                    className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-all shadow-lg shadow-red-500/20"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
             {/* Backup Manager Modal */}
             {
                 showBackupManager && (

@@ -101,11 +101,14 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
         setLoading(true);
         try {
-            const res = await window.electronAPI.searchModrinth(query, [], {
+            const facets = [];
+            facets.push(['server_side:required', 'server_side:optional']);
+
+            const res = await window.electronAPI.searchModrinth(query, facets, {
                 offset,
                 limit,
                 index: sortMethod,
-                projectType
+                projectType: projectType
             });
 
             if (res.success) {
@@ -131,7 +134,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const checkInstanceInstalled = async () => {
         try {
             if (projectType === 'mod' || projectType === 'plugin') {
-                const res = await window.electronAPI.getServerMods(selectedServer); // This doesn't exist yet so we'll just skip checking or use getMods in the future if mapped. For now just clear.
+                const res = await window.electronAPI.getServerMods(selectedServer);
                 setInstanceInstalledIds(new Set());
             }
         } catch (e) {
@@ -157,7 +160,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const openInstall = async (mod) => {
         setSelectedMod(mod);
         const list = await window.electronAPI.getServers();
-        setServers(list); // Store the list of servers
+        setServers(list);
         if (list && list.length > 0) setSelectedServer(list[0].name);
         setShowInstallModal(true);
     };
@@ -165,7 +168,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
     const handleInstall = async () => {
         if (!selectedServer || !selectedMod) return;
 
-        // Find the selected server object to get its details like loader and version
         const server = servers.find(s => s.name === selectedServer);
         if (!server) {
             addNotification('Selected server not found.', 'error');
@@ -175,8 +177,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
         setInstalling(true);
         try {
             addNotification(`Resolving dependencies for ${selectedMod.title}...`, 'info');
-            // For servers, we pass an empty array or specific loader logic in the future.
-            // If the server has a loader, use it, otherwise an empty array.
             const loaders = (selectedMod.project_type === 'shader' || selectedMod.project_type === 'resourcepack' || !server.loader || server.loader.toLowerCase() === 'vanilla')
                 ? []
                 : [server.loader];
@@ -191,7 +191,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
 
                 if (depRes.success && depRes.dependencies.length > 1) {
                     setPendingDependencies(depRes.dependencies);
-                    setResolvedForInstance(server); // Pass the server object here
+                    setResolvedForInstance(server);
                     setShowDependencyModal(true);
                     setShowInstallModal(false);
                 } else {
@@ -343,7 +343,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                                         <h3 className="font-bold text-lg text-white truncate" title={mod.title}>{mod.title}</h3>
                                         <p className="text-xs text-gray-500 mt-1">{mod.author}</p>
                                         <div className="flex flex-wrap gap-2 mt-2">
-                                            <span className="text-[10px] bg-white/5 px-2 py-1 rounded text-gray-400 capitalize border border-white/5">{mod.project_type}</span>
+                                            <span className="text-[10px] bg-white/5 px-2 py-1 rounded text-gray-400 capitalize border border-white/5">{projectType}</span>
                                             <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded border border-primary/20 flex items-center gap-1">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" transform="rotate(180 10 10)" /></svg>
                                                 {formatDownloads(mod.downloads)}
