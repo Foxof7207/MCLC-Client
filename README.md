@@ -1,10 +1,26 @@
 <p align="center">
   <img src="resources/icon.png" alt="MCLC Logo" width="128">
 </p>
-
-MCLC is a Minecraft launcher built with **Electron**, **React**, and **Tailwind CSS** for managing instances, skins, and modpacks.
-
-[Virus Total Scan](https://github.com/MCLC-Client/MCLC-Client/actions/workflows/scan.yml)
+<p align="center">
+  MCLC is a Minecraft launcher built with <strong>Electron</strong>, <strong>React</strong>, and <strong>Tailwind CSS</strong> for managing instances, skins, and modpacks.
+</p>
+<p align="center">
+  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-appimage.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MCLC-Client/MCLC-Client/build-appimage.yml?branch=main&style=flat&label=AppImage" />
+  </a>
+  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-deb.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MCLC-Client/MCLC-Client/build-deb.yml?branch=main&style=flat&label=DEB" />
+  </a>
+  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-rpm.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MCLC-Client/MCLC-Client/build-rpm.yml?branch=main&style=flat&label=RPM" />
+  </a>
+  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-win.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MCLC-Client/MCLC-Client/build-win.yml?branch=main&style=flat&label=Windows" />
+  </a>
+    <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/scan.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MCLC-Client/MCLC-Client/scan.yml?branch=main&style=flat&label=VirusTotal%20Scan" />
+  </a>
+</p>
 
 ## Features
 
