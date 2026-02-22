@@ -1,32 +1,32 @@
-# MCLC - Modern Minecraft Launcher
+# MCLC - Minecraft Launcher
 
 <p align="center">
   <img src="resources/icon.png" alt="MCLC Logo" width="128">
 </p>
 
-MCLC is a high-performance, modern, and beautiful Minecraft launcher built with **Electron**, **React**, and **Tailwind CSS**. It provides a premium experience for managing instances, skins, and modpacks with a focus on speed and aesthetics.
+MCLC is a Minecraft launcher built with **Electron**, **React**, and **Tailwind CSS** for managing instances, skins, and modpacks.
 
 ---
 
 Virus Total Scan (v1.6.1): [https://www.virustotal.com/gui/file/dd08112fabe3758be710496636fc1454011c1ae92df8b4a0fd4bb511006ee433](https://www.virustotal.com/gui/file/dd08112fabe3758be710496636fc1454011c1ae92df8b4a0fd4bb511006ee433)
 ---
 
-## Key Features
+## Features
 
 ### Instance Management
 - **Advanced Sorting & Grouping**: Organize your library by name, version, or playtime. Group instances by game version or loader for a cleaner look.
-- **Modrinth Integration**: Seamlessly import modpacks and instances directly from Modrinth.
-- **One-Click Launch**: Highly optimized launch process for Vanilla, Fabric, Forge, NeoForge, and Quilt.
+- **Modrinth Integration**: Import modpacks and instances directly from Modrinth.
+- **One-Click Launch**: Launch Vanilla, Fabric, Forge, NeoForge, and Quilt instances.
 
 ### Skin & Cape Viewer
 - **3D Previewing**: Real-time 3D rendering of your Minecraft skin and cape.
-- **High-Quality Previews**: Sharp 2D head and body previews with depth shading.
+- **2D Previews**: Head and body previews with depth shading.
 - **Direct Integration**: Equip default skins (Steve/Alex) or custom textures directly within the launcher.
 - **Slim Support**: Full support for slim (Alex) arm models.
 
 ### Reliability & Performance
-- **Smart Connection Handling**: IPv4 priority and extended timeouts (30s) to fix common `ETIMEDOUT` errors with Mojang APIs.
-- **Proactive Session Management**: High-frequency session verification with profile caching to prevent "429 Too Many Requests" errors.
+- **Connection Handling**: IPv4 priority and extended timeouts (30s) to fix common `ETIMEDOUT` errors with Mojang APIs.
+- **Session Management**: Frequent session verification with profile caching to prevent "429 Too Many Requests" errors.
 - **Auto-Logout**: Secure session handling that automatically returns you to the login screen on authentication failure.
 
 ---
@@ -89,8 +89,3 @@ Virus Total Scan (v1.6.1): [https://www.virustotal.com/gui/file/dd08112fabe3758b
 
 - Developed by **Fernsehheft, Mobilestars, ItzzMateo**
 - Icons by [Heroicons](https://heroicons.com/)
-- Powered by the amazing Minecraft open-source community.
-
----
-
-<p align="center">Made with ❤️ for the Minecraft community</p>
