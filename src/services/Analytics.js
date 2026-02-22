@@ -1,9 +1,11 @@
 import { io } from "socket.io-client";
+import packageJson from '../../package.json';
+
 class AnalyticsService {
     constructor() {
         this.socket = null;
         this.serverUrl = 'https://mclc.pluginhub.de';
-        this.clientVersion = '1.3.3';
+        this.clientVersion = packageJson.version;
         this.os = 'win32';
         this.userProfile = null;
     }
