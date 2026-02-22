@@ -379,6 +379,19 @@
             "factory_reset_modal_msg": "Bist du sicher? Dies LÖSCHT ALLES, einschließlich aller Instanzen, Welten und Einstellungen. Diese Aktion kann nicht rückgängig gemacht werden.",
             "factory_reset_confirm_btn": "ALLES LÖSCHEN"
         },
+        "update": {
+            "title": "Software-Update",
+            "current_version": "Aktuelle Version",
+            "check_btn": "Nach Updates suchen",
+            "checking": "Wird geprüft...",
+            "available": "Update verfügbar!",
+            "download_btn": "Herunterladen",
+            "install_btn": "Installieren & Neustarten",
+            "downloading": "Wird heruntergeladen...",
+            "changelog": "Release-Notizen",
+            "latest": "Du nutzt die aktuellste Version",
+            "download_success": "Update erfolgreich heruntergeladen"
+        },
         "auto_install": {
             "title": "Auto-Install Mods",
             "management_title": "Auto-Install Mods Verwaltung",

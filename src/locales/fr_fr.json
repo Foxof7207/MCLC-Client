@@ -379,6 +379,19 @@
             "factory_reset_modal_msg": "Êtes-vous sûr ? Cela SUPPRIMERA TOUT, y compris toutes les instances, mondes et paramètres. Cette action est irréversible.",
             "factory_reset_confirm_btn": "TOUT SUPPRIMER"
         },
+        "update": {
+            "title": "Mise à jour logicielle",
+            "current_version": "Version actuelle",
+            "check_btn": "Vérifier les mises à jour",
+            "checking": "Vérification...",
+            "available": "Mise à jour disponible !",
+            "download_btn": "Télécharger",
+            "install_btn": "Installer et redémarrer",
+            "downloading": "Téléchargement...",
+            "changelog": "Notes de version",
+            "latest": "Vous utilisez la dernière version",
+            "download_success": "Mise à jour téléchargée avec succès"
+        },
         "auto_install": {
             "title": "Installation automatique des mods",
             "management_title": "Gestion de l'installation automatique des mods",

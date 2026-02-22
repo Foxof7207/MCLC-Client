@@ -379,6 +379,19 @@
             "factory_reset_modal_msg": "Are you sure? This will DELETE EVERYTHING including all instances, worlds, and settings. This action cannot be undone.",
             "factory_reset_confirm_btn": "DELETE EVERYTHING"
         },
+        "update": {
+            "title": "Software Update",
+            "current_version": "Current Version",
+            "check_btn": "Check for Updates",
+            "checking": "Checking...",
+            "available": "Update Available!",
+            "download_btn": "Download",
+            "install_btn": "Install & Restart",
+            "downloading": "Downloading...",
+            "changelog": "Release Notes",
+            "latest": "You are on the latest version",
+            "download_success": "Update downloaded successfully"
+        },
         "auto_install": {
             "title": "Auto Install Mods",
             "management_title": "Auto Install Mods Management",

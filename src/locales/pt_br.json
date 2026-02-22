@@ -379,6 +379,19 @@
             "factory_reset_modal_msg": "Tem certeza? Isso EXCLUIRÁ TUDO, incluindo todas as instâncias, mundos e configurações. Esta ação não pode ser desfeita.",
             "factory_reset_confirm_btn": "EXCLUIR TUDO"
         },
+        "update": {
+            "title": "Atualização de software",
+            "current_version": "Versão atual",
+            "check_btn": "Verificar atualizações",
+            "checking": "Verificando...",
+            "available": "Atualização disponível!",
+            "download_btn": "Baixar",
+            "install_btn": "Instalar e reiniciar",
+            "downloading": "Baixando...",
+            "changelog": "Notas de lançamento",
+            "latest": "Você está na versão mais recente",
+            "download_success": "Atualização baixada com sucesso"
+        },
         "auto_install": {
             "title": "Instalação Automática de Mods",
             "management_title": "Gerenciamento de Instalação Automática de Mods",

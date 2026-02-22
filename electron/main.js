@@ -130,6 +130,16 @@ function createWindow() {
     }
 
     require('../backend/handlers/java')(ipcMain);
+    const updater = require('../backend/handlers/updater');
+    updater(ipcMain, mainWindow);
+
+    // Trigger fully automatic update check on startup
+    updater.performAutoUpdate(ipcMain, mainWindow);
+
+    ipcMain.on('app:is-packaged', (event) => {
+        event.returnValue = app.isPackaged;
+    });
+
     const discord = require('../backend/handlers/discord');
     discord.initRPC();
     const backupManager = require('../backend/backupManager');

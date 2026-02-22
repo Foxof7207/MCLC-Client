@@ -21,6 +21,7 @@ import Sidebar from './components/Sidebar';
 import ServerSidebar from './components/ServerSidebar';
 import UpdateNotification from './components/UpdateNotification';
 import RightPanel from './components/RightPanel';
+import AnnouncementBar from './components/AnnouncementBar';
 import { useTranslation } from 'react-i18next';
 
 class ErrorBoundary extends React.Component {
@@ -455,7 +456,10 @@ function App() {
                     </div>
 
                     { }
-                    <ExtensionSlot name="header.center" className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" />
+                    <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-auto">
+                        <AnnouncementBar />
+                        <ExtensionSlot name="header.center" className="flex items-center gap-2" />
+                    </div>
 
                     <div className="flex items-center gap-4 no-drag h-full">
                         { }

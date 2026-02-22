@@ -379,6 +379,19 @@
             "factory_reset_modal_msg": "¿Estás seguro? Esto ELIMINARÁ TODO, incluyendo todas las instancias, mundos y ajustes. Esta acción no se puede deshacer.",
             "factory_reset_confirm_btn": "ELIMINAR TODO"
         },
+        "update": {
+            "title": "Actualización de software",
+            "current_version": "Versión actual",
+            "check_btn": "Buscar actualizaciones",
+            "checking": "Buscando...",
+            "available": "¡Actualización disponible!",
+            "download_btn": "Descargar",
+            "install_btn": "Instalar y reiniciar",
+            "downloading": "Descargando...",
+            "changelog": "Notas de la versión",
+            "latest": "Estás en la última versión",
+            "download_success": "Actualización descargada con éxito"
+        },
         "auto_install": {
             "title": "Instalación automática de mods",
             "management_title": "Gestión de instalación automática de mods",

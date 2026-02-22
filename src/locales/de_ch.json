@@ -379,6 +379,19 @@
             "factory_reset_modal_msg": "Bisch sicher? Das LÖSCHT ALLES, inklusive allne Instanze, Wälte und Iistellige. Das cha nöd rückgängig gmacht werde.",
             "factory_reset_confirm_btn": "ALLES LÖSCHE"
         },
+        "update": {
+            "title": "Software-Update",
+            "current_version": "Aktuelle Version",
+            "check_btn": "Nach Updates suchen",
+            "checking": "Wird geprüft...",
+            "available": "Update verfügbar!",
+            "download_btn": "Herunterladen",
+            "install_btn": "Installieren & Neustarten",
+            "downloading": "Wird heruntergeladen...",
+            "changelog": "Release-Notizen",
+            "latest": "Du nutzt die aktuellste Version",
+            "download_success": "Update erfolgreich heruntergeladen"
+        },
         "auto_install": {
             "title": "Auto-Install Mods",
             "management_title": "Auto-Install Mods Verwaltig",

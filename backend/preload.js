@@ -10,6 +10,7 @@ try {
 
 const electronAPI = {
     platform: process.platform,
+    isPackaged: ipcRenderer.sendSync('app:is-packaged'),
 
     minimize: () => ipcRenderer.send('window-minimize'),
     maximize: () => ipcRenderer.send('window-maximize'),
@@ -295,8 +296,18 @@ const electronAPI = {
     listLocalBackups: (instanceName) => ipcRenderer.invoke('instance:list-local-backups', instanceName),
     getBackupsDir: (instanceName) => ipcRenderer.invoke('instance:get-backups-dir', instanceName),
     restoreLocalBackup: (instanceName, backupFileName) => ipcRenderer.invoke('instance:restore-local-backup', instanceName, backupFileName),
-    removeFile: (filePath) => ipcRenderer.invoke('instance:remove-file', filePath)
+    removeFile: (filePath) => ipcRenderer.invoke('instance:remove-file', filePath),
 
+    // Custom Updater
+    checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+    downloadUpdate: (url, name) => ipcRenderer.invoke('updater:download', url, name),
+    installUpdate: (path) => ipcRenderer.invoke('updater:install', path),
+    setTestVersion: (version) => ipcRenderer.invoke('updater:set-test-version', version),
+    onUpdaterProgress: (callback) => {
+        const subscription = (_event, value) => callback(value);
+        ipcRenderer.on('updater:progress', subscription);
+        return () => ipcRenderer.removeListener('updater:progress', subscription);
+    }
 };
 try {
     contextBridge.exposeInMainWorld('electronAPI', electronAPI);

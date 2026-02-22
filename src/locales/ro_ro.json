@@ -379,6 +379,19 @@
             "factory_reset_modal_msg": "Ești sigur? Aceasta va ȘTERGE TOT, inclusiv toate instanțele, lumile și setările. Această acțiune nu poate fi anulată.",
             "factory_reset_confirm_btn": "ȘTERGE TOT"
         },
+        "update": {
+            "title": "Actualizare software",
+            "current_version": "Versiunea curentă",
+            "check_btn": "Verifică actualizări",
+            "checking": "Verificare...",
+            "available": "Actualizare disponibilă!",
+            "download_btn": "Descarcă",
+            "install_btn": "Instalează și repornește",
+            "downloading": "Se descarcă...",
+            "changelog": "Note de lansare",
+            "latest": "Folosești cea mai recentă versiune",
+            "download_success": "Actualizare descărcată cu succes"
+        },
         "auto_install": {
             "title": "Instalare Automată Mod-uri",
             "management_title": "Gestionare Instalare Automată Mod-uri",

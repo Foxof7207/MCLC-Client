@@ -71,6 +71,7 @@ if (!ADMIN_PASSWORD) {
 }
 
 const NEWS_FILE = path.join(__dirname, 'news.json');
+const ANNOUNCEMENT_FILE = path.join(__dirname, 'announcements.json');
 const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
 const downloadCooldowns = new Map();
 
@@ -143,7 +144,7 @@ app.use((req, res, next) => {
         return next();
     }
     // Skip CSRF for login so user can get a token after logging in
-    if (req.path === '/api/login' || req.path === '/api/modpack/save' || req.path === '/api/codes/save') {
+    if (req.path === '/api/login' || req.path === '/api/modpack/save' || req.path === '/api/codes/save' || req.path === '/api/announcement') {
         return next();
     }
     doubleCsrfProtection(req, res, next);
@@ -1050,6 +1051,50 @@ app.post('/api/news', (req, res) => {
     }
 });
 
+// --- ANNOUNCEMENTS ---
+app.get('/api/announcement', (req, res) => {
+    try {
+        const announcements = getAnnouncements();
+        res.json(announcements[0] || null);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch announcement' });
+    }
+});
+
+app.post('/api/announcement', (req, res) => {
+    const { text, password } = req.body;
+    if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const announcements = getAnnouncements();
+        if (announcements.length > 0) {
+            return res.status(400).json({ error: 'An announcement already exists. Delete the old one first.' });
+        }
+
+        const newAnnouncement = {
+            text,
+            date: new Date().toISOString()
+        };
+
+        saveAnnouncements([newAnnouncement]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to save announcement' });
+    }
+});
+
+app.delete('/api/announcement', (req, res) => {
+    const { password } = req.body;
+    if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        saveAnnouncements([]);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete announcement' });
+    }
+});
+
 app.use((err, req, res, next) => {
     console.error(`[Server Error] ${req.method} ${req.url}:`, err);
     res.status(500).json({
@@ -1129,6 +1174,12 @@ if (!fs.existsSync(NEWS_FILE)) {
 
 const getNews = () => JSON.parse(fs.readFileSync(NEWS_FILE, 'utf8'));
 const saveNews = (data) => fs.writeFileSync(NEWS_FILE, JSON.stringify(data, null, 2));
+
+const getAnnouncements = () => {
+    if (!fs.existsSync(ANNOUNCEMENT_FILE)) fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify([]));
+    return JSON.parse(fs.readFileSync(ANNOUNCEMENT_FILE, 'utf8'));
+};
+const saveAnnouncements = (data) => fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data, null, 2));
 
 app.post('/api/analytics', (req, res) => {
     if (req.body.password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
