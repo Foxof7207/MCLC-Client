@@ -60,7 +60,97 @@ export const activate = (api) => {
         };
 
         return (
-            <div className="relative z-50">
+            <div style={{ position: 'relative', zIndex: 50 }}>
+                <style>{`
+                    .ip-dropdown {
+                        position: absolute;
+                        top: 100%;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        margin-top: 0.5rem;
+                        padding: 1.25rem;
+                        background-color: var(--surface-color, #1c1c1c);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 1rem;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                        z-index: 50;
+                        width: 18rem;
+                        cursor: default;
+                        border-bottom: 1px solid rgba(var(--primary-color-rgb, 27, 217, 106), 0.3);
+                        animation: fade-in 0.2s ease-out;
+                    }
+                    @keyframes fade-in {
+                        from { opacity: 0; transform: translate(-50%, -10px); }
+                        to { opacity: 1; transform: translate(-50%, 0); }
+                    }
+                    .ip-grid {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 0.5rem;
+                        margin-bottom: 1.25rem;
+                    }
+                    .ip-item {
+                        width: 3rem;
+                        height: 3rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background-color: rgba(255, 255, 255, 0.05);
+                        border-radius: 0.75rem;
+                        border: 1px solid rgba(255, 255, 255, 0.05);
+                        transition: all 0.2s;
+                        cursor: pointer;
+                    }
+                    .ip-item:hover {
+                        background-color: rgba(var(--primary-color-rgb, 27, 217, 106), 0.2);
+                        transform: scale(1.1);
+                    }
+                    .ip-item img {
+                        width: 2rem;
+                        height: 2rem;
+                        opacity: 0.8;
+                        transition: opacity 0.2s;
+                    }
+                    .ip-item:hover img {
+                        opacity: 1;
+                    }
+                    .ip-btn {
+                        width: 100%;
+                        padding: 0.625rem 0;
+                        background-color: rgba(255, 255, 255, 0.05);
+                        color: #d1d5db;
+                        font-weight: bold;
+                        border-radius: 0.75rem;
+                        border: 1px solid rgba(255, 255, 255, 0.05);
+                        transition: all 0.2s;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.5rem;
+                        font-size: 0.875rem;
+                        cursor: pointer;
+                    }
+                    .ip-btn:hover {
+                        background-color: rgba(255, 255, 255, 0.1);
+                        color: #ffffff;
+                    }
+                    .ip-trigger {
+                        padding: 0.5rem;
+                        background-color: var(--primary-color, #1bd96a);
+                        color: black;
+                        border-radius: 0.75rem;
+                        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                        transition: transform 0.2s;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border: none;
+                        cursor: pointer;
+                    }
+                    .ip-trigger:hover {
+                        transform: scale(1.1);
+                    }
+                `}</style>
                 <button
                     onClick={(e) => {
                         e.preventDefault();
@@ -68,29 +158,29 @@ export const activate = (api) => {
                         setIsOpen(!isOpen);
                     }}
                     type="button"
-                    className="p-2 bg-primary hover:bg-primary-hover text-black rounded-xl shadow-lg transition-transform hover:scale-110 flex items-center justify-center"
+                    className="ip-trigger"
                     title="Pick Icon"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" style={{ width: '1rem', height: '1rem' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                 </button>
                 {isOpen && (
                     <>
-                        <div className="fixed inset-0 z-40" onClick={(e) => {
+                        <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setIsOpen(false);
                         }}></div>
                         <div
-                            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-5 bg-surface border border-white/10 rounded-2xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 border-b-primary/30 cursor-default"
+                            className="ip-dropdown"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
                             }}
                         >
-                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-1">Default Icons</div>
-                            <div className="flex flex-wrap gap-2 mb-5">
+                            <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.75rem', padding: '0 0.25rem' }}>Default Icons</div>
+                            <div className="ip-grid">
                                 {DEFAULT_ICONS.map(icon => (
                                     <button
                                         key={icon.name}
@@ -100,15 +190,15 @@ export const activate = (api) => {
                                             handleSelectIcon(icon.data);
                                         }}
                                         type="button"
-                                        className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-primary/20 hover:scale-110 rounded-xl transition-all border border-white/5 group"
+                                        className="ip-item"
                                         title={icon.name}
                                     >
-                                        <img src={icon.data} alt={icon.name} className="w-8 h-8 opacity-80 group-hover:opacity-100 transition-opacity" />
+                                        <img src={icon.data} alt={icon.name} />
                                     </button>
                                 ))}
                             </div>
 
-                            <div className="space-y-2">
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <button
                                     onClick={(e) => {
                                         e.preventDefault();
@@ -116,16 +206,16 @@ export const activate = (api) => {
                                         handleUpload();
                                     }}
                                     type="button"
-                                    className="w-full py-2.5 bg-white/5 text-gray-300 font-bold rounded-xl hover:bg-white/10 hover:text-white border border-white/5 transition-all flex items-center justify-center gap-2 text-sm"
+                                    className="ip-btn"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" style={{ width: '1rem', height: '1rem' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                     </svg>
                                     <span>Upload Custom</span>
                                 </button>
                             </div>
 
-                            <div className="mt-4 pt-3 border-t border-white/5 text-[9px] text-gray-600 text-center uppercase tracking-tighter">
+                            <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '9px', color: '#4b5563', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '-0.05em' }}>
                                 Changes apply immediately
                             </div>
                         </div>
@@ -196,7 +286,7 @@ export const activate = (api) => {
 };
 
 const DEFAULT_ICONS = [
-    { name: 'Sword', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmNGIzYTIiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTQuNSA5IDIyIDEuNSIvPjxwYXRoIGQ9Im0xNS44IDExLjMgNC43IDQuN3EuNy43LjcgMS43dC0uNyAxLjdsLTEuMiAxLjJxLS43LjctMS43Ljd0LTEuNy0uN2wtNC43LTQuNyIvPjxwYXRoIGQ9Ik0xMSAyMCAyIDExIi8+PHBhdGggZD0ibTEzIDE4LTktOSIvPjxwYXRoIGQ9Ik0xNSAxNiA2IDciLz48cGF0aCBkPSJNOSA3IDcgOSIvPjxwYXRoIGQ9Im01IDExIDIgMiIvPjwvc3ZnPg==' },
+    { name: 'Sword', data: 'assets/icons/Diamond_Sword.svg' },
     { name: 'Pickaxe', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmYmJmMjQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJtMTQuNSA4IDcuNS03LjUiLz48cGF0aCBkPSJNMTYgMiBzIDIgMiAyIDUgbCAtNyA3IGwgLTIgLTIgbCA3IC03IHMgLTMgMCAtNSAtMiIvPjxwYXRoIGQ9Ik0zIDIxIGwgNSAtNSIvPjxwYXRoIGQ9Ik0zIDExIGwgMyAzIGwgNCAtNCBsIC0zIC0zIGwgLTQgNCBaIi8+PC9zdmc+' },
     { name: 'Axe', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmODcxNzEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJtMTQgMTIgLTggNSBsIC0yIC0yIGwgNSAtOCBaIi8+PHBhdGggZD0ibTIwIDQgLTggOCIvPjxwYXRoIGQ9Ik03IDEwIGMgMCAtMSAyIC0zIDUgLTMgcyA0IDIgNSA1IHMgLTIgNSAtNSA1IHMgLTUgLTIgLTUgLTViIi8+PC9zdmc+' },
     { name: 'Creeper', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM0YWRlODAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSIzIiB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHJ4PSIyIi8+PHBhdGggZD0iTTggOUg5VjEwSDhaTTE1IDlIMTZWMTBIOTVaTTkgMTNIMTVWMTZIOSBaTTEyIDEzVjE1WiIvPjwvc3ZnPg==' },
