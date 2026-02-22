@@ -29,6 +29,7 @@
       "electron/**/*",
       "backend/**/*",
       "resources/**/*",
+      ".env",
       "package.json"
     ],
     "directories": {
