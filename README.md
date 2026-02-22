@@ -7,20 +7,23 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-appimage.yml">
+  <a>
     <img src="https://img.shields.io/badge/AppImage-Linux-0e75b6?logo=linux&logoColor=white&style=flat-square" alt="AppImage Linux Build" />
   </a>
-  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-deb.yml">
+  <a>
     <img src="https://img.shields.io/badge/DEB-Debian-ff4757?logo=debian&logoColor=white&style=flat-square" alt="DEB Debian Build" />
   </a>
-  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-rpm.yml">
+  <a>
     <img src="https://img.shields.io/badge/RPM-Red%20Hat-ea262a?logo=redhat&logoColor=white&style=flat-square" alt="RPM RedHat Build" />
   </a>
-  <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/build-win.yml">
-    <img src="https://img.shields.io/badge/Windows-Build-0078d6?logo=windows&logoColor=white&style=flat-square" alt="Windows Build" />
+  <a>
+    <img src="https://img.shields.io/badge/Windows-Build-0078d6?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTAgMGgxMS40djExLjRIMHptMTIuNiAwaDExLjR2MTEuNEgxMi42ek0wIDEyLjZoMTEuNFYyNEgwem0xMi42IDBoMTEuNFYyNEgxMi42eiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=&style=flat-square" alt="Windows Build" />
   </a>
   <a href="https://github.com/MCLC-Client/MCLC-Client/actions/workflows/scan.yml">
     <img src="https://img.shields.io/badge/VirusTotal-Scan-3776ab?logo=virustotal&logoColor=white&style=flat-square" alt="VirusTotal Scan" />
+  </a>
+  <a>
+    <img src="https://img.shields.io/github/v/release/MCLC-Client/MCLC-Client?include_prereleases&label=Release&style=flat-square" />
   </a>
 </p>
 
