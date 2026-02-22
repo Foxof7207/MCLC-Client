@@ -619,13 +619,23 @@ function Skins({ onLogout, onProfileUpdate }) {
                 <div className="mt-8">
                     <h3 className="text-lg font-bold text-gray-300 mb-4">{t('skins.default_skins')}</h3>
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {['Steve', 'Alex'].map(name => (
+                        {[
+                            { name: 'Steve', url: 'https://textures.minecraft.net/texture/1a4af718455d4aab528e7a61f86fa25e6a369d1768dcb13f7df319a713eb810b', model: 'classic' },
+                            { name: 'Alex', url: 'https://textures.minecraft.net/texture/3b60a1f6d562f52aaebbf1434f1de147933a3affe0e764fa49ea057536623cd3', model: 'slim' }
+                        ].map(skin => (
                             <div
-                                key={name}
-                                onClick={() => handleSelectDefaultSkin(name)}
-                                className={`aspect-[3/4] bg-surface rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer border-2 transition-all ${pendingSkin?.name === name ? 'border-primary shadow-primary-glow' : 'border-transparent hover:border-white/20'}`}
+                                key={skin.name}
+                                onClick={() => handleSelectDefaultSkin(skin.name)}
+                                className={`aspect-[3/4] bg-surface rounded-xl overflow-hidden relative cursor-pointer border-2 transition-all group ${pendingSkin?.name === skin.name ? 'border-primary shadow-primary-glow' : 'border-transparent hover:border-white/20'}`}
                             >
-                                <div className="text-gray-400 font-bold">{name}</div>
+                                <div className="p-4 flex items-center justify-center h-full bg-[#1a1a1a]">
+                                    <SkinPreview src={skin.url} model={skin.model} />
+                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-white font-medium truncate flex-1">
+                                        {skin.name}
+                                    </span>
+                                </div>
                             </div>
                         ))}
                     </div>
