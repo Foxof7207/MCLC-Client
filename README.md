@@ -62,10 +62,10 @@
 ### For Users
 
 1. **Download** the latest installer for your operating system from the [official website](https://mclc.pluginhub.de). Choose between:
-    - `.appimage` (Linux)
-    - `.deb` (Debian/Ubuntu)
-    - `.rpm` (Fedora/RedHat)
-    - `.exe` (Windows)
+   - `.appimage` (Linux)
+   - `.deb` (Debian/Ubuntu)
+   - `.rpm` (Fedora/RedHat)
+   - `.exe` (Windows)
 2. **Install**: Open the downloaded file and follow the provided installation steps.
 3. **Launch MCLC**: Start the launcher from your desktop, applications menu, or Start menu.
 
@@ -88,11 +88,13 @@
 2. **Install Dependencies**
 
    Using npm:
+
    ```bash
    npm install
    ```
 
    Or, if you prefer yarn:
+
    ```bash
    yarn install
    ```
@@ -101,12 +103,14 @@
 
    Run the app in development mode for live reloading:
 
-   With npm:
+   Using npm:
+
    ```bash
    npm run dev
    ```
 
-   With yarn:
+   Using yarn:
+
    ```bash
    yarn dev
    ```
@@ -116,11 +120,13 @@
    Create optimized builds for production release:
 
    Using npm:
+
    ```bash
    npm run dist
    ```
 
    Using yarn:
+
    ```bash
    yarn dist
    ```
@@ -128,10 +134,13 @@
 5. **Additional Scripts**
 
    - **Lint the codebase**  
+
      ```bash
      npm run lint
      ```
+
    - **Test locally**  
+
      ```bash
      npm run dev
      ```
@@ -153,10 +162,10 @@ Feel free to open an issue or discussion if you run into setup problems!
 - **React** – Modern component-based UI library ([reactjs.org](https://reactjs.org/))
 - **Vite** – Lightning-fast development/build tooling ([vitejs.dev](https://vitejs.dev/))
 - **Tailwind CSS** – Utility-first CSS framework for rapid UI development ([tailwindcss.com](https://tailwindcss.com/))
-- **Minecraft Integration**:  
+- **Minecraft Integration**:
   - [skinview3d](https://github.com/bs-community/skinview3d) (real-time 3D skin/model previews)
 - **State Management**: React Context API & Hooks (efficient and scalable local state handling)
-- **Other**:  
+- **Other**:
   - JavaScript
   - ESLint & Prettier (code quality and formatting)
 
@@ -168,7 +177,7 @@ Feel free to open an issue or discussion if you run into setup problems!
 
 Below are example screenshots showcasing MCLC's interface and features.
 
-> *Screenshots will be posted soon! Stay updated for a visual walkthrough of the latest version.*
+> Screenshots will be posted soon! Stay updated for a visual walkthrough of the latest version.
 
 ---
 
