@@ -173,6 +173,13 @@ function Skins({ onLogout, onProfileUpdate }) {
     useEffect(() => {
         loadProfileAndSkin();
         loadLocalSkins();
+
+        // Load Focus Mode setting
+        window.electronAPI.getSettings().then(res => {
+            if (res.success && res.settings.focusMode) {
+                setIsAnimating(false);
+            }
+        });
     }, []);
     useEffect(() => {
         const handleResize = () => {

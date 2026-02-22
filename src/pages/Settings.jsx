@@ -25,6 +25,8 @@ function Settings() {
         autoUploadLogs: true,
         showDisabledFeatures: false,
         optimization: true,
+        focusMode: false,
+        minimalMode: true,
         enableAutoInstallMods: true,
         autoInstallMods: [],
         language: 'en_us',
@@ -657,6 +659,22 @@ function Settings() {
                         label={t('settings.integration.optimization')}
                         description={t('settings.integration.optimization_desc')}
                     />
+                    <ToggleBox
+                        className="mt-4 pt-4 border-t border-white/5"
+                        checked={settings.focusMode || false}
+                        onChange={(val) => handleChange('focusMode', val)}
+                        label={t('settings.integration.focus_mode', 'Focus Mode')}
+                        description={t('settings.integration.focus_mode_desc', 'Disables resource-intensive UI elements like skin animations.')}
+                    />
+                    {window.electronAPI && window.electronAPI.platform === 'win32' && (
+                        <ToggleBox
+                            className="mt-4 pt-4 border-t border-white/5"
+                            checked={settings.minimalMode || false}
+                            onChange={(val) => handleChange('minimalMode', val)}
+                            label={t('settings.integration.minimal_mode', 'Minimal Mode')}
+                            description={t('settings.integration.minimal_mode_desc', 'Automatically minimize the launcher to the taskbar when a game starts.')}
+                        />
+                    )}
                     <ToggleBox
                         className="mt-4 pt-4 border-t border-white/5"
                         checked={settings.enableAutoInstallMods || false}

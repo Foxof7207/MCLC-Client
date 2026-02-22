@@ -16,6 +16,8 @@ module.exports = (ipcMain) => {
         copySettingsEnabled: false,
         copySettingsSourceInstance: '',
         optimization: true,
+        focusMode: false,
+        minimalMode: true,
         theme: {
             primaryColor: '#22e07a',
             backgroundColor: '#0d1117',
