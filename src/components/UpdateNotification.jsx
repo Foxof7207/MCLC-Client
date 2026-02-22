@@ -26,6 +26,7 @@ function UpdateNotification() {
         });
 
         const removeErrorListener = window.electronAPI.onUpdateError((err) => {
+            console.log('[UpdateNotification] ⚠️ Update Error received:', err);
             setError(err);
             setIsVisible(true);
             setTimeout(() => setIsVisible(false), 10000);

@@ -153,18 +153,20 @@ function setupAppMediaProtocol() {
     protocol.handle('app-media', (request) => {
         try {
             const url = new URL(request.url);
-            let decodedPath = decodeURIComponent(url.pathname);
+            // Combine host and pathname to handle drive letters (e.g., host="C:", pathname="/Users/...")
+            let decodedPath = decodeURIComponent(url.host + url.pathname);
 
-
-            if (process.platform === 'win32' && decodedPath.startsWith('/') && decodedPath.length > 2 && decodedPath[2] === ':') {
-                decodedPath = decodedPath.substring(1);
-            }
+            console.log(`[Main] app-media request: ${request.url} -> decodedPath: ${decodedPath}`);
 
             const resolvedPath = path.resolve(decodedPath);
 
             // Security: Ensure the path is within the app's data directory (V6)
             const userDataPath = app.getPath('userData');
-            if (!resolvedPath.startsWith(userDataPath)) {
+            const isInside = process.platform === 'win32'
+                ? resolvedPath.toLowerCase().startsWith(userDataPath.toLowerCase())
+                : resolvedPath.startsWith(userDataPath);
+
+            if (!isInside) {
                 console.error(`[Main] Blocked app-media attempt to access path outside userData: ${resolvedPath}`);
                 return new Response('Access Denied', { status: 403 });
             }
@@ -294,8 +296,19 @@ app.whenReady().then(() => {
         if (mainWindow) mainWindow.webContents.send('update:downloaded', info);
     });
     autoUpdater.on('error', (err) => {
-        console.error('[AutoUpdater] Error:', err);
-        if (mainWindow) mainWindow.webContents.send('update:error', err.message);
+        const msg = (err && (err.message || err.toString())) || '';
+        console.error('[AutoUpdater] Error Object:', err);
+        console.error('[AutoUpdater] Error Message String:', msg);
+
+        const lowerMsg = msg.toLowerCase();
+        if (lowerMsg.includes('latest.yml') || lowerMsg.includes('dev-app-update.yml') || lowerMsg.includes('could not find latest.yml')) {
+            console.log('[AutoUpdater] 🛑 Suppressing known non-critical update error:', msg);
+            return;
+        }
+        if (mainWindow) {
+            console.log('[AutoUpdater] 📤 Sending error to renderer:', msg);
+            mainWindow.webContents.send('update:error', msg);
+        }
     });
 
     if (app.isPackaged) {
