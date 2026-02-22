@@ -345,12 +345,31 @@ button.primary:hover {
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
+    visibility: hidden;
 }
 
 #mobile-menu.open {
-    max-height: 500px;
+    max-height: 100vh;
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
+}
+
+#navbar {
+    height: 80px;
+}
+
+#navbar.scrolled {
+    height: 70px;
+    background: rgba(8, 8, 8, 0.95);
+    backdrop-filter: blur(20px);
+    /* Corrected property name */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.scrolled .nav-container {
+    height: 70px;
 }

@@ -8,7 +8,7 @@ MCLC is a high-performance, modern, and beautiful Minecraft launcher built with 
 
 ---
 
-Virus Total Scan (v1.5.0): [https://www.virustotal.com/gui/file/61821e2a51fb7f79ebaddd400ad67f0ae3bbbcb93f93878c33f9a25f47815540?nocache=1](https://www.virustotal.com/gui/file/61821e2a51fb7f79ebaddd400ad67f0ae3bbbcb93f93878c33f9a25f47815540?nocache=1)
+Virus Total Scan (v1.6.1): [https://www.virustotal.com/gui/file/dd08112fabe3758be710496636fc1454011c1ae92df8b4a0fd4bb511006ee433](https://www.virustotal.com/gui/file/dd08112fabe3758be710496636fc1454011c1ae92df8b4a0fd4bb511006ee433)
 ---
 
 ## Key Features

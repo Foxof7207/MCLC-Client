@@ -50,7 +50,7 @@ console.log('[Main] =========================================');
 const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173', 'http://localhost:3001'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173', 'http://localhost:3001', 'http://localhost:3000'];
 
 const io = new Server(server, {
     cors: {
@@ -82,7 +82,7 @@ if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
 }
 
 app.use(session({
-    secret: SESSION_SECRET || 'mclc-dev-secret-unsafe',
+    secret: SESSION_SECRET || 'mclc-super-secret-session-key-2026',
     resave: false,
     saveUninitialized: false,
     proxy: true,

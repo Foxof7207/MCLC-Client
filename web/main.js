@@ -1,11 +1,13 @@
 const navbar = document.getElementById('navbar');
-window.addEventListener('scroll', () => {
-    if (window.scrollY > 50) {
-        navbar.classList.add('scrolled');
+function handleScroll() {
+    if (window.scrollY > 20) {
+        navbar?.classList.add('scrolled');
     } else {
-        navbar.classList.remove('scrolled');
+        navbar?.classList.remove('scrolled');
     }
-});
+}
+window.addEventListener('scroll', handleScroll);
+handleScroll(); // Initial check
 window.fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
