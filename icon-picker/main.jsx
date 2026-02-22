@@ -1,7 +1,20 @@
-/**
- * Icon Picker Extension
- */
 export const activate = (api) => {
+
+    const assetUrl = (relativePath) => {
+        const base = api.meta.localPath.replace(/\\/g, '/');
+        return `app-media:///${base}/${relativePath}`;
+    };
+
+    const DEFAULT_ICONS = [
+        { name: 'Sword', file: 'assets/icons/sword.png' },
+        { name: 'Pickaxe', file: 'assets/icons/pickaxe.png' },
+        { name: 'Axe', file: 'assets/icons/axe.png' },
+        { name: 'Creeper', file: 'assets/icons/creeper.png' },
+        { name: 'Diamond', file: 'assets/icons/diamond.png' },
+        { name: 'Heart', file: 'assets/icons/heart.png' },
+        { name: 'Compass', file: 'assets/icons/compass.png' },
+        { name: 'Redstone', file: 'assets/icons/redstone.png' },
+    ];
 
     const setIconInModal = (iconData) => {
         const h2Elements = Array.from(document.querySelectorAll('h2'));
@@ -187,13 +200,13 @@ export const activate = (api) => {
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            handleSelectIcon(icon.data);
+                                            handleSelectIcon(assetUrl(icon.file));
                                         }}
                                         type="button"
                                         className="ip-item"
                                         title={icon.name}
                                     >
-                                        <img src={icon.data} alt={icon.name} />
+                                        <img src={assetUrl(icon.file)} alt={icon.name} />
                                     </button>
                                 ))}
                             </div>
@@ -285,13 +298,3 @@ export const activate = (api) => {
     api.ui.registerView('app.overlay', GlobalOverlay);
 };
 
-const DEFAULT_ICONS = [
-    { name: 'Sword', data: 'assets/icons/Diamond_Sword.svg' },
-    { name: 'Pickaxe', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmYmJmMjQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJtMTQuNSA4IDcuNS03LjUiLz48cGF0aCBkPSJNMTYgMiBzIDIgMiAyIDUgbCAtNyA3IGwgLTIgLTIgbCA3IC03IHMgLTMgMCAtNSAtMiIvPjxwYXRoIGQ9Ik0zIDIxIGwgNSAtNSIvPjxwYXRoIGQ9Ik0zIDExIGwgMyAzIGwgNCAtNCBsIC0zIC0zIGwgLTQgNCBaIi8+PC9zdmc+' },
-    { name: 'Axe', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmODcxNzEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJtMTQgMTIgLTggNSBsIC0yIC0yIGwgNSAtOCBaIi8+PHBhdGggZD0ibTIwIDQgLTggOCIvPjxwYXRoIGQ9Ik03IDEwIGMgMCAtMSAyIC0zIDUgLTMgcyA0IDIgNSA1IHMgLTIgNSAtNSA1IHMgLTUgLTIgLTUgLTViIi8+PC9zdmc+' },
-    { name: 'Creeper', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM0YWRlODAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSIzIiB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHJ4PSIyIi8+PHBhdGggZD0iTTggOUg5VjEwSDhaTTE1IDlIMTZWMTBIOTVaTTkgMTNIMTVWMTZIOSBaTTEyIDEzVjE1WiIvPjwvc3ZnPg==' },
-    { name: 'Diamond', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2MGExZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJtNiAzIDIxMiA5IDktOS05LTktOVoiLz48cGF0aCBkPSJNMTEgMyAxMiAyMSIvPjxwYXRoIGQ9Ik03IDggMTcgOCIvPjwvc3ZnPg==' },
-    { name: 'Heart', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmMTQ2Njc5IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE5IDcuNWMwLTIuNy0yLjMtNS01LTUtMS43IDAtMy4xIDEuMS0zLjggMi41LS43LTEuNC0yLjEtMi41LTMuOC0yLjUtMi43IDAtNSA0LTMgNi43IDAgNS41IDkgMTEuOCA5IDExLjhzIDkgNi4zIDkgMTEuOGMwLTIuNy0yLjMtNi43LTUtNi43WiIvPjwvc3ZnPg==' },
-    { name: 'Compass', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNhMWExYTEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxwYXRoIGQ9Im0xNi4yIDcuOC0yIDEuNCA0LjhMMTcgNy44eiIvPjwvc3ZnPg==' },
-    { name: 'Redstone', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTEgNCAxMiAzIDEzIDQiLz48cGF0aCBkPSJNNCAxMSAzIDEyIDQgMTMiLz48cGF0aCBkPSJNMjAgMTEgMjEgMTIgMjAgMTMiLz48cGF0aCBkPSJNMTEgMjAgMTIgMjEgMTMgMjAiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI0Ii8+PC9zdmc+' },
-];
