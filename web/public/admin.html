@@ -319,6 +319,19 @@
             }
         }
 
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.toString().replace(/[&<>"']/g, function (m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[m];
+            });
+        }
+
         function renderNews() {
             const container = document.getElementById('news-container');
             if (!container) return;
@@ -329,11 +342,11 @@
 
             container.innerHTML = news.map((item, index) => `
             <div style="display:flex; gap:15px; padding:15px; border-bottom:1px solid var(--border-light); align-items:center;">
-                <img src="${item.image || 'resources/icon.png'}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; background:rgba(0,0,0,0.2);">
+                <img src="${escapeHTML(item.image) || 'resources/icon.png'}" style="width:80px; height:80px; object-fit:cover; border-radius:8px; background:rgba(0,0,0,0.2);">
                 <div style="flex:1;">
-                    <h4 style="color:white; margin-bottom:5px;">${item.title}</h4>
-                    <p class="description-box">${item.description || ''}</p>
-                    <small style="color:var(--text-muted);">${item.date} ${item.link ? '• <a href="' + item.link + '" target="_blank" style="color:var(--secondary)">Link</a>' : ''}</small>
+                    <h4 style="color:white; margin-bottom:5px;">${escapeHTML(item.title)}</h4>
+                    <p class="description-box">${escapeHTML(item.description || '')}</p>
+                    <small style="color:var(--text-muted);">${escapeHTML(item.date)} ${item.link ? '• <a href="' + escapeHTML(item.link) + '" target="_blank" style="color:var(--secondary)">Link</a>' : ''}</small>
                 </div>
                 <button onclick="removeNews(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:1.2rem;" title="Delete">🗑</button>
             </div>

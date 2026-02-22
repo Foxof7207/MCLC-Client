@@ -25,16 +25,35 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
     const [loading, setLoading] = useState(false);
     const [localBackups, setLocalBackups] = useState([]);
     const [cloudBackups, setCloudBackups] = useState([]);
+    const [cloudStatus, setCloudStatus] = useState({});
+    const [selectedProvider, setSelectedProvider] = useState(null);
     const { addNotification } = useNotification();
+
+    useEffect(() => {
+        loadCloudStatus();
+    }, []);
+
+    const loadCloudStatus = async () => {
+        try {
+            const status = await window.electronAPI.cloudGetStatus();
+            setCloudStatus(status);
+
+            // Set default selected provider based on connected status
+            if (status.GOOGLE_DRIVE?.loggedIn) setSelectedProvider('GOOGLE_DRIVE');
+            else if (status.DROPBOX?.loggedIn) setSelectedProvider('DROPBOX');
+        } catch (e) {
+            console.error("Failed to load cloud status", e);
+        }
+    };
 
     useEffect(() => {
         if (view === 'setup') {
             if (mode === 'import') {
                 if (type === 'local') loadLocalBackups();
-                else loadCloudBackups();
+                else if (selectedProvider) loadCloudBackups();
             }
         }
-    }, [view, type, mode]);
+    }, [view, type, mode, selectedProvider]);
 
     const loadLocalBackups = async () => {
         setLoading(true);
@@ -50,11 +69,10 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
     };
 
     const loadCloudBackups = async () => {
+        if (!selectedProvider) return;
         setLoading(true);
         try {
-            const settings = await window.electronAPI.getSettings();
-            const provider = settings.settings.cloudBackupSettings?.provider || 'GOOGLE_DRIVE';
-            const res = await window.electronAPI.cloudListBackups(provider, instance.name);
+            const res = await window.electronAPI.cloudListBackups(selectedProvider, instance.name);
             if (res.success) setCloudBackups(res.files);
             else addNotification('Failed to load cloud backups: ' + res.error, 'error');
         } catch (e) {
@@ -70,16 +88,14 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
         try {
             if (mode === 'backup') {
                 for (const worldFolder of selectedItems) {
-                    const res = await window.electronAPI.backupWorld(instance.name, worldFolder, type === 'cloud');
+                    const res = await window.electronAPI.backupWorld(instance.name, worldFolder, type === 'cloud' ? selectedProvider : false);
                     if (res.success) {
                         successCount++;
                     }
                 }
                 addNotification(`Successfully backed up ${successCount} world(s)`, 'success');
             } else {
-
-                const settings = await window.electronAPI.getSettings();
-                const provider = settings.settings.cloudBackupSettings?.provider || 'GOOGLE_DRIVE';
+                const provider = type === 'local' ? null : selectedProvider;
 
                 for (const itemId of selectedItems) {
                     let res;
@@ -194,7 +210,7 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
                     </div>
                 ) : (
                     <>
-                        <div className="flex bg-background-dark/50 p-1 rounded-xl border border-white/5 mb-6">
+                        <div className="flex bg-background-dark/50 p-1 rounded-xl border border-white/5 mb-4">
                             <button
                                 onClick={() => { setType('local'); setSelectedItems([]); }}
                                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${type === 'local' ? 'bg-primary text-black shadow-lg shadow-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
@@ -208,6 +224,29 @@ const BackupManagerModal = ({ instance, onClose, worlds, onBackupStatusChange })
                                 Cloud Storage
                             </button>
                         </div>
+
+                        {type === 'cloud' && (
+                            <div className="grid grid-cols-2 gap-2 mb-6 animate-in slide-in-from-top-1 duration-200">
+                                <button
+                                    onClick={() => { setSelectedProvider('GOOGLE_DRIVE'); setSelectedItems([]); }}
+                                    disabled={!cloudStatus.GOOGLE_DRIVE?.loggedIn}
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedProvider === 'GOOGLE_DRIVE' ? 'bg-primary/10 border-primary text-primary shadow-lg shadow-primary/5' : 'bg-white/5 border-white/5 text-gray-500 hover:border-white/10'} ${!cloudStatus.GOOGLE_DRIVE?.loggedIn ? 'opacity-30 grayscale cursor-not-allowed border-dashed' : ''}`}
+                                >
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 20h20L12 2z" /></svg>
+                                    Google Drive
+                                    {!cloudStatus.GOOGLE_DRIVE?.loggedIn && <span className="text-[8px] bg-red-500/20 text-red-500 px-1 rounded ml-1">Offline</span>}
+                                </button>
+                                <button
+                                    onClick={() => { setSelectedProvider('DROPBOX'); setSelectedItems([]); }}
+                                    disabled={!cloudStatus.DROPBOX?.loggedIn}
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${selectedProvider === 'DROPBOX' ? 'bg-primary/10 border-primary text-primary shadow-lg shadow-primary/5' : 'bg-white/5 border-white/5 text-gray-500 hover:border-white/10'} ${!cloudStatus.DROPBOX?.loggedIn ? 'opacity-30 grayscale cursor-not-allowed border-dashed' : ''}`}
+                                >
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5-10-5-10 5z" /></svg>
+                                    Dropbox
+                                    {!cloudStatus.DROPBOX?.loggedIn && <span className="text-[8px] bg-red-500/20 text-red-500 px-1 rounded ml-1">Offline</span>}
+                                </button>
+                            </div>
+                        )}
 
                         <div className="relative mb-4">
                             <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-2.5 text-gray-500" />

@@ -1,6 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const pool = require('./database');
+const crypto = require('crypto');
 require('dotenv').config();
 
 passport.serializeUser((user, done) => {
@@ -56,7 +57,7 @@ passport.use(new GoogleStrategy({
                 let username = profile.displayName;
                 const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
                 if (existing.length > 0) {
-                    username = `${profile.displayName}#${Math.floor(1000 + Math.random() * 9000)}`;
+                    username = `${profile.displayName}#${crypto.randomInt(1000, 10000)}`;
                 }
 
                 const newUser = {

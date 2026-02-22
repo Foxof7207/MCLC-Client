@@ -3,6 +3,9 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
+const { doubleCsrf } = require('csrf-csrf');
+const cookieParser = require('cookie-parser');
 
 // --- LOGGING TO latest.log ---
 const logFile = path.join(__dirname, 'latest.log');
@@ -72,8 +75,64 @@ const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
 const downloadCooldowns = new Map();
 
 app.use(cors());
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// --- RATE LIMITING ---
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests, please try again later.' }
+});
+
+const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 attempts per hour
+    message: { error: 'Too many login attempts, please try again in an hour.' }
+});
+
+app.use('/api/', generalLimiter);
+app.use('/api/login', authLimiter);
+app.use('/auth/', authLimiter);
+
+// --- CSRF PROTECTION ---
+const {
+    invalidCsrfTokenError, // This is just for comparison if needed
+    generateToken, // Use this in your views to get a token for a request
+    validateRequest, // Midlleware to validate tokens
+    doubleCsrfProtection, // This is the protection middleware itself
+} = doubleCsrf({
+    getSecret: () => process.env.SESSION_SECRET || 'mclc-super-secret-session-key-2026',
+    cookieName: "x-csrf-token",
+    cookieOptions: {
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+    },
+    getTokenFromRequest: (req) => req.headers["x-csrf-token"],
+});
+
+// Middleware to handle CSRF errors
+app.use((err, req, res, next) => {
+    if (err.code === 'EBADCSRFTOKEN') {
+        return res.status(403).json({ error: 'Invalid CSRF token' });
+    }
+    next(err);
+});
+
+// Route to get a CSRF token
+app.get('/api/csrf-token', (req, res) => {
+    res.json({ token: generateToken(req, res) });
+});
+
+// Apply CSRF protection to all non-GET API requests
+app.use((req, res, next) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+        return next();
+    }
+    doubleCsrfProtection(req, res, next);
+});
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
@@ -299,7 +358,7 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(4).toString('hex');
         cb(null, uniqueSuffix + path.extname(file.originalname));
     }
 });
@@ -307,7 +366,14 @@ const upload = multer({ storage: storage });
 
 app.get('/auth/google', (req, res, next) => {
     if (req.query.returnTo) {
-        req.session.returnTo = req.query.returnTo;
+        // Sanitize returnTo to prevent open redirects
+        const returnTo = req.query.returnTo;
+        if (returnTo.startsWith('/') && !returnTo.startsWith('//')) {
+            req.session.returnTo = returnTo;
+        } else {
+            console.warn(`[Security] Blocked potentially malicious returnTo redirect: ${returnTo}`);
+            req.session.returnTo = '/';
+        }
     }
     next();
 }, passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -337,9 +403,12 @@ app.get('/auth/google/callback', (req, res, next) => {
 
 app.get('/auth/logout', (req, res) => {
     const returnTo = req.query.returnTo || '/';
+    // Basic sanitization for logout redirect as well
+    const safeReturnTo = (returnTo.startsWith('/') && !returnTo.startsWith('//')) ? returnTo : '/';
+
     req.logout((err) => {
         if (err) return next(err);
-        res.redirect(returnTo);
+        res.redirect(safeReturnTo);
     });
 });
 
@@ -988,7 +1057,7 @@ app.use((err, req, res, next) => {
 
 const websitePath = fs.existsSync(path.join(__dirname, 'website'))
     ? path.join(__dirname, 'website')
-    : __dirname;
+    : path.join(__dirname, 'public'); // Default to public if website is missing, NOT __dirname!
 
 const adminPublicPath = fs.existsSync(path.join(__dirname, 'public'))
     ? path.join(__dirname, 'public')

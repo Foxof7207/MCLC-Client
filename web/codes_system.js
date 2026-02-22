@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const CODES_DIR = path.join(__dirname, 'codes');
 if (!fs.existsSync(CODES_DIR)) {
     console.log(`[CodesSystem] Creating codes directory: ${CODES_DIR}`);
@@ -20,16 +21,22 @@ function cleanupOldCodes() {
             if (!file.endsWith('.json')) return;
 
             const filePath = path.join(CODES_DIR, file);
-            fs.stat(filePath, (err, stats) => {
-                if (err) return;
-
-                if (now - stats.mtimeMs > SEVEN_DAYS_MS) {
+            try {
+                const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                if (data.expires && now > data.expires) {
                     fs.unlink(filePath, err => {
                         if (err) console.error(`[CodesSystem] Failed to delete expired code: ${file}`, err);
                         else console.log(`[CodesSystem] Deleted expired code: ${file}`);
                     });
                 }
-            });
+            } catch (e) {
+                // If corrupted, maybe delete based on mtime as fallback
+                fs.stat(filePath, (err, stats) => {
+                    if (!err && now - stats.mtimeMs > SEVEN_DAYS_MS) {
+                        fs.unlink(filePath, () => { });
+                    }
+                });
+            }
         });
     });
 }
@@ -41,8 +48,9 @@ function generateCode() {
     let code;
     do {
         code = '';
+        const bytes = crypto.randomBytes(8);
         for (let i = 0; i < 8; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
+            code += chars.charAt(bytes[i] % chars.length);
         }
     } while (fs.existsSync(path.join(CODES_DIR, `${code}.json`)));
     return code;
@@ -80,11 +88,11 @@ module.exports = function (app, ADMIN_PASSWORD) {
     }
     app.post('/api/codes/save', handleSave);
     app.post('/api/modpack/save', handleSave);
-    app.get('/api/codes/list', (req, res) => {
+    function handleList(req, res) {
         try {
-            const clientPass = req.query.password;
+            const clientPass = req.body.password || req.query.password || req.headers['x-admin-password'];
             if (clientPass !== ADMIN_PASSWORD) {
-                console.warn(`[CodesSystem] Unauthorized list attempt. Client passed: ${clientPass ? '***' : 'missing'}`);
+                console.warn(`[CodesSystem] Unauthorized list attempt.`);
                 return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
             if (!fs.existsSync(CODES_DIR)) {
@@ -94,6 +102,7 @@ module.exports = function (app, ADMIN_PASSWORD) {
             const codes = files.map(file => {
                 try {
                     const content = JSON.parse(fs.readFileSync(path.join(CODES_DIR, file), 'utf8'));
+                    if (content.expires && Date.now() > content.expires) return null;
                     return {
                         code: content.code || file.replace('.json', ''),
                         name: content.name,
@@ -114,10 +123,18 @@ module.exports = function (app, ADMIN_PASSWORD) {
             console.error('[CodesSystem] List error:', error);
             res.status(500).json({ success: false, error: error.message });
         }
-    });
+    }
+    app.get('/api/codes/list', handleList);
+    app.post('/api/codes/list', handleList);
     function handleGetCode(req, res) {
         try {
             const { code } = req.params;
+
+            // Path injection protection
+            if (!code || !/^[a-zA-Z0-9]+$/.test(code)) {
+                return res.status(400).json({ success: false, error: 'Invalid code format' });
+            }
+
             const filePath = path.join(CODES_DIR, `${code}.json`);
 
             if (fs.existsSync(filePath)) {
@@ -138,14 +155,20 @@ module.exports = function (app, ADMIN_PASSWORD) {
     }
     app.get('/api/codes/:code', handleGetCode);
     app.get('/api/modpack/:code', handleGetCode);
-    app.delete('/api/codes/:code', (req, res) => {
+    function handleDelete(req, res) {
         try {
-            const clientPass = req.query.password;
+            const clientPass = req.body.password || req.query.password || req.headers['x-admin-password'];
             if (clientPass !== ADMIN_PASSWORD) {
                 console.warn(`[CodesSystem] Unauthorized delete attempt for ${req.params.code}.`);
                 return res.status(401).json({ success: false, error: 'Unauthorized' });
             }
             const { code } = req.params;
+
+            // Path injection protection
+            if (!code || !/^[a-zA-Z0-9]+$/.test(code)) {
+                return res.status(400).json({ success: false, error: 'Invalid code format' });
+            }
+
             const filePath = path.join(CODES_DIR, `${code}.json`);
 
             if (fs.existsSync(filePath)) {
@@ -159,5 +182,7 @@ module.exports = function (app, ADMIN_PASSWORD) {
             console.error('[CodesSystem] Delete error:', error);
             res.status(500).json({ success: false, error: error.message });
         }
-    });
+    }
+    app.delete('/api/codes/:code', handleDelete);
+    app.post('/api/codes/delete/:code', handleDelete);
 };
