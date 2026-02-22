@@ -1,15 +1,10 @@
-# MCLC - Minecraft Launcher
-
 <p align="center">
   <img src="resources/icon.png" alt="MCLC Logo" width="128">
 </p>
 
 MCLC is a Minecraft launcher built with **Electron**, **React**, and **Tailwind CSS** for managing instances, skins, and modpacks.
 
----
-
-Virus Total Scan (v1.6.1): [https://www.virustotal.com/gui/file/dd08112fabe3758be710496636fc1454011c1ae92df8b4a0fd4bb511006ee433](https://www.virustotal.com/gui/file/dd08112fabe3758be710496636fc1454011c1ae92df8b4a0fd4bb511006ee433)
----
+[Virus Total Scan](https://github.com/MCLC-Client/MCLC-Client/actions/workflows/scan.yml)
 
 ## Features
 
@@ -34,7 +29,7 @@ Virus Total Scan (v1.6.1): [https://www.virustotal.com/gui/file/dd08112fabe3758b
 ## Getting Started
 
 ### For Users
-1. Download the latest `.exe` installer from the [Releases](https://github.com/Fernsehheft/MCLC-Client/releases) page.
+1. Download the latest `.exe` installer from the [Releases](https://github.com/MCLC-Client/MCLC-Client/releases) page.
 2. Run the installer and follow the on-screen instructions.
 3. Launch **MCLC** from your desktop or start menu.
 
@@ -47,7 +42,7 @@ Virus Total Scan (v1.6.1): [https://www.virustotal.com/gui/file/dd08112fabe3758b
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Fernsehheft/MCLC-Client.git
+   git clone https://github.com/MCLC-Client/MCLC-Client.git
    cd MCLC-Client
    ```
 
