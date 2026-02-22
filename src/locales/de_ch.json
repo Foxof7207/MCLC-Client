@@ -61,7 +61,9 @@
             "0h": "0 Std.",
             "hours_minutes": "{{hours}} Std. {{minutes}} Min.",
             "minutes": "{{minutes}} Min."
-        }
+        },
+        "disabled": "Deaktiviert",
+        "enabled": "Aktiviert"
     },
     "home": {
         "welcome_back": "Willkomme zrugg!",

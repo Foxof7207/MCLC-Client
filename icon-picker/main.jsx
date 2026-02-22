@@ -60,14 +60,21 @@ export const activate = (api) => {
         };
 
         return (
-            <div
-                className="w-full h-full cursor-pointer absolute inset-0 z-10"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsOpen(!isOpen);
-                }}
-            >
+            <div className="relative z-50">
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsOpen(!isOpen);
+                    }}
+                    type="button"
+                    className="p-2 bg-primary hover:bg-primary-hover text-black rounded-xl shadow-lg transition-transform hover:scale-110 flex items-center justify-center"
+                    title="Pick Icon"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </button>
                 {isOpen && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={(e) => {
@@ -76,7 +83,7 @@ export const activate = (api) => {
                             setIsOpen(false);
                         }}></div>
                         <div
-                            className="absolute top-full left-1/2 -translate-x-1/2 mt-4 p-5 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 border-b-primary/30 cursor-default"
+                            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-5 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 border-b-primary/30 cursor-default"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -147,7 +154,7 @@ export const activate = (api) => {
                             if (imageBox && !imageBox.querySelector('#icon-picker-injected')) {
                                 const injectTarget = document.createElement('div');
                                 injectTarget.id = 'icon-picker-injected';
-                                injectTarget.className = 'absolute inset-0 z-50';
+                                injectTarget.className = 'absolute bottom-1 right-1 z-[60]';
 
                                 imageBox.appendChild(injectTarget);
 

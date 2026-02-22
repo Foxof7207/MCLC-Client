@@ -61,7 +61,9 @@
             "0h": "0h",
             "hours_minutes": "{{hours}}h {{minutes}}m",
             "minutes": "{{minutes}}m"
-        }
+        },
+        "disabled": "Disabled",
+        "enabled": "Enabled"
     },
     "home": {
         "welcome_back": "¡Bienvenido de nuevo!",

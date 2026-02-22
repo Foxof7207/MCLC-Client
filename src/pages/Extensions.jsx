@@ -104,7 +104,7 @@ const Extensions = () => {
                                         onChange={(e) => toggleExtension(ext.id, e.target.checked)}
                                     />
                                     <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                                    <span className="ml-3 text-sm font-medium text-gray-300 min-w-[60px]">{ext.enabled ? t('common.idle') : t('dashboard.context.none')}</span>
+                                    <span className="ml-3 text-sm font-medium text-gray-300 min-w-[60px]">{ext.enabled ? t('common.enabled') : t('common.disabled')}</span>
                                 </label>
 
                                 <div className="h-8 w-[1px] bg-white/10"></div>

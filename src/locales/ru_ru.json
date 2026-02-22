@@ -61,7 +61,9 @@
             "0h": "0ч",
             "hours_minutes": "{{hours}}ч {{minutes}}м",
             "minutes": "{{minutes}}м"
-        }
+        },
+        "disabled": "Disabled",
+        "enabled": "Enabled"
     },
     "home": {
         "welcome_back": "С возвращением!",
