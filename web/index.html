@@ -315,9 +315,7 @@
     </div>
   </footer>
 
-  <script>
-    // MODAL TOGGLE FUNCTION
-    function toggleModal() {
+  <script>    function toggleModal() {
       const modal = document.getElementById('downloadModal');
       modal.classList.toggle('hidden');
       modal.classList.toggle('flex');
@@ -344,7 +342,7 @@
             appimage: getAsset('.appimage') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.AppImage`
           };
         } catch (error) {
-          // Fallback links if API fails
+
           return {
             version: 'v1.3.3',
             win: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.exe',
@@ -356,12 +354,8 @@
       }
 
       const links = await fetchLatestRelease();
-
-      // Update UI Version
       const versionEl = document.getElementById('versionDisplay');
       if (versionEl) versionEl.textContent = links.version;
-
-      // Update Modal Links
       const winBtn = document.getElementById('modalWin');
       const debBtn = document.getElementById('modalDeb');
       const rpmBtn = document.getElementById('modalRpm');
@@ -377,8 +371,7 @@
     function toggleMenu() {
       const menu = document.getElementById('mobile-menu');
       if (menu) menu.classList.toggle('open');
-    }
-  </script>
+    }</script>
 
   <script src="main.js?v=5"></script>
 </body>
