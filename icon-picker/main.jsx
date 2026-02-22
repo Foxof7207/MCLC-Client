@@ -83,14 +83,14 @@ export const activate = (api) => {
                             setIsOpen(false);
                         }}></div>
                         <div
-                            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-5 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 border-b-primary/30 cursor-default"
+                            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 p-5 bg-surface border border-white/10 rounded-2xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 border-b-primary/30 cursor-default"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
                             }}
                         >
                             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-1">Default Icons</div>
-                            <div className="grid grid-cols-4 gap-3 mb-5">
+                            <div className="flex flex-wrap gap-2 mb-5">
                                 {DEFAULT_ICONS.map(icon => (
                                     <button
                                         key={icon.name}
@@ -149,14 +149,17 @@ export const activate = (api) => {
                     if (formContainer && formContainer.tagName === 'FORM') {
                         const iconContainer = formContainer.querySelector('div.flex.flex-col.items-center.gap-4');
                         if (iconContainer) {
-                            // Find the image upload box
                             const imageBox = iconContainer.querySelector('div.group.relative.flex.h-24.w-24');
-                            if (imageBox && !imageBox.querySelector('#icon-picker-injected')) {
+                            if (imageBox && !iconContainer.querySelector('#icon-picker-injected')) {
+                                iconContainer.style.position = 'relative';
+
                                 const injectTarget = document.createElement('div');
                                 injectTarget.id = 'icon-picker-injected';
-                                injectTarget.className = 'absolute bottom-1 right-1 z-[60]';
+                                injectTarget.className = 'absolute z-[60]';
+                                injectTarget.style.left = 'calc(50% + 60px)';
+                                injectTarget.style.top = '30px';
 
-                                imageBox.appendChild(injectTarget);
+                                iconContainer.appendChild(injectTarget);
 
                                 currentTarget = injectTarget;
                                 currentRoot = window.ReactDOM.createRoot(injectTarget);
