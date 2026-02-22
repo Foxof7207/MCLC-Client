@@ -2,25 +2,44 @@
  * Icon Picker Extension
  */
 export const activate = (api) => {
-    const IconPicker = ({ context }) => {
-        const [isOpen, setIsOpen] = React.useState(false);
-        const instanceName = context?.instanceName;
 
-        const handleSelectIcon = async (icon) => {
-            try {
-                const res = await api.ipc.invoke('set-instance-icon', { 
-                    instanceName, 
-                    iconData: icon 
-                });
-                if (res.success) {
-                    api.ui.toast(`Icon updated for ${instanceName}`, 'success');
-                    setIsOpen(false);
-                } else {
-                    api.ui.toast(`Failed to update icon: ${res.error}`, 'error');
-                }
-            } catch (e) {
-                console.error("[IconPicker] Error selecting icon:", e);
-            }
+    const setIconInModal = (iconData) => {
+        const h2Elements = Array.from(document.querySelectorAll('h2'));
+        const modal = h2Elements.find(el => el.textContent === 'Create New Instance');
+        if (!modal) return;
+
+        // Find the input element near the modal
+        const container = modal.nextElementSibling;
+        const fileInput = container.querySelector('input[type="file"]');
+        if (!fileInput) return;
+
+        if (!iconData) {
+            return;
+        }
+
+        fetch(iconData)
+            .then(res => res.blob())
+            .then(blob => {
+                const file = new window.File([blob], "icon.png", { type: blob.type });
+                const dataTransfer = new window.DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                // Dispatch change event to trigger the React onChange
+                const event = new window.Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+
+                api.ui.toast(`Sample icon applied to new template`, 'success');
+            })
+            .catch(console.error);
+    };
+
+    const CreateModalIconPicker = () => {
+        const [isOpen, setIsOpen] = React.useState(false);
+
+        const handleSelectIcon = (icon) => {
+            setIconInModal(icon);
+            setIsOpen(false);
         };
 
         const handleUpload = () => {
@@ -30,7 +49,7 @@ export const activate = (api) => {
             input.onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    const reader = new FileReader();
+                    const reader = new window.FileReader();
                     reader.onloadend = () => {
                         handleSelectIcon(reader.result);
                     };
@@ -40,32 +59,40 @@ export const activate = (api) => {
             input.click();
         };
 
-        if (!instanceName) return null;
-
         return (
-            <div className="relative" style={{ overflow: 'visible' }}>
-                <button 
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="flex items-center gap-2 px-4 py-2 bg-surface hover:bg-white/10 rounded-xl border border-white/5 transition-all shadow-lg group"
-                >
-                    <div className="w-5 h-5 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <span className="text-gray-300 font-medium text-sm">Pick Icon</span>
-                </button>
-
+            <div
+                className="w-full h-full cursor-pointer absolute inset-0 z-10"
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsOpen(!isOpen);
+                }}
+            >
                 {isOpen && (
                     <>
-                        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
-                        <div className="absolute top-full left-0 mt-2 p-5 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 border-b-primary/30">
+                        <div className="fixed inset-0 z-40" onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsOpen(false);
+                        }}></div>
+                        <div
+                            className="absolute top-full left-1/2 -translate-x-1/2 mt-4 p-5 bg-[#121212] border border-white/10 rounded-2xl shadow-2xl z-50 w-72 animate-in fade-in slide-in-from-top-2 border-b-primary/30 cursor-default"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                            }}
+                        >
                             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-1">Default Icons</div>
                             <div className="grid grid-cols-4 gap-3 mb-5">
                                 {DEFAULT_ICONS.map(icon => (
                                     <button
                                         key={icon.name}
-                                        onClick={() => handleSelectIcon(icon.data)}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleSelectIcon(icon.data);
+                                        }}
+                                        type="button"
                                         className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-primary/20 hover:scale-110 rounded-xl transition-all border border-white/5 group"
                                         title={icon.name}
                                     >
@@ -73,10 +100,15 @@ export const activate = (api) => {
                                     </button>
                                 ))}
                             </div>
-                            
+
                             <div className="space-y-2">
-                                <button 
-                                    onClick={handleUpload}
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleUpload();
+                                    }}
+                                    type="button"
                                     className="w-full py-2.5 bg-white/5 text-gray-300 font-bold rounded-xl hover:bg-white/10 hover:text-white border border-white/5 transition-all flex items-center justify-center gap-2 text-sm"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,20 +116,10 @@ export const activate = (api) => {
                                     </svg>
                                     <span>Upload Custom</span>
                                 </button>
-                                
-                                <button 
-                                    onClick={() => handleSelectIcon(null)}
-                                    className="w-full py-2.5 bg-red-500/10 text-red-500 font-bold rounded-xl hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center justify-center gap-2 text-sm"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    <span>Remove Icon</span>
-                                </button>
                             </div>
-                            
+
                             <div className="mt-4 pt-3 border-t border-white/5 text-[9px] text-gray-600 text-center uppercase tracking-tighter">
-                                Changes apply immediately to sidebar
+                                Changes apply immediately
                             </div>
                         </div>
                     </>
@@ -106,7 +128,61 @@ export const activate = (api) => {
         );
     };
 
-    api.ui.registerView('instance.details', IconPicker);
+    const GlobalOverlay = () => {
+        React.useEffect(() => {
+            let currentRoot = null;
+            let currentTarget = null;
+
+            const observer = new window.MutationObserver(() => {
+                const h2Elements = Array.from(document.querySelectorAll('h2'));
+                const modal = h2Elements.find(el => el.textContent === 'Create New Instance');
+
+                if (modal) {
+                    const formContainer = modal.nextElementSibling;
+                    if (formContainer && formContainer.tagName === 'FORM') {
+                        const iconContainer = formContainer.querySelector('div.flex.flex-col.items-center.gap-4');
+                        if (iconContainer) {
+                            // Find the image upload box
+                            const imageBox = iconContainer.querySelector('div.group.relative.flex.h-24.w-24');
+                            if (imageBox && !imageBox.querySelector('#icon-picker-injected')) {
+                                const injectTarget = document.createElement('div');
+                                injectTarget.id = 'icon-picker-injected';
+                                injectTarget.className = 'absolute inset-0 z-50';
+
+                                imageBox.appendChild(injectTarget);
+
+                                currentTarget = injectTarget;
+                                currentRoot = window.ReactDOM.createRoot(injectTarget);
+                                currentRoot.render(window.React.createElement(CreateModalIconPicker));
+                            }
+                        }
+                    }
+                } else {
+                    if (currentTarget) {
+                        try {
+                            if (currentRoot) currentRoot.unmount();
+                        } catch (e) { }
+                        currentTarget = null;
+                        currentRoot = null;
+                    }
+                }
+            });
+
+            observer.observe(document.body, { childList: true, subtree: true });
+            return () => {
+                observer.disconnect();
+                if (currentRoot) {
+                    try {
+                        currentRoot.unmount();
+                    } catch (e) { }
+                }
+            };
+        }, []);
+
+        return null;
+    };
+
+    api.ui.registerView('app.overlay', GlobalOverlay);
 };
 
 const DEFAULT_ICONS = [
