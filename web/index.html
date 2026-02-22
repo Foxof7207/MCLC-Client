@@ -91,6 +91,34 @@
 
       <button onclick="toggleModal()"
         class="mt-8 text-gray-500 hover:text-white transition-colors w-full text-sm font-bold uppercase tracking-widest">Close</button>
+
+      <div class="mt-8 pt-8 border-t border-white/5">
+        <h4 class="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">One-Line Installation</h4>
+        <div class="space-y-4">
+          <div class="relative group">
+            <div class="text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-wider">Linux / macOS (Bash)</div>
+            <div
+              class="bg-black/40 rounded-xl p-4 pr-12 font-mono text-xs text-primary/80 border border-white/5 truncate">
+              curl -sS https://mclc.pluginhub.de/install.sh | bash
+            </div>
+            <button onclick="copyToClipboard('curl -sS https://mclc.pluginhub.de/install.sh | bash', this)"
+              class="absolute right-3 top-[1.85rem] text-gray-500 hover:text-primary transition-colors">
+              <i class="far fa-copy"></i>
+            </button>
+          </div>
+          <div class="relative group">
+            <div class="text-[10px] text-gray-500 mb-1 font-bold uppercase tracking-wider">Windows (PowerShell)</div>
+            <div
+              class="bg-black/40 rounded-xl p-4 pr-12 font-mono text-xs text-primary/80 border border-white/5 truncate">
+              iwr https://mclc.pluginhub.de/install.ps1 -useb | iex
+            </div>
+            <button onclick="copyToClipboard('iwr https://mclc.pluginhub.de/install.ps1 -useb | iex', this)"
+              class="absolute right-3 top-[1.85rem] text-gray-500 hover:text-primary transition-colors">
+              <i class="far fa-copy"></i>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -367,6 +395,21 @@
       if (appImageBtn) appImageBtn.href = links.appimage;
 
     })();
+
+    function copyToClipboard(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const icon = btn.querySelector('i');
+        icon.classList.remove('fa-copy');
+        icon.classList.add('fa-check');
+        icon.classList.add('text-primary');
+
+        setTimeout(() => {
+          icon.classList.remove('fa-check');
+          icon.classList.remove('text-primary');
+          icon.classList.add('fa-copy');
+        }, 2000);
+      });
+    }
 
     function toggleMenu() {
       const menu = document.getElementById('mobile-menu');
