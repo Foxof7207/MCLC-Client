@@ -82,6 +82,11 @@
           <span class="font-bold text-lg">Linux (.rpm)</span>
           <span class="text-xs uppercase font-black opacity-50 tracking-widest">Fedora / RedHat</span>
         </a>
+        <a id="modalAppImage" href="#"
+          class="flex items-center justify-between bg-white/5 hover:bg-primary hover:text-black p-5 rounded-2xl transition-all">
+          <span class="font-bold text-lg">Linux (.AppImage)</span>
+          <span class="text-xs uppercase font-black opacity-50 tracking-widest">Universal</span>
+        </a>
       </div>
 
       <button onclick="toggleModal()"
@@ -335,37 +340,43 @@
             version: release.tag_name.startsWith('v') ? release.tag_name : 'v' + release.tag_name,
             win: getAsset('.exe') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.exe`,
             deb: getAsset('.deb') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.deb`,
-            rpm: getAsset('.rpm') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.rpm`
+            rpm: getAsset('.rpm') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.rpm`,
+            appimage: getAsset('.appimage') || `https://github.com/${REPO}/releases/download/${release.tag_name}/MCLC-setup.AppImage`
           };
         } catch (error) {
+          // Fallback links if API fails
           return {
             version: 'v1.3.3',
             win: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.exe',
             deb: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.deb',
-            rpm: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.rpm'
+            rpm: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.rpm',
+            appimage: 'https://github.com/MCLC-Client/MCLC-Client/releases/latest/download/MCLC-setup.AppImage'
           };
         }
       }
 
       const links = await fetchLatestRelease();
 
-      // Update UI
-      if (document.getElementById('versionDisplay')) document.getElementById('versionDisplay').textContent = links.version;
+      // Update UI Version
+      const versionEl = document.getElementById('versionDisplay');
+      if (versionEl) versionEl.textContent = links.version;
 
       // Update Modal Links
       const winBtn = document.getElementById('modalWin');
       const debBtn = document.getElementById('modalDeb');
       const rpmBtn = document.getElementById('modalRpm');
+      const appImageBtn = document.getElementById('modalAppImage');
 
       if (winBtn) winBtn.href = links.win;
       if (debBtn) debBtn.href = links.deb;
       if (rpmBtn) rpmBtn.href = links.rpm;
+      if (appImageBtn) appImageBtn.href = links.appimage;
 
     })();
 
     function toggleMenu() {
       const menu = document.getElementById('mobile-menu');
-      if (menu) menu.classList.toggle('hidden');
+      if (menu) menu.classList.toggle('open');
     }
   </script>
 
