@@ -16,6 +16,7 @@
   "build": {
     "appId": "de.pluginhub.mclc",
     "productName": "MCLC",
+    "compression": "normal",
     "icon": "resources/icon.png",
     "publish": [
       {
@@ -50,7 +51,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "createDesktopShortcut": true,
+      "compression": "lzma"
     },
     "mac": {
       "target": [

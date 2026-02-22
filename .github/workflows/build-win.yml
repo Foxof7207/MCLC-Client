@@ -103,7 +103,7 @@ jobs:
           name: release-win-${{ env.SHORT_SHA }}
           path: release/
           if-no-files-found: error
-          compression-level: 0
+          compression-level: 6
 
       - name: Check build output exists
         id: outcheck
@@ -129,4 +129,4 @@ jobs:
             build/
             out/
           if-no-files-found: error
-          compression-level: 0
+          compression-level: 6
