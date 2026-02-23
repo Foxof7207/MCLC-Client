@@ -49,3 +49,5 @@ Thumbs.db
 COMMIT.md
 /MCLC-Mod-Source
 flutter/
+.vscode/
+.vscode/**
