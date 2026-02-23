@@ -1821,7 +1821,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate,
                                     {t('common.cancel')}
                                 </button>
                                 <button
-                                    onClick={handleDeleteMod}
+                                    onClick={confirmDeleteMod}
                                     className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-all shadow-lg shadow-red-500/20"
                                 >
                                     {modToDelete.type === 'mod' ? t('instance.delete_mod_btn') :
