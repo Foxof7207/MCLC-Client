@@ -583,7 +583,7 @@ function App() {
                     <div className="flex flex-1 overflow-hidden">
                         { }
                         {currentMode === 'client' ? (
-                            <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} onInstanceClick={handleInstanceClick} onCreateInstance={() => { setCurrentView('library'); setTriggerCreateInstance(true); }} />
+                            <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} onInstanceClick={handleInstanceClick} onCreateInstance={() => { setCurrentView('library'); setTriggerCreateInstance(true); }} isGuest={isGuest} />
                         ) : currentMode === 'server' ? (
                             <ServerSidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} />
                         ) : (
@@ -611,7 +611,7 @@ function App() {
                                             {currentView === 'dashboard' && <Home onInstanceClick={handleInstanceClick} runningInstances={runningInstances} isGuest={isGuest} onNavigateSearch={(category) => { setSearchCategory(category); setCurrentView('search'); }} />}
                                             {currentView === 'library' && <Dashboard onInstanceClick={handleInstanceClick} runningInstances={runningInstances} triggerCreate={triggerCreateInstance} onCreateHandled={() => setTriggerCreateInstance(false)} isGuest={isGuest} />}
                                             {currentView === 'search' && <Search initialCategory={searchCategory} onCategoryConsumed={() => setSearchCategory(null)} />}
-                                            {currentView === 'skins' && <Skins onLogout={handleLogout} onProfileUpdate={setUserProfile} />}
+                                            {currentView === 'skins' && !isGuest && <Skins onLogout={handleLogout} onProfileUpdate={setUserProfile} />}
                                             {currentView === 'styling' && <Styling />}
                                             {currentView === 'settings' && <Settings />}
                                             {currentView === 'instance-details' && selectedInstance && (
