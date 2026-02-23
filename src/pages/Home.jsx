@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import DashboardCustomizer from '../components/DashboardCustomizer';
 import modOfTheDayData from '../data/modOfTheDay.json';
 import { useTranslation } from 'react-i18next';
+import { useNotification } from '../context/NotificationContext';
 
 
 
-function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
+function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch, isGuest }) {
     const { t } = useTranslation();
+    const { addNotification } = useNotification();
 
     const formatTimeAgo = (timestamp) => {
         if (!timestamp) return '';
@@ -261,6 +263,10 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch }) {
         .slice(0, 5);
 
     const handleLaunch = async (e, instance) => {
+        if (isGuest) {
+            addNotification("To do that you have to be logged in", 'error');
+            return;
+        }
 
     };
 

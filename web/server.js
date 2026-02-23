@@ -3,9 +3,6 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const rateLimit = require('express-rate-limit');
-const { doubleCsrf } = require('csrf-csrf');
-const cookieParser = require('cookie-parser');
 
 // --- LOGGING TO latest.log ---
 const logFile = path.join(__dirname, 'latest.log');
@@ -76,7 +73,6 @@ const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
 const downloadCooldowns = new Map();
 
 app.use(cors());
-app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -87,7 +83,7 @@ if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
 }
 
 app.use(session({
-    secret: SESSION_SECRET,
+    secret: SESSION_SECRET || 'mclc-super-secret-session-key-2026',
     resave: false,
     saveUninitialized: false,
     proxy: true,
@@ -100,63 +96,6 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
-
-// --- RATE LIMITING ---
-const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: { error: 'Too many requests, please try again later.' }
-});
-
-const authLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 10,
-    message: { error: 'Too many login attempts, please try again in an hour.' }
-});
-
-app.use('/api/', generalLimiter);
-app.use('/api/login', authLimiter);
-app.use('/auth/', authLimiter);
-
-// --- CSRF PROTECTION ---
-const {
-    generateToken,
-    doubleCsrfProtection,
-} = doubleCsrf({
-    getSecret: () => SESSION_SECRET,
-    cookieName: "x-csrf-token",
-    cookieOptions: {
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-    },
-    getTokenFromRequest: (req) => req.headers["x-csrf-token"],
-});
-
-// Route to get a CSRF token
-app.get('/api/csrf-token', (req, res) => {
-    res.json({ token: generateToken(req, res) });
-});
-
-// Apply CSRF protection to all non-GET API requests EXCEPT login
-app.use((req, res, next) => {
-    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
-        return next();
-    }
-    // Skip CSRF for login so user can get a token after logging in
-    if (req.path === '/api/login' || req.path === '/api/modpack/save' || req.path === '/api/codes/save' || req.path === '/api/announcement') {
-        return next();
-    }
-    doubleCsrfProtection(req, res, next);
-});
-
-// Middleware to handle CSRF errors
-app.use((err, req, res, next) => {
-    if (err.code === 'EBADCSRFTOKEN') {
-        return res.status(403).json({ error: 'Invalid CSRF token' });
-    }
-    next(err);
-});
 
 const activeSessions = new Map();
 
@@ -361,7 +300,7 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(4).toString('hex');
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, uniqueSuffix + path.extname(file.originalname));
     }
 });
@@ -369,14 +308,7 @@ const upload = multer({ storage: storage });
 
 app.get('/auth/google', (req, res, next) => {
     if (req.query.returnTo) {
-        // Sanitize returnTo to prevent open redirects
-        const returnTo = req.query.returnTo;
-        if (returnTo.startsWith('/') && !returnTo.startsWith('//')) {
-            req.session.returnTo = returnTo;
-        } else {
-            console.warn(`[Security] Blocked potentially malicious returnTo redirect: ${returnTo}`);
-            req.session.returnTo = '/';
-        }
+        req.session.returnTo = req.query.returnTo;
     }
     next();
 }, passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -406,12 +338,9 @@ app.get('/auth/google/callback', (req, res, next) => {
 
 app.get('/auth/logout', (req, res) => {
     const returnTo = req.query.returnTo || '/';
-    // Basic sanitization for logout redirect as well
-    const safeReturnTo = (returnTo.startsWith('/') && !returnTo.startsWith('//')) ? returnTo : '/';
-
     req.logout((err) => {
         if (err) return next(err);
-        res.redirect(safeReturnTo);
+        res.redirect(returnTo);
     });
 });
 
@@ -1019,7 +948,6 @@ app.get('/news.json', (req, res) => {
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
     if (password === ADMIN_PASSWORD) {
-        req.session.adminLoggedIn = true;
         res.json({ success: true, token: 'logged-in' });
     } else {
         res.status(401).json({ success: false, error: 'Invalid password' });
@@ -1051,47 +979,42 @@ app.post('/api/news', (req, res) => {
     }
 });
 
-// --- ANNOUNCEMENTS ---
+// --- ANNOUNCEMENT ROUTES ---
 app.get('/api/announcement', (req, res) => {
     try {
         const announcements = getAnnouncements();
-        res.json(announcements[0] || null);
+        res.json(announcements.length > 0 ? announcements[0] : {});
     } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch announcement' });
+        res.json({});
     }
 });
 
 app.post('/api/announcement', (req, res) => {
     const { text, password } = req.body;
-    if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+    if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
 
     try {
-        const announcements = getAnnouncements();
-        if (announcements.length > 0) {
-            return res.status(400).json({ error: 'An announcement already exists. Delete the old one first.' });
-        }
-
-        const newAnnouncement = {
-            text,
-            date: new Date().toISOString()
-        };
-
+        const newAnnouncement = { text, date: new Date().toISOString() };
         saveAnnouncements([newAnnouncement]);
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to save announcement' });
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
 app.delete('/api/announcement', (req, res) => {
     const { password } = req.body;
-    if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
+    if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
 
     try {
         saveAnnouncements([]);
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to delete announcement' });
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
@@ -1105,7 +1028,7 @@ app.use((err, req, res, next) => {
 
 const websitePath = fs.existsSync(path.join(__dirname, 'website'))
     ? path.join(__dirname, 'website')
-    : path.join(__dirname, 'public'); // Default to public if website is missing, NOT __dirname!
+    : __dirname;
 
 const adminPublicPath = fs.existsSync(path.join(__dirname, 'public'))
     ? path.join(__dirname, 'public')
@@ -1122,23 +1045,6 @@ const staticOptions = {
     }
 };
 
-// --- PROTECTED ROUTES ---
-app.get('/dashboard.html', (req, res) => {
-    if (!req.isAuthenticated()) {
-        return res.redirect('/auth/google?returnTo=/dashboard.html');
-    }
-    res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
-
-app.get('/admin.html', (req, res, next) => {
-    // We check if the session says they are admin-logged-in
-    if (req.session.adminLoggedIn) {
-        return res.sendFile(path.join(__dirname, 'public/admin.html'));
-    }
-    // Otherwise redirect to the admin login page
-    res.redirect('/index.html'); // This is public/index.html (admin login)
-});
-
 app.use(express.static(websitePath, staticOptions));
 app.use(express.static(adminPublicPath, staticOptions));
 
@@ -1153,15 +1059,6 @@ app.use('/uploads', express.static(uploadPath, {
     }
 }));
 
-app.get('/install', (req, res) => {
-    const ua = req.headers['user-agent'] || '';
-    if (ua.includes('Windows')) {
-        res.redirect('/install.ps1');
-    } else {
-        res.redirect('/install.sh');
-    }
-});
-
 app.get('/extensions/:identifier', (req, res) => {
     res.sendFile(path.join(__dirname, 'extension_detail.html'), { headers: { 'Cache-Control': 'no-cache, must-revalidate' } });
 });
@@ -1175,9 +1072,16 @@ if (!fs.existsSync(NEWS_FILE)) {
 const getNews = () => JSON.parse(fs.readFileSync(NEWS_FILE, 'utf8'));
 const saveNews = (data) => fs.writeFileSync(NEWS_FILE, JSON.stringify(data, null, 2));
 
+if (!fs.existsSync(ANNOUNCEMENT_FILE)) {
+    fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify([], null, 2));
+}
+
 const getAnnouncements = () => {
-    if (!fs.existsSync(ANNOUNCEMENT_FILE)) fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify([]));
-    return JSON.parse(fs.readFileSync(ANNOUNCEMENT_FILE, 'utf8'));
+    try {
+        return JSON.parse(fs.readFileSync(ANNOUNCEMENT_FILE, 'utf8'));
+    } catch (e) {
+        return [];
+    }
 };
 const saveAnnouncements = (data) => fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data, null, 2));
 

@@ -8,7 +8,7 @@ import { Analytics } from '../services/Analytics';
 import ToggleBox from '../components/ToggleBox';
 import ExtensionSlot from '../components/Extensions/ExtensionSlot';
 import BackupManagerModal from '../components/BackupManagerModal';
-function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate }) {
+function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate, isGuest }) {
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState('content');
     const [contentView, setContentView] = useState('mods');
@@ -619,6 +619,10 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate 
     };
 
     const handleLaunch = async () => {
+        if (isGuest) {
+            addNotification("To do that you have to be logged in", 'error');
+            return;
+        }
         if (isRunning || isLaunching || isInstalling || localPending) return;
         setLocalPending(true);
         try {

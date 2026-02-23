@@ -1215,19 +1215,6 @@
             section.scrollIntoView({ behavior: 'smooth' });
         }
 
-        function escapeHTML(str) {
-            if (!str) return '';
-            return str.toString().replace(/[&<>"']/g, function (m) {
-                return {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#39;'
-                }[m];
-            });
-        }
-
         function switchTab(tab) {
             const detailsBtn = document.getElementById('tab-details');
             const versionsBtn = document.getElementById('tab-versions');
@@ -1265,9 +1252,9 @@
                 }
                 tbody.innerHTML = versions.map(v => `
                     <tr class="border-b border-white/5 hover:bg-white/5 transition-all group">
-                        <td class="p-4 font-bold text-white">${escapeHTML(v.version)}</td>
+                        <td class="p-4 font-bold text-white">${v.version}</td>
                         <td class="p-4 text-gray-400 text-xs">${new Date(v.created_at).toLocaleDateString()}</td>
-                        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${getStatusStyle(v.status)}">${escapeHTML(v.status)}</span></td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${getStatusStyle(v.status)}">${v.status}</span></td>
                         <td class="p-4 text-gray-500 font-mono text-xs">${v.downloads}</td>
                         <td class="p-4 text-right">
                              <button onclick="deleteVersion(${v.id})" class="text-gray-600 hover:text-red-500 transition-colors p-2 hover:bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100" title="Delete Version">

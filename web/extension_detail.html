@@ -350,20 +350,7 @@
         </div>
     </footer>
 
-    <script>        function escapeHTML(str) {
-            if (!str) return '';
-            return str.toString().replace(/[&<>"']/g, function (m) {
-                return {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#39;'
-                }[m];
-            });
-        }
-
-        async function loadExtensionData() {
+    <script>        async function loadExtensionData() {
             const pathParts = window.location.pathname.split('/');
             const identifier = pathParts[pathParts.length - 1];
 
@@ -383,16 +370,7 @@
                 document.getElementById('downloads-count').textContent = (ext.downloads || 0).toLocaleString();
                 document.getElementById('release-date').textContent = new Date(ext.created_at).toLocaleDateString('de-DE');
                 document.getElementById('update-date').textContent = new Date(ext.updated_at || ext.created_at).toLocaleDateString('de-DE');
-                const fixPath = (p) => {
-                    if (!p) return '/resources/icon.png';
-                    if (p.startsWith('http')) {
-                        // Basic origin check or just pass it if trusted
-                        return p;
-                    }
-                    // Prevent path traversal or unexpected relative paths
-                    const clean = p.replace(/^\/?uploads\//, '').replace(/\.\.\//g, '');
-                    return `/uploads/${clean}`;
-                };
+                const fixPath = (p) => p ? (p.startsWith('http') ? p : `/uploads/${p.replace(/^\/?uploads\//, '')}`) : 'resources/icon.png';
 
                 document.getElementById('dev-name').textContent = ext.developer || 'Anonym';
                 document.getElementById('dev-link').href = `/user.html?u=${ext.developer}`;
@@ -451,13 +429,13 @@
                                 <div class="flex items-center gap-3">
                                     <div class="w-2.5 h-2.5 rounded-full ${index === 0 ? 'bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]' : 'bg-white/20'} shrink-0 relative z-10"></div>
                                     <div>
-                                        <div class="text-white font-bold text-sm ${index === 0 ? 'text-primary' : 'group-hover:text-white transition-colors'}">${escapeHTML(v.version)}</div>
+                                        <div class="text-white font-bold text-sm ${index === 0 ? 'text-primary' : 'group-hover:text-white transition-colors'}">${v.version}</div>
                                         <div class="text-[10px] text-gray-500 font-medium">${new Date(v.created_at).toLocaleDateString()}</div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-3">
                                     <span class="text-[10px] text-gray-600 flex items-center gap-1">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                         ${v.downloads}
                                     </span>
                                 </div>
