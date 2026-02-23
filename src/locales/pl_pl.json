@@ -30,7 +30,7 @@
         "running": "Uruchomiony",
         "downloads": "Pobierane",
         "restart_app": "Zrestartuj aplikację",
-        "error_title": "Ups! Coś poszło nie tak.",
+        "error_title": "Ups! Coś poszło nie tak...",
         "error_desc": "Aplikacja napotkała nieoczekiwany błąd. Możesz spróbować ją ponownie uruchomić.",
         "client": "Klient",
         "server": "Serwer",
@@ -378,6 +378,19 @@
             "factory_reset_modal_title": "⚠ USTAWIENIA FABRYCZNE ⚠",
             "factory_reset_modal_msg": "Jesteś pewien? To USUNIE WSZYSTKO, łącznie ze wszystkimi instancjami, światami i ustawieniami. Tej akcji nie można cofnąć.",
             "factory_reset_confirm_btn": "USUŃ WSZYSTKO"
+        },
+        "update": {
+            "title": "Aktualizacja oprogramowania",
+            "current_version": "Aktualna wersja",
+            "check_btn": "Sprawdź aktualizacje",
+            "checking": "Sprawdzanie...",
+            "available": "Dostępna aktualizacja!",
+            "download_btn": "Pobierz",
+            "install_btn": "Zainstaluj i uruchom ponownie",
+            "downloading": "Pobieranie...",
+            "changelog": "Lista zmian",
+            "latest": "Używasz najnowszej wersji",
+            "download_success": "Aktualizacja została pomyślnie pobrana"
         },
         "auto_install": {
             "title": "Automatyczna instalacja modów",

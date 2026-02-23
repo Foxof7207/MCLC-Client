@@ -2,8 +2,8 @@
   "productName": "MCLC",
   "name": "mclc",
   "description": "Lightweight, open-source Minecraft launcher (Electron + React) - features profile & modpack management, skin preview, Discord Rich Presence, and a modern UI for easy installs and updates.",
-  "author": "MCLC Team <contact@pluginhub.de>",
-  "version": "1.6.2",
+  "author": "MCLC Team <mclc@pluginhub.de>",
+  "version": "1.6.6",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"vite\" \"cross-env NODE_ENV=development electron .\"",
@@ -16,6 +16,7 @@
   "build": {
     "appId": "de.pluginhub.mclc",
     "productName": "MCLC",
+    "compression": "normal",
     "icon": "resources/icon.png",
     "publish": [
       {
@@ -75,11 +76,13 @@
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "axios": "^1.13.5",
+    "csrf-csrf": "^4.0.3",
     "discord-rpc": "^4.0.1",
     "dotenv": "17.3.1",
     "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^8.1.0",
     "electron-updater": "^6.8.3",
+    "express-rate-limit": "^8.2.1",
     "form-data": "^4.0.5",
     "fs-extra": "^11.3.3",
     "i18next": "^25.8.13",

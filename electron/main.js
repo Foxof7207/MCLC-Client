@@ -1,4 +1,20 @@
 const { app, BrowserWindow, ipcMain, protocol, net, Menu } = require('electron');
+
+// Force WebGL/GPU acceleration on Linux/unsupported systems
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('disable-gpu-driver-bug-workarounds');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+
+if (process.platform === 'linux') {
+    // Sometimes necessary for WebGL on certain Linux drivers/sandboxes
+    app.commandLine.appendSwitch('disable-gpu-sandbox');
+    // Try 'desktop' or 'egl'. Letting it auto-detect might be safer if desktop fails.
+    // app.commandLine.appendSwitch('use-gl', 'desktop'); 
+}
+app.commandLine.appendSwitch('enable-webgl-draft-extensions');
+
 const path = require('path');
 console.log('NUCLEAR STARTUP CHECK: main.js is running!');
 console.log('[DEBUG] CWD:', process.cwd());
@@ -114,6 +130,16 @@ function createWindow() {
     }
 
     require('../backend/handlers/java')(ipcMain);
+    const updater = require('../backend/handlers/updater');
+    updater(ipcMain, mainWindow);
+
+    // Trigger fully automatic update check on startup
+    updater.performAutoUpdate(ipcMain, mainWindow);
+
+    ipcMain.on('app:is-packaged', (event) => {
+        event.returnValue = app.isPackaged;
+    });
+
     const discord = require('../backend/handlers/discord');
     discord.initRPC();
     const backupManager = require('../backend/backupManager');
@@ -153,18 +179,20 @@ function setupAppMediaProtocol() {
     protocol.handle('app-media', (request) => {
         try {
             const url = new URL(request.url);
-            let decodedPath = decodeURIComponent(url.pathname);
+            // Combine host and pathname to handle drive letters (e.g., host="C:", pathname="/Users/...")
+            let decodedPath = decodeURIComponent(url.host + url.pathname);
 
-
-            if (process.platform === 'win32' && decodedPath.startsWith('/') && decodedPath.length > 2 && decodedPath[2] === ':') {
-                decodedPath = decodedPath.substring(1);
-            }
+            console.log(`[Main] app-media request: ${request.url} -> decodedPath: ${decodedPath}`);
 
             const resolvedPath = path.resolve(decodedPath);
 
             // Security: Ensure the path is within the app's data directory (V6)
             const userDataPath = app.getPath('userData');
-            if (!resolvedPath.startsWith(userDataPath)) {
+            const isInside = process.platform === 'win32'
+                ? resolvedPath.toLowerCase().startsWith(userDataPath.toLowerCase())
+                : resolvedPath.startsWith(userDataPath);
+
+            if (!isInside) {
                 console.error(`[Main] Blocked app-media attempt to access path outside userData: ${resolvedPath}`);
                 return new Response('Access Denied', { status: 403 });
             }
@@ -294,8 +322,19 @@ app.whenReady().then(() => {
         if (mainWindow) mainWindow.webContents.send('update:downloaded', info);
     });
     autoUpdater.on('error', (err) => {
-        console.error('[AutoUpdater] Error:', err);
-        if (mainWindow) mainWindow.webContents.send('update:error', err.message);
+        const msg = (err && (err.message || err.toString())) || '';
+        console.error('[AutoUpdater] Error Object:', err);
+        console.error('[AutoUpdater] Error Message String:', msg);
+
+        const lowerMsg = msg.toLowerCase();
+        if (lowerMsg.includes('latest.yml') || lowerMsg.includes('dev-app-update.yml') || lowerMsg.includes('could not find latest.yml')) {
+            console.log('[AutoUpdater] 🛑 Suppressing known non-critical update error:', msg);
+            return;
+        }
+        if (mainWindow) {
+            console.log('[AutoUpdater] 📤 Sending error to renderer:', msg);
+            mainWindow.webContents.send('update:error', msg);
+        }
     });
 
     if (app.isPackaged) {

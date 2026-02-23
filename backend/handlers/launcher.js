@@ -184,7 +184,8 @@ Add-Type -TypeDefinition $code -Language CSharp
                 minMemory: 1024,
                 maxMemory: 4096,
                 resolutionWidth: 854,
-                resolutionHeight: 480
+                resolutionHeight: 480,
+                minimalMode: true
             };
             if (await fs.pathExists(settingsPath)) {
                 try {
@@ -579,7 +580,7 @@ Add-Type -TypeDefinition $code -Language CSharp
 
                 try {
                     const discord = require('./discord');
-                    discord.setActivity('In Launcher', 'Idle', 'minecraft', 'Minecraft');
+                    discord.setActivity('In Launcher', 'Idle', 'mclc_icon', 'MCLC');
                 } catch (e) { /* ignore */ }
 
                 // Stop Scheduler
@@ -623,6 +624,12 @@ Add-Type -TypeDefinition $code -Language CSharp
                 if (proc && proc.pid) {
                     childProcesses.set(instanceName, proc);
                     setWindowTitle(proc.pid, `MCLC Client ${opts.version.number}`);
+
+                    // Minimal Mode: Minimize on launch (Windows only)
+                    if (settings.minimalMode && process.platform === 'win32' && mainWindow) {
+                        console.log('[Launcher] Minimal Mode enabled, minimizing window.');
+                        mainWindow.minimize();
+                    }
                 } else {
                     console.error('[Launcher] Launch failed: No valid process returned from MCLC.', proc);
                     runningInstances.delete(instanceName);

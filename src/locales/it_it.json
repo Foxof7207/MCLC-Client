@@ -30,7 +30,7 @@
         "running": "In esecuzione",
         "downloads": "Download",
         "restart_app": "Riavvia App",
-        "error_title": "Ops! Qualcosa è andato storto.",
+        "error_title": "Ops! Qualcosa è andato storto...",
         "error_desc": "L'applicazione ha riscontrato un errore imprevisto. Puoi provare a riavviarla.",
         "client": "Client",
         "server": "Server",
@@ -378,6 +378,19 @@
             "factory_reset_modal_title": "⚠ RIPRISTINO DI FABBRICA ⚠",
             "factory_reset_modal_msg": "Sei sicuro? Questo ELIMINERÀ TUTTO, comprese tutte le istanze, i mondi e le impostazioni. Questa azione non può essere annullata.",
             "factory_reset_confirm_btn": "ELIMINA TUTTO"
+        },
+        "update": {
+            "title": "Aggiornamento software",
+            "current_version": "Versione attuale",
+            "check_btn": "Controlla aggiornamenti",
+            "checking": "Controllo...",
+            "available": "Aggiornamento disponibile!",
+            "download_btn": "Scarica",
+            "install_btn": "Installa e riavvia",
+            "downloading": "Scaricamento...",
+            "changelog": "Note di rilascio",
+            "latest": "Sei all'ultima versione",
+            "download_success": "Aggiornamento scaricato con successo"
         },
         "auto_install": {
             "title": "Installazione Automatica Mod",

@@ -30,7 +30,7 @@
         "running": "V teku",
         "downloads": "Prenosi",
         "restart_app": "Znova zaženi",
-        "error_title": "Ups! Nekaj je šlo narobe.",
+        "error_title": "Ups! Nekaj je šlo narobe...",
         "error_desc": "Aplikacija je naletela na nepričakovano napako. Lahko jo poskusite znova zagnati.",
         "client": "Odjemalec",
         "server": "Strežnik",
@@ -378,6 +378,19 @@
             "factory_reset_modal_title": "⚠ TOVARNIŠKA PONASTAVITEV ⚠",
             "factory_reset_modal_msg": "Ste prepričani? To bo IZBRISALO VSE, vključno z vsemi instancami, svetovi in nastavitvami. Tega dejanja ni mogoče razveljaviti.",
             "factory_reset_confirm_btn": "IZBRIŠI VSE"
+        },
+        "update": {
+            "title": "Posodobitev programske opreme",
+            "current_version": "Trenutna različica",
+            "check_btn": "Preveri posodobitve",
+            "checking": "Preverjanje...",
+            "available": "Na voljo je posodobitev!",
+            "download_btn": "Prenesi",
+            "install_btn": "Namesti in ponovno zaženi",
+            "downloading": "Prenos...",
+            "changelog": "Opombe ob izdaji",
+            "latest": "Uporabljate najnovejšo različico",
+            "download_success": "Posodobitev je bila uspešno prenesena"
         },
         "auto_install": {
             "title": "Samodejna namestitev modov",

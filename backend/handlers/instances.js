@@ -34,8 +34,8 @@ const QUILT_META = 'https://meta.quiltmc.org/v3';
 const FORGE_META = 'https://meta.modrinth.com/forge/v0';
 const NEOFORGE_META = 'https://meta.modrinth.com/neo/v0';
 const activeTasks = new Map();
-async function downloadFile(url, destPath) {
-    const response = await axios({ url, responseType: 'arraybuffer' });
+async function downloadFile(url, destPath, signal = null) {
+    const response = await axios({ url, responseType: 'arraybuffer', signal });
     await fs.writeFile(destPath, response.data);
 }
 
@@ -878,6 +878,16 @@ module.exports = (ipcMain, win) => {
                     }
                 }
 
+                const controller = new AbortController();
+                const signal = controller.signal;
+
+                activeTasks.set(instanceName, {
+                    abort: () => {
+                        console.log(`[Import:MrPack] Aborting installation for ${instanceName}`);
+                        controller.abort();
+                    }
+                });
+
                 await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
                 (async () => {
                     try {
@@ -891,10 +901,20 @@ module.exports = (ipcMain, win) => {
 
                         const entries = zip.getEntries();
                         for (const entry of entries) {
+                            if (signal.aborted) throw new Error('Installation aborted');
                             if (entry.entryName.startsWith('overrides/')) {
                                 const relPath = entry.entryName.replace('overrides/', '');
                                 if (relPath) {
                                     const dest = path.join(targetDir, relPath);
+
+                                    // Zip Slip Protection
+                                    const normalizedTargetDir = path.normalize(targetDir + path.sep);
+                                    const normalizedDest = path.normalize(dest);
+                                    if (!normalizedDest.startsWith(normalizedTargetDir)) {
+                                        console.warn(`[Security] Blocked Zip Slip entry: ${entry.entryName}`);
+                                        continue;
+                                    }
+
                                     if (entry.isDirectory) {
                                         await fs.ensureDir(dest);
                                     } else {
@@ -916,10 +936,21 @@ module.exports = (ipcMain, win) => {
                         }
 
                         for (const chunk of chunks) {
+                            if (signal.aborted) throw new Error('Installation aborted');
                             await Promise.all(chunk.map(async (file) => {
+                                if (signal.aborted) return;
                                 const dest = path.join(targetDir, file.path);
+
+                                // Path Validation
+                                const normalizedTargetDir = path.normalize(targetDir + path.sep);
+                                const normalizedDest = path.normalize(dest);
+                                if (!normalizedDest.startsWith(normalizedTargetDir)) {
+                                    console.warn(`[Security] Blocked malicious file path in mrpack index: ${file.path}`);
+                                    return;
+                                }
+
                                 await fs.ensureDir(path.dirname(dest));
-                                await downloadFile(file.downloads[0], dest);
+                                await downloadFile(file.downloads[0], dest, signal);
                                 downloaded++;
                                 const progress = 20 + Math.round((downloaded / totalFiles) * 60);
                                 sendProgress(progress, `Downloading: ${path.basename(file.path)} (${downloaded}/${totalFiles})`);
@@ -930,9 +961,17 @@ module.exports = (ipcMain, win) => {
                         await startBackgroundInstall(instanceName, instanceConfig, false, false);
 
                     } catch (err) {
-                        console.error('[Import:MrPack] Error:', err);
-                        if (win && win.webContents) {
-                            win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
+                        if (err.name === 'AbortError' || err.message === 'Installation aborted') {
+                            console.log(`[Import:MrPack] ${instanceName} installation aborted cleanly.`);
+                        } else {
+                            console.error('[Import:MrPack] Error:', err);
+                            if (win && win.webContents) {
+                                win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
+                            }
+                        }
+                    } finally {
+                        if (activeTasks.get(instanceName)?.abort === controller.abort) {
+                            activeTasks.delete(instanceName);
                         }
                     }
                 })();
@@ -993,6 +1032,16 @@ module.exports = (ipcMain, win) => {
                     created: Date.now()
                 };
 
+                const controller = new AbortController();
+                const signal = controller.signal;
+
+                activeTasks.set(instanceName, {
+                    abort: () => {
+                        console.log(`[Import:CF] Aborting installation for ${instanceName}`);
+                        controller.abort();
+                    }
+                });
+
                 await fs.writeJson(path.join(targetDir, 'instance.json'), instanceConfig, { spaces: 4 });
 
                 (async () => {
@@ -1007,10 +1056,20 @@ module.exports = (ipcMain, win) => {
 
                         const entries = zip.getEntries();
                         for (const entry of entries) {
+                            if (signal.aborted) throw new Error('Installation aborted');
                             if (entry.entryName.startsWith('overrides/')) {
                                 const relPath = entry.entryName.replace('overrides/', '');
                                 if (relPath) {
                                     const dest = path.join(targetDir, relPath);
+
+                                    // Zip Slip Protection
+                                    const normalizedTargetDir = path.normalize(targetDir + path.sep);
+                                    const normalizedDest = path.normalize(dest);
+                                    if (!normalizedDest.startsWith(normalizedTargetDir)) {
+                                        console.warn(`[Security] Blocked Zip Slip entry: ${entry.entryName}`);
+                                        continue;
+                                    }
+
                                     if (entry.isDirectory) {
                                         await fs.ensureDir(dest);
                                     } else {
@@ -1031,20 +1090,32 @@ module.exports = (ipcMain, win) => {
                             await fs.ensureDir(modsDir);
 
                             for (const mod of mods) {
+                                if (signal.aborted) throw new Error('Installation aborted');
                                 try {
                                     const fileRes = await axios.get(`https://api.curse.tools/v1/cf/mods/${mod.projectID}/files/${mod.fileID}`, {
-                                        headers: { 'User-Agent': 'Client/MCLC/1.0' }
+                                        headers: { 'User-Agent': 'Client/MCLC/1.0' },
+                                        signal: signal
                                     });
                                     const fileData = fileRes.data.data;
                                     const downloadUrl = fileData.downloadUrl;
                                     const fileName = fileData.fileName;
 
                                     const dest = path.join(modsDir, fileName);
-                                    await downloadFile(downloadUrl, dest);
+
+                                    // Path Validation
+                                    const normalizedModsDir = path.normalize(modsDir + path.sep);
+                                    const normalizedDest = path.normalize(dest);
+                                    if (!normalizedDest.startsWith(normalizedModsDir)) {
+                                        console.warn(`[Security] Blocked malicious filename in CurseForge pack: ${fileName}`);
+                                        continue;
+                                    }
+
+                                    await downloadFile(downloadUrl, dest, signal);
                                     downloaded++;
                                     const progress = 20 + Math.round((downloaded / totalMods) * 60);
                                     sendProgress(progress, `Downloading: ${fileName} (${downloaded}/${totalMods})`);
                                 } catch (e) {
+                                    if (e.name === 'AbortError' || axios.isCancel(e)) throw e;
                                     console.error(`[Import:CF] Failed to download mod ID ${mod.projectID}:`, e.message);
                                 }
                             }
@@ -1054,9 +1125,17 @@ module.exports = (ipcMain, win) => {
                         await startBackgroundInstall(instanceName, instanceConfig, false, false);
 
                     } catch (err) {
-                        console.error('[Import:CF] Error:', err);
-                        if (win && win.webContents) {
-                            win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
+                        if (err.name === 'AbortError' || err.message === 'Installation aborted' || axios.isCancel(err)) {
+                            console.log(`[Import:CF] ${instanceName} installation aborted cleanly.`);
+                        } else {
+                            console.error('[Import:CF] Error:', err);
+                            if (win && win.webContents) {
+                                win.webContents.send('instance:status', { instanceName, status: 'error', error: err.message });
+                            }
+                        }
+                    } finally {
+                        if (activeTasks.get(instanceName)?.abort === controller.abort) {
+                            activeTasks.delete(instanceName);
                         }
                     }
                 })();
@@ -1459,8 +1538,10 @@ module.exports = (ipcMain, win) => {
             }
         });
 
-        ipcMain.handle('instance:backup-world', async (_, instanceName, folderName, forceCloud = false) => {
+        ipcMain.handle('instance:backup-world', async (event, instanceName, folderName, providerOverride = false) => {
             try {
+                const forceCloud = !!providerOverride;
+                console.log(`[BackupWorld] ${instanceName}/${folderName} (forceCloud: ${forceCloud}, override: ${providerOverride})`);
                 const worldPath = path.join(instancesDir, instanceName, 'saves', folderName);
                 const backupsDir = path.join(globalBackupsDir, instanceName);
                 await fs.ensureDir(backupsDir);
@@ -1479,7 +1560,17 @@ module.exports = (ipcMain, win) => {
                             if (await fs.pathExists(settingsPath)) {
                                 const settings = await fs.readJson(settingsPath);
                                 if (forceCloud || (settings.cloudBackupSettings?.enabled && settings.cloudBackupSettings?.provider)) {
-                                    const providerId = forceCloud ? (settings.cloudBackupSettings?.provider || 'GOOGLE_DRIVE') : settings.cloudBackupSettings.provider;
+                                    let providerId = (typeof providerOverride === 'string') ? providerOverride : settings.cloudBackupSettings?.provider;
+
+                                    // If forceCloud is true but no provider selected (or invalid), try to find an active one
+                                    if (forceCloud && (!providerId || typeof providerOverride !== 'string')) {
+                                        const cloudStatus = store.get('cloud_backups') || {};
+                                        if (cloudStatus.DROPBOX?.tokens) providerId = 'DROPBOX';
+                                        else if (cloudStatus.GOOGLE_DRIVE?.tokens) providerId = 'GOOGLE_DRIVE';
+                                    }
+
+                                    if (!providerId) providerId = 'GOOGLE_DRIVE'; // Final fallback
+
                                     console.log(`[Instances] Emitting backup:created for ${instanceName} to ${providerId} (forceCloud: ${forceCloud})`);
                                     app.emit('backup:created', {
                                         providerId: providerId,

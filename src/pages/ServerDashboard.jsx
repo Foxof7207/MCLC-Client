@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ServerConsole from '../components/ServerConsole';
@@ -19,7 +20,7 @@ const formatUptime = (seconds, t) => {
     return `${minutes}m`;
 };
 
-function ServerDashboard({ onServerClick, runningInstances = {} }) {
+function ServerDashboard({ onServerClick, runningInstances = {}, isGuest }) {
     const { t } = useTranslation();
     const { addNotification } = useNotification();
     const [servers, setServers] = useState([]);
@@ -346,6 +347,10 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
         try {
             switch (action) {
                 case 'start':
+                    if (isGuest) {
+                        addNotification("To do that you have to be logged in", 'error');
+                        return;
+                    }
                     await window.electronAPI.startServer(server.name);
                     addNotification(t('server.start_notification', { name: server.name }), 'info');
                     break;
@@ -569,6 +574,10 @@ function ServerDashboard({ onServerClick, runningInstances = {} }) {
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
+                                        if (isGuest) {
+                                            addNotification("To do that you have to be logged in", 'error');
+                                            return;
+                                        }
                                         if (isRunning) {
                                             window.electronAPI.stopServer(server.name);
                                             addNotification(`Stopping ${server.name}...`, 'info');

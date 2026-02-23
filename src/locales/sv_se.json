@@ -30,7 +30,7 @@
         "running": "Körs",
         "downloads": "Nedladdningar",
         "restart_app": "Starta om appen",
-        "error_title": "Hoppsan! Något gick fel.",
+        "error_title": "Hoppsan! Något gick fel...",
         "error_desc": "Ett oväntat fel uppstod i applikationen. Du kan försöka starta om den.",
         "client": "Klient",
         "server": "Server",
@@ -378,6 +378,19 @@
             "factory_reset_modal_title": "⚠ FABRIKSÅTERSTÄLLNING ⚠",
             "factory_reset_modal_msg": "Är du säker? Detta kommer att RADERA ALLT inklusive alla instanser, världar och inställningar. Denna åtgärd kan inte ångras.",
             "factory_reset_confirm_btn": "RADERA ALLT"
+        },
+        "update": {
+            "title": "Programuppdatering",
+            "current_version": "Nuvarande version",
+            "check_btn": "Sök efter uppdateringar",
+            "checking": "Söker...",
+            "available": "Uppdatering tillgänglig!",
+            "download_btn": "Ladda ner",
+            "install_btn": "Installera och starta om",
+            "downloading": "Laddar ner...",
+            "changelog": "Versionsanteckningar",
+            "latest": "Du har den senaste versionen",
+            "download_success": "Uppdateringen har laddats ner"
         },
         "auto_install": {
             "title": "Automatisk modinstallation",

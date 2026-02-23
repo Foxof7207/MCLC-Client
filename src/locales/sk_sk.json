@@ -30,7 +30,7 @@
         "running": "Spustené",
         "downloads": "Sťahovanie",
         "restart_app": "Reštartovať aplikáciu",
-        "error_title": "Ups! Niečo sa pokazilo.",
+        "error_title": "Ups! Niečo sa pokazilo...",
         "error_desc": "Aplikácia narazila na neočakávanú chybu. Môžete ju skúsiť reštartovať.",
         "client": "Klient",
         "server": "Server",
@@ -378,6 +378,19 @@
             "factory_reset_modal_title": "⚠ TOVÁRENSKÝ RESET ⚠",
             "factory_reset_modal_msg": "Ste si istý? Toto VYMAŽE VŠETKO vrátane všetkých inštancií, svetov a nastavení. Túto akciu nie je možné vrátiť späť.",
             "factory_reset_confirm_btn": "VYMAZAŤ VŠETKO"
+        },
+        "update": {
+            "title": "Aktualizácia softvéru",
+            "current_version": "Aktuálna verzia",
+            "check_btn": "Skontrolovať aktualizácie",
+            "checking": "Kontroluje sa...",
+            "available": "Dostupná aktualizácia!",
+            "download_btn": "Stiahnuť",
+            "install_btn": "Inštalovať a reštartovať",
+            "downloading": "Sťahuje sa...",
+            "changelog": "Poznámky k vydaniu",
+            "latest": "Používate najnovšiu verziu",
+            "download_success": "Aktualizácia bola úspešne stiahnutá"
         },
         "auto_install": {
             "title": "Automatická inštalácia módov",

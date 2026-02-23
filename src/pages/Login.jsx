@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-function Login({ onLoginSuccess }) {
+function Login({ onLoginSuccess, onGuestMode }) {
     const { t } = useTranslation();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -24,7 +24,7 @@ function Login({ onLoginSuccess }) {
     };
 
     return (
-        <div className="flex h-full items-center justify-center bg-background">
+        <div className="flex h-screen w-screen items-center justify-center bg-background">
             <div className="w-full max-w-md p-8 bg-surface rounded-lg shadow-xl border border-gray-800 text-center">
                 <h1 className="text-3xl font-bold mb-2 text-primary">{t('login.title')}</h1>
                 <p className="text-gray-400 mb-8">{t('login.microsoft_sign_in')}</p>
@@ -42,6 +42,13 @@ function Login({ onLoginSuccess }) {
                         }`}
                 >
                     {loading ? t('login.logging_in') : t('login.sign_in_button')}
+                </button>
+
+                <button
+                    onClick={onGuestMode}
+                    className="mt-4 w-full py-2 px-4 rounded font-bold text-gray-400 hover:text-white transition-all"
+                >
+                    {t('login.guest_mode', 'Guest Mode (Preview)')}
                 </button>
             </div>
         </div>

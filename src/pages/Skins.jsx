@@ -119,35 +119,67 @@ function Skins({ onLogout, onProfileUpdate }) {
     const [capes, setCapes] = useState([]);
     const [activeCapeId, setActiveCapeId] = useState(null);
     const [showCapeModal, setShowCapeModal] = useState(false);
+    const [webglError, setWebglError] = useState(false);
+
+    const isWebGLSupported = () => {
+        try {
+            const canvas = document.createElement('canvas');
+            return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+        } catch (e) {
+            return false;
+        }
+    };
+
     useEffect(() => {
         if (!canvasRef.current) return;
 
-        const viewer = new SkinViewer({
-            canvas: canvasRef.current,
-            width: 300,
-            height: 400,
-            skin: null
-        });
-
-        viewer.fov = 70;
-        viewer.zoom = 0.9;
-        viewer.animation = new WalkingAnimation();
-        viewer.autoRotate = false;
-        viewer.autoRotateSpeed = 0.5;
-        if (canvasRef.current) {
-            canvasRef.current.style.imageRendering = "pixelated";
+        if (!isWebGLSupported()) {
+            console.error("WebGL is not supported or context could not be created.");
+            setWebglError(true);
+            return;
         }
-        viewer.renderer.setPixelRatio(window.devicePixelRatio);
 
-        skinViewerRef.current = viewer;
+        let viewer;
+        try {
+            viewer = new SkinViewer({
+                canvas: canvasRef.current,
+                width: 300,
+                height: 400,
+                skin: null
+            });
+
+            viewer.fov = 70;
+            viewer.zoom = 0.9;
+            viewer.animation = new WalkingAnimation();
+            viewer.autoRotate = false;
+            viewer.autoRotateSpeed = 0.5;
+            if (canvasRef.current) {
+                canvasRef.current.style.imageRendering = "pixelated";
+            }
+            viewer.renderer.setPixelRatio(window.devicePixelRatio);
+
+            skinViewerRef.current = viewer;
+        } catch (e) {
+            console.error("Failed to initialize SkinViewer:", e);
+            setWebglError(true);
+        }
 
         return () => {
-            viewer.dispose();
+            if (viewer) {
+                viewer.dispose();
+            }
         };
     }, []);
     useEffect(() => {
         loadProfileAndSkin();
         loadLocalSkins();
+
+        // Load Focus Mode setting
+        window.electronAPI.getSettings().then(res => {
+            if (res.success && res.settings.focusMode) {
+                setIsAnimating(false);
+            }
+        });
     }, []);
     useEffect(() => {
         const handleResize = () => {
@@ -424,12 +456,26 @@ function Skins({ onLogout, onProfileUpdate }) {
                     {userProfile?.name || t('skins.guest')}
                 </h2>
 
-                <div className={`relative w-full h-[400px] flex items-center justify-center transition-opacity duration-300 ${isSkinLoaded ? 'opacity-100' : 'opacity-0'}`}>
-                    <canvas ref={canvasRef} className="cursor-move outline-none" />
+                <div className={`relative w-full h-[400px] flex items-center justify-center transition-opacity duration-300 ${isSkinLoaded || webglError ? 'opacity-100' : 'opacity-0'}`}>
+                    {webglError ? (
+                        <div className="flex flex-col items-center justify-center p-6 text-center">
+                            <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-bold text-white mb-2">{t('common.error_title')}</h3>
+                            <p className="text-sm text-gray-400">
+                                {t('skins.webgl_error') || "3D Preview is not available on your system. You can still manage your skins using the 2D previews below."}
+                            </p>
+                        </div>
+                    ) : (
+                        <canvas ref={canvasRef} className="cursor-move outline-none" />
+                    )}
                 </div>
 
                 { }
-                {!isSkinLoaded && (
+                {!isSkinLoaded && !webglError && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                     </div>
@@ -580,13 +626,23 @@ function Skins({ onLogout, onProfileUpdate }) {
                 <div className="mt-8">
                     <h3 className="text-lg font-bold text-gray-300 mb-4">{t('skins.default_skins')}</h3>
                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {['Steve', 'Alex'].map(name => (
+                        {[
+                            { name: 'Steve', url: 'https://textures.minecraft.net/texture/1a4af718455d4aab528e7a61f86fa25e6a369d1768dcb13f7df319a713eb810b', model: 'classic' },
+                            { name: 'Alex', url: 'https://textures.minecraft.net/texture/3b60a1f6d562f52aaebbf1434f1de147933a3affe0e764fa49ea057536623cd3', model: 'slim' }
+                        ].map(skin => (
                             <div
-                                key={name}
-                                onClick={() => handleSelectDefaultSkin(name)}
-                                className={`aspect-[3/4] bg-surface rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer border-2 transition-all ${pendingSkin?.name === name ? 'border-primary shadow-primary-glow' : 'border-transparent hover:border-white/20'}`}
+                                key={skin.name}
+                                onClick={() => handleSelectDefaultSkin(skin.name)}
+                                className={`aspect-[3/4] bg-surface rounded-xl overflow-hidden relative cursor-pointer border-2 transition-all group ${pendingSkin?.name === skin.name ? 'border-primary shadow-primary-glow' : 'border-transparent hover:border-white/20'}`}
                             >
-                                <div className="text-gray-400 font-bold">{name}</div>
+                                <div className="p-4 flex items-center justify-center h-full bg-[#1a1a1a]">
+                                    <SkinPreview src={skin.url} model={skin.model} />
+                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-white font-medium truncate flex-1">
+                                        {skin.name}
+                                    </span>
+                                </div>
                             </div>
                         ))}
                     </div>

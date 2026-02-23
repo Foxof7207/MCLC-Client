@@ -10,13 +10,11 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 
 ### Added
 
-- Focus mode
 - Server-side mod validation
 - Mod compatibility overview
-- Minimal mode (system tray integration, configurable in settings)
 - Quick server join (partially implemented)
 - Client-side quick join mod
-- Script support (extensions in work, are similar)
+- Script support (partially implemented via extensions)
 - Log analysis utility
 - Mod dependency validation (partially implemented)
 - Mobile application for the administration panel
@@ -25,10 +23,8 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 
 #### Features in Progress
 
-- [ ] Focus mode
 - [ ] Server-side mod validation
 - [ ] Mod compatibility overview
-- [ ] Minimal mode (system tray integration, configurable in settings)
 - [ ] Quick server join (partially implemented)
 - [ ] Client-side quick join mod
 
@@ -38,13 +34,20 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - [ ] Logging analysis utility
 - [ ] Mobile application for the administration panel
 - [ ] Cross-Platform UI Polishing: Mac-specific window controls + Linux system tray integration
-- [ ] Localization (i18n): Full multi-language support system
 
 #### Optional (Planned for Future)
 
 - [ ] Command line support
 
 > Everything below is now correct and reflects actual released versions.
+---
+
+## [1.6.4] - 2026-02-22
+- [x] Focus mode
+- [x] Minimal mode
+
+## [1.6.2] - 2026-02-21
+- [ ] Localization (i18n): Full multi-language support system
 
 ---
 ## [1.5.2] - 2026-02-21

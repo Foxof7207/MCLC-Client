@@ -25,7 +25,8 @@ const InstanceCard = ({
     addNotification,
     loadInstances,
     setPendingLaunches,
-    t
+    t,
+    isGuest
 }) => {
     const formatPlaytime = (ms) => {
         if (!ms || ms <= 0) return t('common.time.0h');
@@ -100,6 +101,10 @@ const InstanceCard = ({
                 <button
                     onClick={async (e) => {
                         e.stopPropagation();
+                        if (isGuest) {
+                            addNotification("To do that you have to be logged in", 'error');
+                            return;
+                        }
                         if (isRunning) {
                             window.electronAPI.killGame(instance.name);
                             addNotification(`Stopping ${instance.name}...`, 'info');
@@ -140,7 +145,7 @@ const InstanceCard = ({
     );
 };
 
-function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCreateHandled }) {
+function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCreateHandled, isGuest }) {
     const { addNotification } = useNotification();
     const { t } = useTranslation();
     const [instances, setInstances] = useState([]);
@@ -690,6 +695,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                                                     loadInstances={loadInstances}
                                                     setPendingLaunches={setPendingLaunches}
                                                     t={t}
+                                                    isGuest={isGuest}
                                                 />
                                             ))}
                                         </div>
@@ -712,6 +718,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, triggerCreate, onCr
                                             loadInstances={loadInstances}
                                             setPendingLaunches={setPendingLaunches}
                                             t={t}
+                                            isGuest={isGuest}
                                         />
                                     ))}
                                 </div>

@@ -30,7 +30,7 @@
         "running": "Em execução",
         "downloads": "Transferências",
         "restart_app": "Reiniciar App",
-        "error_title": "Ups! Algo correu mal.",
+        "error_title": "Ups! Algo correu mal...",
         "error_desc": "A aplicação encontrou um erro inesperado. Pode tentar reiniciá-la.",
         "client": "Cliente",
         "server": "Servidor",
@@ -378,6 +378,19 @@
             "factory_reset_modal_title": "⚠ REPOSIÇÃO DE FÁBRICA ⚠",
             "factory_reset_modal_msg": "Tem a certeza? Isto irá ELIMINAR TUDO, incluindo todas as instâncias, mundos e definições. Esta ação não pode ser desfeita.",
             "factory_reset_confirm_btn": "ELIMINAR TUDO"
+        },
+        "update": {
+            "title": "Atualização de software",
+            "current_version": "Versão atual",
+            "check_btn": "Verificar atualizações",
+            "checking": "Verificando...",
+            "available": "Atualização disponível!",
+            "download_btn": "Descarregar",
+            "install_btn": "Instalar e reiniciar",
+            "downloading": "A descarregar...",
+            "changelog": "Notas de lançamento",
+            "latest": "Tens a versão mais recente",
+            "download_success": "Atualização descarregada com sucesso"
         },
         "auto_install": {
             "title": "Instalação Automática de Mods",

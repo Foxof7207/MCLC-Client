@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExtensionProvider } from './context/ExtensionContext';
 import { Analytics } from './services/Analytics';
 import ExtensionSlot from './components/Extensions/ExtensionSlot';
-const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Home = React.lazy(() => import('./pages/Home'));
 const ServerDashboard = React.lazy(() => import('./pages/ServerDashboard'));
@@ -16,11 +15,13 @@ const ServerSearch = React.lazy(() => import('./pages/ServerSearch'));
 const ServerLibrary = React.lazy(() => import('./pages/ServerLibrary'));
 const InstanceDetails = React.lazy(() => import('./pages/InstanceDetails'));
 const Extensions = React.lazy(() => import('./pages/Extensions'));
+const Login = React.lazy(() => import('./pages/Login'));
 
 import Sidebar from './components/Sidebar';
 import ServerSidebar from './components/ServerSidebar';
 import UpdateNotification from './components/UpdateNotification';
 import RightPanel from './components/RightPanel';
+import AnnouncementBar from './components/AnnouncementBar';
 import { useTranslation } from 'react-i18next';
 
 class ErrorBoundary extends React.Component {
@@ -60,10 +61,11 @@ function ErrorFallback() {
 
 function App() {
     const { t, i18n } = useTranslation();
-    const [currentView, setCurrentView] = useState('login');
+    const [currentView, setCurrentView] = useState('dashboard');
     const [isPending, startTransition] = React.useTransition();
     const [currentMode, setCurrentMode] = useState('client');
     const [userProfile, setUserProfile] = useState(null);
+    const [isGuest, setIsGuest] = useState(false);
     const [theme, setTheme] = useState({
         primaryColor: '#1bd96a',
         backgroundColor: '#111111',
@@ -118,8 +120,6 @@ function App() {
                         }
                         setUserProfile(profile);
                         Analytics.setProfile(profile);
-                        setCurrentView(startPage);
-                        return;
                     }
                 }
             } else {
@@ -127,9 +127,9 @@ function App() {
                 if (profile) {
                     setUserProfile(profile);
                     Analytics.setProfile(profile);
-                    setCurrentView(startPage);
                 }
             }
+            setCurrentView(startPage);
         };
 
         const loadTheme = async () => {
@@ -317,7 +317,13 @@ function App() {
     const handleLogout = () => {
         startTransition(() => {
             setUserProfile(null);
-            setCurrentView('login');
+            setIsGuest(false);
+        });
+    };
+
+    const handleGuestMode = () => {
+        startTransition(() => {
+            setIsGuest(true);
         });
     };
 
@@ -373,196 +379,207 @@ function App() {
 
     return (
         <ExtensionProvider>
-            <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-white font-sans selection:bg-primary selection:text-black relative">
-
-                { }
-                {userProfile && theme?.bgMedia?.url && theme.bgMedia.url.trim() !== '' && (
-                    <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-                        {theme.bgMedia.type === 'video' ? (
-                            <video
-                                key={theme.bgMedia.url}
-                                autoPlay muted loop
-                                className="w-full h-full object-cover"
-                            >
-                                <source src={`app-media:///${theme.bgMedia.url.replace(/\\/g, '/')}`} type="video/mp4" />
-                            </video>
-                        ) : (
-                            <img
-                                key={theme.bgMedia.url}
-                                src={`app-media:///${theme.bgMedia.url.replace(/\\/g, '/')}`}
-                                className="w-full h-full object-cover"
-                                alt=""
-                            />
-                        )}
-                        <div
-                            className="absolute inset-0 bg-background pointer-events-none"
-                            style={{ opacity: theme.bgOverlay || 0.4 }}
-                        />
+            {!userProfile && !isGuest ? (
+                <React.Suspense fallback={
+                    <div className="h-screen w-screen flex items-center justify-center bg-background">
+                        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
                     </div>
-                )}
-
-                { }
-                <div
-                    className="h-16 w-full titlebar z-[60] flex justify-between items-center pl-6 pr-6 bg-surface/30 border-b border-white/5 flex-none relative"
-                    style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
-                >
-                    <div className="flex items-center gap-2 drag no-drag">
-                        <div className="relative" ref={logoRef}>
-                            <div
-                                onClick={toggleModeMenu}
-                                className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary font-bold text-2xl hover:bg-primary/30 transition-colors cursor-pointer pointer-events-auto shadow-lg border border-primary/20"
-                            >
-                                M
-                            </div>
-
-                            {showModeMenu && (
-                                <div
-                                    ref={modeMenuRef}
-                                    className="absolute top-14 left-0 w-48 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-100 z-[100]"
-                                >
-                                    <button
-                                        onClick={() => handleModeSelect('client')}
-                                        className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3 ${currentMode === 'client' ? 'bg-primary/10 text-primary' : 'text-gray-200'}`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                        </svg>
-                                        <span className="font-medium">{t('common.client')}</span>
-                                        {currentMode === 'client' && (
-                                            <svg className="h-4 w-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => handleModeSelect('server')}
-                                        className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3 ${currentMode === 'server' ? 'bg-primary/10 text-primary' : 'text-gray-200'}`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                                        </svg>
-                                        <span className="font-medium">{t('common.server')}</span>
-                                        {currentMode === 'server' && (
-                                            <svg className="h-4 w-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                    { }
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                }>
+                    <Login onLoginSuccess={handleLoginSuccess} onGuestMode={handleGuestMode} />
+                </React.Suspense>
+            ) : (
+                <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-white font-sans selection:bg-primary selection:text-black relative">
 
                     { }
-                    <ExtensionSlot name="header.center" className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" />
-
-                    <div className="flex items-center gap-4 no-drag h-full">
-                        { }
-                        <ExtensionSlot name="header.right" className="flex items-center gap-2 mr-2" />
-
-                        { }
-                        <div className="relative h-full flex items-center" ref={sessionsRef}>
-                            <button
-                                onClick={() => setShowSessions(!showSessions)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-white/20 hover:bg-[#252525] rounded-full transition-all group shadow-lg"
-                            >
-                                <div className={`w-1.5 h-1.5 rounded-full ${runningCount > 0 ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                                <span className="text-[10px] font-bold text-gray-100">
-                                    {runningCount === 0 ? t('common.idle') : `${runningCount} ${t('common.running')}`}
-                                </span>
-                            </button>
-
-                            {showSessions && (
-                                <div className="absolute top-14 right-0 w-64 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in zoom-in duration-100 z-[100]">
-                                    {Object.keys(runningInstances).length === 0 ? (
-                                        <div className="px-4 py-2 text-xs text-gray-400 italic">No active sessions</div>
-                                    ) : (
-                                        Object.entries(runningInstances).map(([name, status]) => (
-                                            <div key={name} className="flex items-center justify-between px-4 py-2 hover:bg-white/5 group">
-                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                    <div className={`shrink-0 w-2 h-2 rounded-full ${status === 'running' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                                                    <span className="text-sm font-medium truncate text-gray-200">{name}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => window.electronAPI.killGame(name)}
-                                                        className="p-1 hover:bg-red-500/20 text-red-500 rounded transition-colors"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="6" y="6" width="12" height="12" strokeWidth={2} /></svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
+                    {theme?.bgMedia?.url && theme.bgMedia.url.trim() !== '' && (
+                        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                            {theme.bgMedia.type === 'video' ? (
+                                <video
+                                    key={theme.bgMedia.url}
+                                    autoPlay muted loop
+                                    className="w-full h-full object-cover"
+                                >
+                                    <source src={`app-media:///${theme.bgMedia.url.replace(/\\/g, '/')}`} type="video/mp4" />
+                                </video>
+                            ) : (
+                                <img
+                                    key={theme.bgMedia.url}
+                                    src={`app-media:///${theme.bgMedia.url.replace(/\\/g, '/')}`}
+                                    className="w-full h-full object-cover"
+                                    alt=""
+                                />
                             )}
+                            <div
+                                className="absolute inset-0 bg-background pointer-events-none"
+                                style={{ opacity: theme.bgOverlay || 0.4 }}
+                            />
+                        </div>
+                    )}
+
+                    { }
+                    <div
+                        className="h-16 w-full titlebar z-[60] flex justify-between items-center pl-6 pr-6 bg-surface/30 border-b border-white/5 flex-none relative"
+                        style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
+                    >
+                        <div className="flex items-center gap-2 drag no-drag">
+                            <div className="relative" ref={logoRef}>
+                                <div
+                                    onClick={toggleModeMenu}
+                                    className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary font-bold text-2xl hover:bg-primary/30 transition-colors cursor-pointer pointer-events-auto shadow-lg border border-primary/20"
+                                >
+                                    M
+                                </div>
+
+                                {showModeMenu && (
+                                    <div
+                                        ref={modeMenuRef}
+                                        className="absolute top-14 left-0 w-48 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in slide-in-from-top-2 duration-100 z-[100]"
+                                    >
+                                        <button
+                                            onClick={() => handleModeSelect('client')}
+                                            className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3 ${currentMode === 'client' ? 'bg-primary/10 text-primary' : 'text-gray-200'}`}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                            </svg>
+                                            <span className="font-medium">{t('common.client')}</span>
+                                            {currentMode === 'client' && (
+                                                <svg className="h-4 w-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => handleModeSelect('server')}
+                                            className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors flex items-center gap-3 ${currentMode === 'server' ? 'bg-primary/10 text-primary' : 'text-gray-200'}`}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                                            </svg>
+                                            <span className="font-medium">{t('common.server')}</span>
+                                            {currentMode === 'server' && (
+                                                <svg className="h-4 w-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                        { }
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         { }
-                        <div className="relative h-full flex items-center" ref={downloadsRef}>
-                            <button
-                                onClick={() => setShowDownloads(!showDownloads)}
-                                className={`p-1.5 rounded-lg transition-all relative ${isAnyActive ? 'text-primary bg-[#1a1a1a] border border-primary/50' : 'text-gray-200 hover:text-white bg-[#1a1a1a] border border-white/20'}`}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isAnyActive ? 'animate-bounce' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                {isAnyActive && (
-                                    <span className="absolute top-1 right-1 w-2 h-2 bg-primary border border-background rounded-full"></span>
-                                )}
-                            </button>
+                        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-auto">
+                            <AnnouncementBar />
+                            <ExtensionSlot name="header.center" className="flex items-center gap-2" />
+                        </div>
 
-                            {showDownloads && (
-                                <div className="absolute top-14 right-0 w-64 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-3 animate-in fade-in slide-in-from-top-2 duration-100 z-[100]">
-                                    <div className="px-4 pb-2 border-b border-white/5 mb-2">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('common.downloads')}</span>
-                                    </div>
-                                    <div className="max-h-60 overflow-y-auto px-4 space-y-3">
-                                        {Object.keys(activeDownloads).length === 0 ? (
-                                            <div className="py-2 text-center text-xs text-gray-500">No active tasks</div>
+                        <div className="flex items-center gap-4 no-drag h-full">
+                            { }
+                            <ExtensionSlot name="header.right" className="flex items-center gap-2 mr-2" />
+
+                            { }
+                            <div className="relative h-full flex items-center" ref={sessionsRef}>
+                                <button
+                                    onClick={() => setShowSessions(!showSessions)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-white/20 hover:bg-[#252525] rounded-full transition-all group shadow-lg"
+                                >
+                                    <div className={`w-1.5 h-1.5 rounded-full ${runningCount > 0 ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                                    <span className="text-[10px] font-bold text-gray-100">
+                                        {runningCount === 0 ? t('common.idle') : `${runningCount} ${t('common.running')}`}
+                                    </span>
+                                </button>
+
+                                {showSessions && (
+                                    <div className="absolute top-14 right-0 w-64 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in zoom-in duration-100 z-[100]">
+                                        {Object.keys(runningInstances).length === 0 ? (
+                                            <div className="px-4 py-2 text-xs text-gray-400 italic">No active sessions</div>
                                         ) : (
-                                            Object.entries(activeDownloads).map(([name, data]) => (
-                                                <div key={name} className="space-y-1">
-                                                    <div className="flex justify-between items-center overflow-hidden">
-                                                        <span className="text-xs font-bold text-white truncate pr-2">{name}</span>
-                                                        <span className="text-[10px] font-mono text-primary">{data.progress}%</span>
+                                            Object.entries(runningInstances).map(([name, status]) => (
+                                                <div key={name} className="flex items-center justify-between px-4 py-2 hover:bg-white/5 group">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <div className={`shrink-0 w-2 h-2 rounded-full ${status === 'running' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                                                        <span className="text-sm font-medium truncate text-gray-200">{name}</span>
                                                     </div>
-                                                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-primary transition-all duration-300" style={{ width: `${data.progress}%` }}></div>
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => window.electronAPI.killGame(name)}
+                                                            className="p-1 hover:bg-red-500/20 text-red-500 rounded transition-colors"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="6" y="6" width="12" height="12" strokeWidth={2} /></svg>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))
                                         )}
                                     </div>
-                                </div>
-                            )}
-                        </div>
-
-                        { }
-                        <div className="flex gap-1 border-l border-white/5 pl-4">
-                            <button onClick={() => window.electronAPI.minimize()} className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-                            </button>
-                            <button onClick={() => window.electronAPI.maximize()} className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors">
-                                {isMaximized ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3.75v4.5m0 0H4.5m4.5 0L3.75 3.75M9 20.25v-4.5m0 0H4.5m4.5 0L3.75 20.25M15 3.75v4.5m0 0h4.5m-4.5 0l5.25-5.25M15 20.25v-4.5m0 0h4.5m-4.5 0l5.25 5.25" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                                    </svg>
                                 )}
-                            </button>
-                            <button onClick={() => window.electronAPI.close()} className="p-1.5 hover:bg-red-500 rounded text-gray-400 hover:text-white transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
+                            </div>
+
+                            { }
+                            <div className="relative h-full flex items-center" ref={downloadsRef}>
+                                <button
+                                    onClick={() => setShowDownloads(!showDownloads)}
+                                    className={`p-1.5 rounded-lg transition-all relative ${isAnyActive ? 'text-primary bg-[#1a1a1a] border border-primary/50' : 'text-gray-200 hover:text-white bg-[#1a1a1a] border border-white/20'}`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isAnyActive ? 'animate-bounce' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    {isAnyActive && (
+                                        <span className="absolute top-1 right-1 w-2 h-2 bg-primary border border-background rounded-full"></span>
+                                    )}
+                                </button>
+
+                                {showDownloads && (
+                                    <div className="absolute top-14 right-0 w-64 bg-[#0d0d0d] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-3 animate-in fade-in slide-in-from-top-2 duration-100 z-[100]">
+                                        <div className="px-4 pb-2 border-b border-white/5 mb-2">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('common.downloads')}</span>
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto px-4 space-y-3">
+                                            {Object.keys(activeDownloads).length === 0 ? (
+                                                <div className="py-2 text-center text-xs text-gray-500">No active tasks</div>
+                                            ) : (
+                                                Object.entries(activeDownloads).map(([name, data]) => (
+                                                    <div key={name} className="space-y-1">
+                                                        <div className="flex justify-between items-center overflow-hidden">
+                                                            <span className="text-xs font-bold text-white truncate pr-2">{name}</span>
+                                                            <span className="text-[10px] font-mono text-primary">{data.progress}%</span>
+                                                        </div>
+                                                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${data.progress}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            { }
+                            <div className="flex gap-1 border-l border-white/5 pl-4">
+                                <button onClick={() => window.electronAPI.minimize()} className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                                </button>
+                                <button onClick={() => window.electronAPI.maximize()} className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors">
+                                    {isMaximized ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3.75v4.5m0 0H4.5m4.5 0L3.75 3.75M9 20.25v-4.5m0 0H4.5m4.5 0L3.75 20.25M15 3.75v4.5m0 0h4.5m-4.5 0l5.25-5.25M15 20.25v-4.5m0 0h4.5m-4.5 0l5.25 5.25" />
+                                        </svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                                        </svg>
+                                    )}
+                                </button>
+                                <button onClick={() => window.electronAPI.close()} className="p-1.5 hover:bg-red-500 rounded text-gray-400 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {userProfile ? (
                     <div className="flex flex-1 overflow-hidden">
                         { }
                         {currentMode === 'client' ? (
@@ -591,14 +608,14 @@ function App() {
                                 }>
                                     {currentMode === 'client' && (
                                         <>
-                                            {currentView === 'dashboard' && <Home onInstanceClick={handleInstanceClick} runningInstances={runningInstances} onNavigateSearch={(category) => { setSearchCategory(category); setCurrentView('search'); }} />}
-                                            {currentView === 'library' && <Dashboard onInstanceClick={handleInstanceClick} runningInstances={runningInstances} triggerCreate={triggerCreateInstance} onCreateHandled={() => setTriggerCreateInstance(false)} />}
+                                            {currentView === 'dashboard' && <Home onInstanceClick={handleInstanceClick} runningInstances={runningInstances} isGuest={isGuest} onNavigateSearch={(category) => { setSearchCategory(category); setCurrentView('search'); }} />}
+                                            {currentView === 'library' && <Dashboard onInstanceClick={handleInstanceClick} runningInstances={runningInstances} triggerCreate={triggerCreateInstance} onCreateHandled={() => setTriggerCreateInstance(false)} isGuest={isGuest} />}
                                             {currentView === 'search' && <Search initialCategory={searchCategory} onCategoryConsumed={() => setSearchCategory(null)} />}
                                             {currentView === 'skins' && <Skins onLogout={handleLogout} onProfileUpdate={setUserProfile} />}
                                             {currentView === 'styling' && <Styling />}
                                             {currentView === 'settings' && <Settings />}
                                             {currentView === 'instance-details' && selectedInstance && (
-                                                <InstanceDetails instance={selectedInstance} onBack={handleBackToDashboard} runningInstances={runningInstances} onInstanceUpdate={handleInstanceUpdate} />
+                                                <InstanceDetails instance={selectedInstance} onBack={handleBackToDashboard} runningInstances={runningInstances} onInstanceUpdate={handleInstanceUpdate} isGuest={isGuest} />
                                             )}
                                             {currentView === 'extensions' && <Extensions />}
                                         </>
@@ -607,13 +624,14 @@ function App() {
                                     { }
                                     {currentMode === 'server' && (
                                         <>
-                                            {currentView === 'server-dashboard' && <ServerDashboard onServerClick={handleServerClick} runningInstances={runningInstances} />}
+                                            {currentView === 'server-dashboard' && <ServerDashboard onServerClick={handleServerClick} runningInstances={runningInstances} isGuest={isGuest} />}
                                             {currentView === 'server-details' && selectedServer && (
                                                 <ServerDetails
                                                     server={selectedServer}
                                                     onBack={handleBackToDashboard}
                                                     runningInstances={runningInstances}
                                                     onServerUpdate={handleServerUpdate}
+                                                    isGuest={isGuest}
                                                 />
                                             )}
                                             {currentView === 'search' && <ServerSearch />}
@@ -638,19 +656,9 @@ function App() {
                             </div>
                         </div>
                     </div>
-                ) : (
-                    <main className="flex-1 relative overflow-hidden">
-                        <React.Suspense fallback={
-                            <div className="flex-1 flex items-center justify-center bg-background animate-pulse">
-                                <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                            </div>
-                        }>
-                            <Login onLoginSuccess={handleLoginSuccess} />
-                        </React.Suspense>
-                    </main>
-                )}
-                <UpdateNotification />
-            </div>
+                    <UpdateNotification />
+                </div>
+            )}
 
             { }
             <ExtensionSlot name="app.overlay" className="absolute inset-0 pointer-events-none z-[9999] *:pointer-events-auto" />

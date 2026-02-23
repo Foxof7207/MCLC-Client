@@ -200,7 +200,9 @@ class CloudBackupHandler {
                 return { name: res.data.name, email: res.data.email };
             } else if (providerId === 'DROPBOX') {
                 const res = await axios.post('https://api.dropboxapi.com/2/users/get_current_account', null, {
-                    headers: { Authorization: `Bearer ${accessToken}` }
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`
+                    }
                 });
                 return { name: res.data.name.display_name, email: res.data.email };
             }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNotification } from '../context/NotificationContext';
 import LoadingOverlay from '../components/LoadingOverlay';
 
-function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
+function ServerDetails({ server, onBack, runningInstances, onServerUpdate, isGuest }) {
     const { addNotification } = useNotification();
     const [consoleLog, setConsoleLog] = useState([]);
     const [command, setCommand] = useState('');
@@ -673,6 +673,10 @@ function ServerDetails({ server, onBack, runningInstances, onServerUpdate }) {
     };
 
     const handleStart = async () => {
+        if (isGuest) {
+            addNotification("To do that you have to be logged in", 'error');
+            return;
+        }
         const eulaAccepted = await checkEulaStatus();
 
         if (!eulaAccepted) {
