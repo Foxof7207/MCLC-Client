@@ -30,7 +30,7 @@
         "running": "Em execução",
         "downloads": "Transferências",
         "restart_app": "Reiniciar App",
-        "error_title": "Ups! Algo correu mal.",
+        "error_title": "Ups! Algo correu mal...",
         "error_desc": "A aplicação encontrou um erro inesperado. Pode tentar reiniciá-la.",
         "client": "Cliente",
         "server": "Servidor",

@@ -30,7 +30,7 @@
         "running": "V teku",
         "downloads": "Prenosi",
         "restart_app": "Znova zaženi",
-        "error_title": "Ups! Nekaj je šlo narobe.",
+        "error_title": "Ups! Nekaj je šlo narobe...",
         "error_desc": "Aplikacija je naletela na nepričakovano napako. Lahko jo poskusite znova zagnati.",
         "client": "Odjemalec",
         "server": "Strežnik",

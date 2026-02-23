@@ -30,7 +30,7 @@
         "running": "In esecuzione",
         "downloads": "Download",
         "restart_app": "Riavvia App",
-        "error_title": "Ops! Qualcosa è andato storto.",
+        "error_title": "Ops! Qualcosa è andato storto...",
         "error_desc": "L'applicazione ha riscontrato un errore imprevisto. Puoi provare a riavviarla.",
         "client": "Client",
         "server": "Server",

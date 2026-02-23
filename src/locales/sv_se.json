@@ -30,7 +30,7 @@
         "running": "Körs",
         "downloads": "Nedladdningar",
         "restart_app": "Starta om appen",
-        "error_title": "Hoppsan! Något gick fel.",
+        "error_title": "Hoppsan! Något gick fel...",
         "error_desc": "Ett oväntat fel uppstod i applikationen. Du kan försöka starta om den.",
         "client": "Klient",
         "server": "Server",

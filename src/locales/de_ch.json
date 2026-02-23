@@ -30,7 +30,7 @@
         "running": "Lauft",
         "downloads": "Downloads",
         "restart_app": "App neustarte",
-        "error_title": "Hoppla! Da isch öpis schief gloffe.",
+        "error_title": "Hoppla! Da isch öpis schief gloffe...",
         "error_desc": "D'App hät en unerwartete Fehler gha. Du chasch versueche, sie neuzstarte.",
         "client": "Client",
         "server": "Server",

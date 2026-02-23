@@ -30,7 +30,7 @@
         "running": "En cours d'exécution",
         "downloads": "Téléchargements",
         "restart_app": "Redémarrer l'application",
-        "error_title": "Oups ! Un problème est survenu.",
+        "error_title": "Oups ! Un problème est survenu...",
         "error_desc": "L'application a rencontré une erreur inattendue. Vous pouvez essayer de la redémarrer.",
         "client": "Client",
         "server": "Serveur",

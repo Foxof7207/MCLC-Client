@@ -30,7 +30,7 @@
         "running": "Executando",
         "downloads": "Downloads",
         "restart_app": "Reiniciar App",
-        "error_title": "Ops! Algo deu errado.",
+        "error_title": "Ops! Algo deu errado...",
         "error_desc": "O aplicativo encontrou um erro inesperado. Você pode tentar reiniciá-lo.",
         "client": "Cliente",
         "server": "Servidor",

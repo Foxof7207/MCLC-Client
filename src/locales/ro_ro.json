@@ -30,7 +30,7 @@
         "running": "Rulând",
         "downloads": "Descărcări",
         "restart_app": "Repornește Aplicația",
-        "error_title": "Hopa! Ceva a mers greșit.",
+        "error_title": "Hopa! Ceva a mers greșit...",
         "error_desc": "Aplicația a întâmpinat o eroare neașteptată. Poți încerca să o repornești.",
         "client": "Client",
         "server": "Server",

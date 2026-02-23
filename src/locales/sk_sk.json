@@ -30,7 +30,7 @@
         "running": "Spustené",
         "downloads": "Sťahovanie",
         "restart_app": "Reštartovať aplikáciu",
-        "error_title": "Ups! Niečo sa pokazilo.",
+        "error_title": "Ups! Niečo sa pokazilo...",
         "error_desc": "Aplikácia narazila na neočakávanú chybu. Môžete ju skúsiť reštartovať.",
         "client": "Klient",
         "server": "Server",

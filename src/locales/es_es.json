@@ -30,7 +30,7 @@
         "running": "En ejecución",
         "downloads": "Descargas",
         "restart_app": "Reiniciar aplicación",
-        "error_title": "¡Uy! Algo salió mal.",
+        "error_title": "¡Uy! Algo salió mal...",
         "error_desc": "La aplicación encontró un error inesperado. Puedes intentar reiniciarla.",
         "client": "Cliente",
         "server": "Servidor",

@@ -30,7 +30,7 @@
         "running": "Läuft",
         "downloads": "Downloads",
         "restart_app": "App neustarten",
-        "error_title": "Huch! Etwas ist schiefgelaufen.",
+        "error_title": "Huch! Etwas ist schiefgelaufen...",
         "error_desc": "Die Anwendung hat einen unerwarteten Fehler festgestellt. Du kannst versuchen, sie neuzustarten.",
         "client": "Client",
         "server": "Server",

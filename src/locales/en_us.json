@@ -30,7 +30,7 @@
         "running": "Running",
         "downloads": "Downloads",
         "restart_app": "Restart App",
-        "error_title": "Oops! Something went wrong.",
+        "error_title": "Oops! Something went wrong...",
         "error_desc": "The application encountered an unexpected error. You can try restarting it.",
         "client": "Client",
         "server": "Server",
