@@ -11,6 +11,7 @@ const Extensions = () => {
     const [onlineExtensions, setOnlineExtensions] = useState([]);
     const [loadingOnline, setLoadingOnline] = useState(false);
     const [installing, setInstalling] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         if (activeTab === 'online') {
@@ -125,7 +126,7 @@ const Extensions = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
-                    {t('extensions.install_manual') || 'Install from File'}
+                    {t('Install from File') || 'Install from File'}
                 </button>
             </div>
 
@@ -143,9 +144,26 @@ const Extensions = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    {t('extensions.marketplace') || 'Online extensions'}
+                    {t('Marketplace') || 'Online extensions'}
                 </button>
             </div>
+
+            {activeTab === 'online' && (
+                <div className="mb-6 relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input
+                        type="text"
+                        placeholder={t('extensions.search') || 'Search extensions...'}
+                        className="w-full bg-surface/20 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+            )}
 
             <div className="flex flex-col gap-4">
                 {activeTab === 'installed' ? (
@@ -225,73 +243,99 @@ const Extensions = () => {
                             <p className="text-gray-500 font-medium text-lg">No extensions found online.</p>
                         </div>
                     ) : (
-                        onlineExtensions.map(ext => {
-                            const isInstalled = installedExtensions.some(ie => ie.id === ext.identifier);
-
-                            return (
-                                <div key={ext.id} className="p-5 rounded-2xl border flex items-center gap-5 transition-all group backdrop-blur-md bg-surface/10 border-white/10">
-                                    <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold shadow-inner overflow-hidden flex-shrink-0 bg-primary/20 text-primary">
-                                        {ext.banner_path ? (
-                                            <img
-                                                src={`https://mclc.pluginhub.de/uploads/${ext.banner_path}`}
-                                                alt={ext.name}
-                                                className="w-full h-full object-cover"
-                                                onError={(e) => { e.target.style.display = 'none'; }}
-                                            />
-                                        ) : (
-                                            <span>{ext.name.charAt(0).toUpperCase()}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-3">
-                                            <h3 className="font-bold text-lg truncate text-white">{ext.name}</h3>
-                                            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded font-medium border border-primary/20">
-                                                {ext.downloads} {t('common.downloads') || 'downloads'}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-gray-400 truncate">{ext.summary || ext.description || 'No description provided.'}</p>
-                                        <div className="mt-1 flex gap-4 text-xs text-gray-500">
-                                            <span>By <span className="text-gray-300">{ext.developer || 'Unknown'}</span></span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4">
-                                        {isInstalled ? (
-                                            <span className="px-4 py-2 bg-white/5 text-gray-400 rounded-lg text-sm font-medium border border-white/5 flex items-center gap-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                                Installed
-                                            </span>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleInstallOnline(ext)}
-                                                disabled={installing === ext.id}
-                                                className={`px-4 py-2 font-bold rounded-lg transition-all flex items-center gap-2 ${installing === ext.id
-                                                    ? 'bg-primary/50 text-black/50 cursor-not-allowed'
-                                                    : 'bg-primary hover:bg-primary/90 text-black shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.02]'
-                                                    }`}
-                                            >
-                                                {installing === ext.id ? (
-                                                    <>
-                                                        <div className="w-4 h-4 border-2 border-black/50 border-t-transparent rounded-full animate-spin"></div>
-                                                        Installing...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                                        </svg>
-                                                        Install
-                                                    </>
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                        (() => {
+                            const filtered = onlineExtensions.filter(ext =>
+                                ext.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                (ext.summary && ext.summary.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                (ext.developer && ext.developer.toLowerCase().includes(searchQuery.toLowerCase()))
                             );
-                        })
+
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-10 bg-surface/5 rounded-2xl border border-white/5 border-dashed">
+                                        <p className="text-gray-500 font-medium">{t('extensions.no_search_results') || 'No extensions match your search.'}</p>
+                                    </div>
+                                );
+                            }
+
+                            return filtered.map(ext => {
+                                const isInstalled = installedExtensions.some(ie => ie.id === ext.identifier);
+
+                                return (
+                                    <div key={ext.id} className="p-5 rounded-2xl border flex items-center gap-5 transition-all group backdrop-blur-md bg-surface/10 border-white/10">
+                                        <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold shadow-inner overflow-hidden flex-shrink-0 bg-primary/20 text-primary">
+                                            {ext.banner_path ? (
+                                                <img
+                                                    src={`https://mclc.pluginhub.de/uploads/${ext.banner_path}`}
+                                                    alt={ext.name}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                />
+                                            ) : (
+                                                <span>{ext.name.charAt(0).toUpperCase()}</span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3">
+                                                <h3 className="font-bold text-lg truncate text-white">{ext.name}</h3>
+                                                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded font-medium border border-primary/20">
+                                                    {ext.downloads} {t('common.downloads') || 'downloads'}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-400 truncate">{ext.summary || ext.description || 'No description provided.'}</p>
+                                            <div className="mt-1 flex gap-4 text-xs text-gray-500">
+                                                <span>By <span className="text-gray-300">{ext.developer || 'Unknown'}</span></span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-4">
+                                            {isInstalled ? (
+                                                <span className="px-4 py-2 bg-white/5 text-gray-400 rounded-lg text-sm font-medium border border-white/5 flex items-center gap-2">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                    Installed
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleInstallOnline(ext)}
+                                                    disabled={installing === ext.id}
+                                                    className={`px-4 py-2 font-bold rounded-lg transition-all flex items-center gap-2 ${installing === ext.id
+                                                        ? 'bg-primary/50 text-black/50 cursor-not-allowed'
+                                                        : 'bg-primary hover:bg-primary/90 text-black shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.02]'
+                                                        }`}
+                                                >
+                                                    {installing === ext.id ? (
+                                                        <>
+                                                            <div className="w-4 h-4 border-2 border-black/50 border-t-transparent rounded-full animate-spin"></div>
+                                                            Installing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                                            </svg>
+                                                            Install
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => window.open(`https://mclc.pluginhub.de/extension/${ext.identifier}`, '_blank')}
+                                                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-medium rounded-lg transition-all flex items-center gap-2 border border-white/5"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                                {t('View') || 'View'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()
                     )
                 )}
             </div>
