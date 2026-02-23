@@ -39,11 +39,35 @@ const Extensions = () => {
         if (!window.electronAPI) return;
 
         setInstalling(ext.id);
-        const downloadUrl = `https://mclc.pluginhub.de/uploads/${ext.file_path}`;
 
         try {
+            // Fetch detailed extension info to get the latest version file path
+            const detailResponse = await fetch(`https://mclc.pluginhub.de/api/extensions/i/${ext.identifier}`);
+            if (!detailResponse.ok) {
+                throw new Error('Could not fetch extension details');
+            }
+
+            const detailData = await detailResponse.json();
+            if (!detailData.versions || detailData.versions.length === 0) {
+                throw new Error('No versions available for this extension');
+            }
+
+            // Get the first (latest) version's file_path
+            const latestVersionPath = detailData.versions[0].file_path;
+            const downloadUrl = `https://mclc.pluginhub.de/uploads/${latestVersionPath}`;
+
             const result = await window.electronAPI.installExtension(downloadUrl);
+
             if (result.success) {
+                // Register the download on the server
+                try {
+                    await fetch(`https://mclc.pluginhub.de/api/extensions/${ext.id}/download`, {
+                        method: 'POST'
+                    });
+                } catch (e) {
+                    console.error('Failed to notify download tracking', e);
+                }
+
                 refreshExtensions();
                 // Optional: switch back to installed tab after successful install
                 // setActiveTab('installed');
