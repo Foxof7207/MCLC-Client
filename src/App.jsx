@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ExtensionProvider } from './context/ExtensionContext';
 import { Analytics } from './services/Analytics';
 import ExtensionSlot from './components/Extensions/ExtensionSlot';
-const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Home = React.lazy(() => import('./pages/Home'));
 const ServerDashboard = React.lazy(() => import('./pages/ServerDashboard'));
@@ -61,7 +60,7 @@ function ErrorFallback() {
 
 function App() {
     const { t, i18n } = useTranslation();
-    const [currentView, setCurrentView] = useState('login');
+    const [currentView, setCurrentView] = useState('dashboard');
     const [isPending, startTransition] = React.useTransition();
     const [currentMode, setCurrentMode] = useState('client');
     const [userProfile, setUserProfile] = useState(null);
@@ -119,8 +118,6 @@ function App() {
                         }
                         setUserProfile(profile);
                         Analytics.setProfile(profile);
-                        setCurrentView(startPage);
-                        return;
                     }
                 }
             } else {
@@ -128,9 +125,9 @@ function App() {
                 if (profile) {
                     setUserProfile(profile);
                     Analytics.setProfile(profile);
-                    setCurrentView(startPage);
                 }
             }
+            setCurrentView(startPage);
         };
 
         const loadTheme = async () => {
@@ -318,7 +315,6 @@ function App() {
     const handleLogout = () => {
         startTransition(() => {
             setUserProfile(null);
-            setCurrentView('login');
         });
     };
 
@@ -377,7 +373,7 @@ function App() {
             <div className="flex flex-col h-screen w-screen overflow-hidden bg-background text-white font-sans selection:bg-primary selection:text-black relative">
 
                 { }
-                {userProfile && theme?.bgMedia?.url && theme.bgMedia.url.trim() !== '' && (
+                {theme?.bgMedia?.url && theme.bgMedia.url.trim() !== '' && (
                     <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
                         {theme.bgMedia.type === 'video' ? (
                             <video
@@ -566,8 +562,7 @@ function App() {
                     </div>
                 </div>
 
-                {userProfile ? (
-                    <div className="flex flex-1 overflow-hidden">
+                <div className="flex flex-1 overflow-hidden">
                         { }
                         {currentMode === 'client' ? (
                             <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} onInstanceClick={handleInstanceClick} onCreateInstance={() => { setCurrentView('library'); setTriggerCreateInstance(true); }} />
@@ -642,17 +637,6 @@ function App() {
                             </div>
                         </div>
                     </div>
-                ) : (
-                    <main className="flex-1 relative overflow-hidden">
-                        <React.Suspense fallback={
-                            <div className="flex-1 flex items-center justify-center bg-background animate-pulse">
-                                <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                            </div>
-                        }>
-                            <Login onLoginSuccess={handleLoginSuccess} />
-                        </React.Suspense>
-                    </main>
-                )}
                 <UpdateNotification />
             </div>
 
