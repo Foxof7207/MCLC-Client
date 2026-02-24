@@ -1204,7 +1204,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate,
                                 )}
                             </div>
                         ) : (
-                            <div className="h-full flex flex-col">
+                            <div className="flex-1 min-h-0 flex flex-col">
                                 <form onSubmit={handleSearch} className="flex gap-3 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
                                     <div className="flex-1 relative group">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3 top-3.5 text-gray-500 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>

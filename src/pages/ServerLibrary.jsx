@@ -15,16 +15,16 @@ function ServerLibrary() {
     const [installedSoftware, setInstalledSoftware] = useState({});
 
     const platformDetails = {
-        vanilla: { logo: 'https://www.minecraft.net/content/dam/minecraftnet/franchise/logos/Homepage_Download-Launcher_Creeper-Logo_500x500.png', name: 'Vanilla', description: 'Official Minecraft server', color: 'from-green-500/20' },
-        bukkit: { logo: 'https://stickypiston.co/wp-content/uploads/bukkit-logo.png', name: 'Bukkit', description: 'Original plugin API', color: 'from-orange-500/20' },
-        spigot: { icon: '⚙️', name: 'Spigot', description: 'Most popular server software', color: 'from-yellow-500/20' },
-        paper: { logo: 'https://assets.papermc.io/brand/papermc_logo.min.svg', name: 'Paper', description: 'High-performance fork of Spigot', color: 'from-blue-500/20' },
-        purpur: { logo: 'https://purpurmc.org/assets/img/logo.png', name: 'Purpur', description: 'Fork of Paper with many features', color: 'from-purple-500/20' },
-        folia: { icon: '🍃', name: 'Folia', description: 'Regionized multithreaded server', color: 'from-emerald-500/20' },
-        forge: { logo: 'https://cdn.brandfetch.io/idmXCT9zVZ/w/400/h/400/theme/dark/icon.jpeg?c=1bxid64Mup7aczewSAYMX&t=1768789119993', name: 'Forge', description: 'Modded server for Forge mods', color: 'from-red-500/20' },
-        fabric: { logo: 'https://wiki.fabricmc.net/_media/wiki:logo.png', name: 'Fabric', description: 'Lightweight modding platform', color: 'from-cyan-500/20' },
-        neoforge: { logo: 'https://external-content.duckduckgo.com/ip3/neoforged.net.ico', name: 'NeoForge', description: 'Modern fork of Forge', color: 'from-indigo-500/20' },
-        quilt: { logo: 'https://quiltmc.org/assets/img/logo.svg', name: 'Quilt', description: 'Community-driven modding platform', color: 'from-pink-500/20' }
+        vanilla: { logo: './assets/server-software/vanilla.png', name: 'Vanilla', description: 'Official Minecraft server', color: 'from-green-500/20' },
+        bukkit: { logo: './assets/server-software/bukkit.png', name: 'Bukkit', description: 'Original plugin API', color: 'from-orange-500/20' },
+        spigot: { logo: './assets/server-software/spigot.png', name: 'Spigot', description: 'Most popular server software', color: 'from-yellow-500/20' },
+        paper: { logo: './assets/server-software/paper.svg', name: 'Paper', description: 'High-performance fork of Spigot', color: 'from-blue-500/20' },
+        purpur: { logo: './assets/server-software/purpur.svg', name: 'Purpur', description: 'Fork of Paper with many features', color: 'from-purple-500/20' },
+        folia: { logo: './assets/server-software/folia.png', name: 'Folia', description: 'Regionized multithreaded server', color: 'from-emerald-500/20' },
+        forge: { logo: './assets/server-software/forge.jpeg', name: 'Forge', description: 'Modded server for Forge mods', color: 'from-red-500/20' },
+        fabric: { logo: './assets/server-software/fabric.png', name: 'Fabric', description: 'Lightweight modding platform', color: 'from-cyan-500/20' },
+        neoforge: { logo: './assets/server-software/neoforge.ico', name: 'NeoForge', description: 'Modern fork of Forge', color: 'from-indigo-500/20' },
+        quilt: { logo: './assets/server-software/quilt.svg', name: 'Quilt', description: 'Community-driven modding platform', color: 'from-pink-500/20' }
     };
 
     useEffect(() => {
