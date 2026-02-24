@@ -651,5 +651,23 @@
         "download_error": "Download error: {{error}}",
         "load_platforms_failed": "Couldn't load server platforms",
         "load_versions_failed": "Couldn't load versions for {{name}}"
+    },
+    "server_details": {
+        "files": {
+            "error_list": "Failed to list files",
+            "error_read": "Failed to read file",
+            "error_save": "Failed to save file",
+            "error_delete": "Failed to delete item",
+            "error_create_folder": "Failed to create folder",
+            "save_success": "File saved successfully",
+            "delete_success": "Item deleted successfully",
+            "folder_created": "Folder created successfully",
+            "not_editable": "This file type cannot be edited in the browser",
+            "empty": "This folder is empty",
+            "new_folder": "New Folder",
+            "folder_name": "Folder name",
+            "delete_title": "Delete Item",
+            "delete_confirm": "Are you sure you want to delete \"{{name}}\"?"
+        }
     }
 }
