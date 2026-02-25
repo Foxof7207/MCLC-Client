@@ -236,7 +236,8 @@
         "rename_failed": "Umbenennen fehlgeschlagen: {{error}}",
         "cape_activated": "Umhang aktiviert",
         "cape_removed": "Umhang entfernt",
-        "guest": "Gast"
+        "guest": "Gast",
+        "webgl_error": "WebGL wird nicht unterstützt oder die Hardwarebeschleunigung ist deaktiviert. Falls du 'Low Graphics Mode' oder 'Legacy GPU Support' in den Einstellungen aktiviert hast, deaktiviere sie bitte, um 3D-Features zu nutzen."
     },
     "styling": {
         "title": "Launcher-Anpassung",

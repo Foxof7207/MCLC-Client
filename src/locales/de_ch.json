@@ -236,7 +236,8 @@
         "rename_failed": "Umbenenne isch gscheitert: {{error}}",
         "cape_activated": "Umhang aktiviert",
         "cape_removed": "Umhang entfernt",
-        "guest": "Gast"
+        "guest": "Gast",
+        "webgl_error": "WebGL wird nöd unterstützt oder d'Hardwarebeschleunigung isch deaktiviert. Falls du 'Low Graphics Mode' oder 'Legacy GPU Support' in de Iistellige aktiviert hesch, deaktiviere sie bitte, zum 3D-Features z'bruuche."
     },
     "styling": {
         "title": "Launcher-Aapassig",

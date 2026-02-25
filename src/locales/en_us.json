@@ -236,7 +236,8 @@
         "rename_failed": "Rename failed: {{error}}",
         "cape_activated": "Cape activated",
         "cape_removed": "Cape removed",
-        "guest": "Guest"
+        "guest": "Guest",
+        "webgl_error": "WebGL is not supported or hardware acceleration is disabled. If you enabled 'Low Graphics Mode' or 'Legacy GPU Support' in Settings, please disable them to use 3D features."
     },
     "styling": {
         "title": "Launcher Customization",

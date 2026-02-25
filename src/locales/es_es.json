@@ -235,8 +235,9 @@
         "rename_success": "Aspecto renombrado",
         "rename_failed": "Error al renombrar: {{error}}",
         "cape_activated": "Capa activada",
-        "cape_removed": "Capa eliminada",
-        "guest": "Invitado"
+        "cape_removed": "Capa quitada",
+        "guest": "Invitado",
+        "webgl_error": "WebGL is not supported or hardware acceleration is disabled. If you enabled 'Low Graphics Mode' or 'Legacy GPU Support' in Settings, please disable them to use 3D features."
     },
     "styling": {
         "title": "Personalización del launcher",

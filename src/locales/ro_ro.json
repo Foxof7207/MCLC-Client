@@ -236,7 +236,8 @@
         "rename_failed": "Redenumire eșuată: {{error}}",
         "cape_activated": "Pelerină activată",
         "cape_removed": "Pelerină eliminată",
-        "guest": "Vizitator"
+        "guest": "Vizitator",
+        "webgl_error": "WebGL is not supported or hardware acceleration is disabled. If you enabled 'Low Graphics Mode' or 'Legacy GPU Support' in Settings, please disable them to use 3D features."
     },
     "styling": {
         "title": "Personalizare Launcher",

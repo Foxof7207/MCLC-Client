@@ -236,7 +236,8 @@
         "rename_failed": "Ошибка переименования: {{error}}",
         "cape_activated": "Плащ надет",
         "cape_removed": "Плащ снят",
-        "guest": "Гость"
+        "guest": "Гость",
+        "webgl_error": "WebGL is not supported or hardware acceleration is disabled. If you enabled 'Low Graphics Mode' or 'Legacy GPU Support' in Settings, please disable them to use 3D features."
     },
     "styling": {
         "title": "Кастомизация Лаунчера",

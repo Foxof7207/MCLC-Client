@@ -235,8 +235,9 @@
         "rename_success": "Preobleka preimenovana",
         "rename_failed": "Preimenovanje ni uspelo: {{error}}",
         "cape_activated": "Ogrinjalo aktivirano",
-        "cape_removed": "Ogrinjalo odstranjeno",
-        "guest": "Gost"
+        "cape_removed": "Pelerina odstranjena",
+        "guest": "Gost",
+        "webgl_error": "WebGL is not supported or hardware acceleration is disabled. If you enabled 'Low Graphics Mode' or 'Legacy GPU Support' in Settings, please disable them to use 3D features."
     },
     "styling": {
         "title": "Prilagoditev zaganjalnika",
