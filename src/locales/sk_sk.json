@@ -68,7 +68,9 @@
         "refresh": "Refresh",
         "name": "Name",
         "size": "Size",
-        "modified": "Modified"
+        "modified": "Modified",
+        "switch_to_client": "Switch to Client",
+        "switch_to_server": "Switch to Server"
     },
     "home": {
         "welcome_back": "Vitajte späť!",
@@ -301,7 +303,9 @@
             "russian": "Ruština (RU)",
             "slovak": "Slovenčina (SK)",
             "slovenian": "Slovinčina (SI)",
-            "swedish": "Švédčina (SE)"
+            "swedish": "Švédčina (SE)",
+            "quick_switch_button": "Quick Switch Button",
+            "quick_switch_button_desc": "Show a button next to the logo to quickly switch between client and server"
         },
         "java": {
             "title": "Prostredie Java (Runtime)",

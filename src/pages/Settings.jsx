@@ -29,6 +29,7 @@ function Settings() {
         minimalMode: true,
         enableAutoInstallMods: true,
         autoInstallMods: [],
+        showQuickSwitchButton: true,
         language: 'en_us',
         cloudBackupSettings: {
             enabled: false,
@@ -474,6 +475,14 @@ function Settings() {
                                 <option value="sv_se">{t('settings.general.swedish')}</option>
                             </select>
                         </div>
+
+                        <ToggleBox
+                            className="pt-6 border-t border-white/5"
+                            checked={settings.showQuickSwitchButton || false}
+                            onChange={(val) => handleChange('showQuickSwitchButton', val)}
+                            label={t('settings.general.quick_switch_button')}
+                            description={t('settings.general.quick_switch_button_desc')}
+                        />
                     </div>
                 </div>
 

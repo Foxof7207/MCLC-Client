@@ -86,11 +86,19 @@ function App() {
     const [showModeMenu, setShowModeMenu] = useState(false);
     const [searchCategory, setSearchCategory] = useState(null);
     const [triggerCreateInstance, setTriggerCreateInstance] = useState(false);
+    const [appSettings, setAppSettings] = useState({});
 
     const downloadsRef = useRef(null);
     const sessionsRef = useRef(null);
     const modeMenuRef = useRef(null);
     const logoRef = useRef(null);
+    const lastClientView = useRef('dashboard');
+    const lastServerView = useRef('server-dashboard');
+
+    useEffect(() => {
+        if (currentMode === 'client') lastClientView.current = currentView;
+        if (currentMode === 'server') lastServerView.current = currentView;
+    }, [currentView, currentMode]);
 
     useEffect(() => {
         Analytics.init();
@@ -134,10 +142,13 @@ function App() {
 
         const loadTheme = async () => {
             const res = await window.electronAPI.getSettings();
-            if (res.success && res.settings.theme) {
-                const t = res.settings.theme;
-                setTheme(t);
-                applyTheme(t);
+            if (res.success) {
+                setAppSettings(res.settings);
+                if (res.settings.theme) {
+                    const t = res.settings.theme;
+                    setTheme(t);
+                    applyTheme(t);
+                }
             }
         };
 
@@ -147,6 +158,10 @@ function App() {
         const removeThemeListener = window.electronAPI.onThemeUpdated((newTheme) => {
             setTheme(newTheme);
             applyTheme(newTheme);
+        });
+
+        const removeSettingsListener = window.electronAPI.onSettingsUpdated?.((newSettings) => {
+            setAppSettings(newSettings);
         });
 
         const removeStatusListener = window.electronAPI.onInstanceStatus(({ instanceName, status, loader, version }) => {
@@ -230,6 +245,7 @@ function App() {
             if (removeStatusListener) removeStatusListener();
             if (removeServerStatusListener) removeServerStatusListener();
             if (removeThemeListener) removeThemeListener();
+            if (removeSettingsListener) removeSettingsListener();
             if (removeWindowStateListener) removeWindowStateListener();
             document.removeEventListener('mousedown', handleClickOutside);
         };
@@ -360,9 +376,9 @@ function App() {
     const handleModeSelect = (mode) => {
         setCurrentMode(mode);
         if (mode === 'client') {
-            setCurrentView('dashboard');
+            setCurrentView(lastClientView.current || 'dashboard');
         } else if (mode === 'server') {
-            setCurrentView('server-dashboard');
+            setCurrentView(lastServerView.current || 'server-dashboard');
         }
         setSelectedInstance(null);
         setSelectedServer(null);
@@ -467,6 +483,18 @@ function App() {
                                     </div>
                                 )}
                             </div>
+
+                            {appSettings.showQuickSwitchButton !== false && (
+                                <button
+                                    onClick={() => handleModeSelect(currentMode === 'client' ? 'server' : 'client')}
+                                    className="px-3 py-1.5 bg-black/20 hover:bg-black/40 rounded-xl text-sm font-semibold text-gray-300 hover:text-white transition-colors border border-white/5 whitespace-nowrap hidden sm:flex items-center gap-2 ml-2 pointer-events-auto shadow-lg"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                    {currentMode === 'client' ? t('common.switch_to_server', 'Switch to Server') : t('common.switch_to_client', 'Switch to Client')}
+                                </button>
+                            )}
                         </div>
 
                         { }

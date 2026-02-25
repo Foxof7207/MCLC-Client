@@ -68,7 +68,9 @@
         "refresh": "Actualiser",
         "name": "Nom",
         "size": "Taille",
-        "modified": "Modifié"
+        "modified": "Modifié",
+        "switch_to_client": "Switch to Client",
+        "switch_to_server": "Switch to Server"
     },
     "home": {
         "welcome_back": "Bon retour !",
@@ -301,7 +303,9 @@
             "russian": "Russe (RU)",
             "slovak": "Slovaque (SK)",
             "slovenian": "Slovène (SI)",
-            "swedish": "Suédois (SE)"
+            "swedish": "Suédois (SE)",
+            "quick_switch_button": "Quick Switch Button",
+            "quick_switch_button_desc": "Show a button next to the logo to quickly switch between client and server"
         },
         "java": {
             "title": "Environnement d'exécution Java",

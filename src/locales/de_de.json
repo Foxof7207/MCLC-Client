@@ -34,6 +34,8 @@
         "error_desc": "Die Anwendung ist auf einen unerwarteten Fehler gestoßen. Du kannst versuchen, sie neu zu starten.",
         "client": "Client",
         "server": "Server",
+        "switch_to_client": "Zum Client wechseln",
+        "switch_to_server": "Zum Server wechseln",
         "new_instance": "Neue Instanz",
         "play": "Spielen",
         "stop": "Stoppen",
@@ -301,7 +303,9 @@
             "russian": "Russisch (RU)",
             "slovak": "Slowakisch (SK)",
             "slovenian": "Slowenisch (SI)",
-            "swedish": "Schwedisch (SE)"
+            "swedish": "Schwedisch (SE)",
+            "quick_switch_button": "Schnellwechsel-Button",
+            "quick_switch_button_desc": "Zeigt neben dem Logo einen Button zum schnellen Wechseln zwischen Client und Server"
         },
         "java": {
             "title": "Java-Laufzeitumgebung",
