@@ -1,3 +1,18 @@
+window.copyToClipboard = function (text, btn) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check text-primary"></i>';
+        btn.classList.add('text-primary');
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('text-primary');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
+};
+
 const navbar = document.getElementById('navbar');
 function handleScroll() {
     if (window.scrollY > 20) {
@@ -143,9 +158,11 @@ function toggleMenu() {
         menu.classList.toggle('open');
     }
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     const mobileBtn = document.getElementById('mobile-menu-btn');
     if (mobileBtn) {
         mobileBtn.addEventListener('click', toggleMenu);
     }
 });
+
