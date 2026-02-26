@@ -620,8 +620,11 @@ eula=true
             };
 
             await fs.writeJson(path.join(serverDir, 'server.json'), serverConfig, { spaces: 2 });
+            
+            const isProxy = software === 'bungeecord' || software === 'velocity';
 
-            const serverProperties = `#Minecraft server properties
+            if (!isProxy) {
+                const serverProperties = `#Minecraft server properties
 #${new Date().toISOString()}
 server-port=${port || 25565}
 max-players=${maxPlayers || 20}
@@ -629,13 +632,98 @@ motd=A Minecraft Server
 online-mode=true
 `;
 
-            await fs.writeFile(path.join(serverDir, 'server.properties'), serverProperties);
+                await fs.writeFile(path.join(serverDir, 'server.properties'), serverProperties);
 
-            const eulaContent = `#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).
+                const eulaContent = `#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).
 #${new Date().toISOString()}
 eula=false
 `;
-            await fs.writeFile(path.join(serverDir, 'eula.txt'), eulaContent);
+                await fs.writeFile(path.join(serverDir, 'eula.txt'), eulaContent);
+            } else if (software === 'bungeecord') {
+                const bungeecordConfig = `
+groups:
+  md_5:
+  - admin
+stats: ${require('crypto').randomBytes(16).toString('hex')}
+permissions:
+  default:
+  - bungeecord.command.server
+  - bungeecord.command.list
+  admin:
+  - bungeecord.command.alert
+  - bungeecord.command.end
+  - bungeecord.command.ip
+  - bungeecord.command.reload
+listeners:
+- query_port: ${port || 25577}
+  motd: '&1Another BungeeCord Server'
+  tab_list: GLOBAL_PING
+  query_enabled: false
+  proxy_protocol: false
+  forced_hosts:
+    pvp.md-5.net: pvp
+  ping_passthrough: false
+  priorities:
+  - lobby
+  bind_local_address: true
+  host: 0.0.0.0:${port || 25577}
+  max_players: ${maxPlayers || 20}
+  tab_size: 60
+  force_default_server: false
+prevent_proxy_connections: false
+timeout: 30000
+connection_throttle: 4000
+connection_throttle_limit: 3
+servers:
+  lobby:
+    motd: '&1Example Lobby Server'
+    address: localhost:25565
+    restricted: false
+ip_forward: false
+online_mode: true
+log_commands: false
+disabled_commands:
+- disabledcommandhere
+log_pings: true
+`;
+                await fs.writeFile(path.join(serverDir, 'config.yml'), bungeecordConfig);
+            } else if (software === 'velocity') {
+                const velocityConfig = `
+# Config version. Do not change this.
+config-version = "1.0"
+
+# What port should the proxy be bound to? By default, we'll use 25577.
+bind = "0.0.0.0:${port || 25577}"
+
+# What should be the display name for this proxy?
+motd = "&bA Velocity Proxy"
+
+# What is the maximum number of players the proxy can hold?
+show-max-players = ${maxPlayers || 20}
+
+# Should we promote the player to the default server?
+# If this is enabled, the player will be sent to the first server in the priority list.
+force-key-authentication = true
+
+[servers]
+# Configure your servers here.
+lobby = "127.0.0.1:25565"
+
+[forced-hosts]
+# Forced hosts.
+
+[advanced]
+# Advanced settings.
+
+[query]
+# Whether to enable Gamedig-compatible query.
+enabled = false
+port = ${port || 25577}
+map = "Velocity"
+show-plugins = false
+`;
+                await fs.writeFile(path.join(serverDir, 'velocity.toml'), velocityConfig);
+            }
             if (downloadUrl) {
                 const jarPath = path.join(serverDir, 'server.jar');
 
@@ -826,7 +914,9 @@ eula=false
                         log: line
                     });
                 }
-                if (line.includes('Done') && line.includes('For help, type "help"')) {
+                if ((line.includes('Done') && line.includes('For help, type "help"')) || 
+                    line.includes('Listening on /0.0.0.0:') || 
+                    line.includes('Enabled BungeeCord version')) {
                     updateServerConfig(name, { status: 'running' }).then(updatedConfig => {
                         if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('server:status', {

@@ -24,7 +24,9 @@ function ServerLibrary() {
         forge: { logo: './assets/server-software/forge.jpeg', name: 'Forge', description: 'Modded server for Forge mods', color: 'from-red-500/20' },
         fabric: { logo: './assets/server-software/fabric.png', name: 'Fabric', description: 'Lightweight modding platform', color: 'from-cyan-500/20' },
         neoforge: { logo: './assets/server-software/neoforge.ico', name: 'NeoForge', description: 'Modern fork of Forge', color: 'from-indigo-500/20' },
-        quilt: { logo: './assets/server-software/quilt.svg', name: 'Quilt', description: 'Community-driven modding platform', color: 'from-pink-500/20' }
+        quilt: { logo: './assets/server-software/quilt.svg', name: 'Quilt', description: 'Community-driven modding platform', color: 'from-pink-500/20' },
+        bungeecord: { logo: './assets/server-software/bungeecord.png', name: 'BungeeCord', description: 'Powerful proxy server', color: 'from-blue-600/20' },
+        velocity: { logo: './assets/server-software/velocity.png', name: 'Velocity', description: 'Modern, high-performance proxy', color: 'from-cyan-600/20' }
     };
 
     useEffect(() => {
@@ -37,7 +39,7 @@ function ServerLibrary() {
         try {
             const response = await fetch('https://mcutils.com/api/server-jars');
             const data = await response.json();
-            const supportedPlatforms = ['vanilla', 'bukkit', 'spigot', 'paper', 'purpur', 'folia', 'forge', 'fabric', 'neoforge', 'quilt'];
+            const supportedPlatforms = ['vanilla', 'bukkit', 'spigot', 'paper', 'purpur', 'folia', 'forge', 'fabric', 'neoforge', 'quilt', 'bungeecord', 'velocity'];
             const filteredPlatforms = data.filter(p => supportedPlatforms.includes(p.key));
             const sortedPlatforms = filteredPlatforms.sort((a, b) => supportedPlatforms.indexOf(a.key) - supportedPlatforms.indexOf(b.key));
 
@@ -56,7 +58,9 @@ function ServerLibrary() {
                 { key: 'forge', name: 'Forge' },
                 { key: 'fabric', name: 'Fabric' },
                 { key: 'neoforge', name: 'NeoForge' },
-                { key: 'quilt', name: 'Quilt' }
+                { key: 'quilt', name: 'Quilt' },
+                { key: 'bungeecord', name: 'BungeeCord' },
+                { key: 'velocity', name: 'Velocity' }
             ]);
         } finally {
             setIsLoading(false);

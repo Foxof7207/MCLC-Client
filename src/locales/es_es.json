@@ -69,6 +69,7 @@
         "name": "Nombre",
         "size": "Tamaño",
         "modified": "Modificado",
+        "readonly": "Solo lectura",
         "switch_to_client": "Cambiar al Cliente",
         "switch_to_server": "Cambiar al Servidor"
     },

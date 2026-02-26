@@ -70,7 +70,8 @@
         "refresh": "Aktualisieren",
         "name": "Name",
         "size": "Größe",
-        "modified": "Geändert"
+        "modified": "Geändert",
+        "readonly": "Schreibgeschützt"
     },
     "home": {
         "welcome_back": "Willkommen zurück!",

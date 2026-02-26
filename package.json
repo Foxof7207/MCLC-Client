@@ -6,10 +6,10 @@
   "version": "1.6.7",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently \"vite\" \"cross-env NODE_ENV=development electron .\"",
+    "dev": "vite && cross-env NODE_ENV=development electron .",
     "build": "vite build",
     "start": "electron .",
-    "dist-clean": "concurrently \"rimraf dist\" \"rimraf release\"",
+    "dist-clean": "rimraf dist && rimraf release",
     "dist": "npm run dist-clean && npm run build && electron-builder --win",
     "dist-all": "npm run dist-clean && npm run build && electron-builder -wl"
   },

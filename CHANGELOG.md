@@ -18,13 +18,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Mod dependency validation (partially implemented)
 - Mobile application for the administration panel
 - Linux installer (Windows installer is the default)
-- Server creation support for BungeeCord/Velocity
 
 ### In Progress
 - Server-side mod validation
 - Mod compatibility overview
 - Quick server join (partially implemented)
 - Client-side quick join mod
+- Server creation support for BungeeCord/Velocity
+- Read-only support for `.secret` files in file manager
 
 ### Planned
 - Script support (partially implemented via extensions)

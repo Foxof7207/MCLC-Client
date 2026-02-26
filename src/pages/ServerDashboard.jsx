@@ -58,7 +58,9 @@ function ServerDashboard({ onServerClick, runningInstances = {}, isGuest }) {
         { value: 'fabric', label: 'Fabric' },
         { value: 'forge', label: 'Forge' },
         { value: 'neoforge', label: 'NeoForge' },
-        { value: 'folia', label: 'Folia' }
+        { value: 'folia', label: 'Folia' },
+        { value: 'bungeecord', label: 'BungeeCord' },
+        { value: 'velocity', label: 'Velocity' }
     ];
     const memoryOptions = [
         { value: '4096', label: '4 GB' },
@@ -133,6 +135,14 @@ function ServerDashboard({ onServerClick, runningInstances = {}, isGuest }) {
         loadVersionsForSoftware();
     }, [showCreateModal, selectedSoftware]);
 
+    useEffect(() => {
+        if (selectedSoftware === 'bungeecord' || selectedSoftware === 'velocity') {
+            setServerPort('25577');
+        } else if (serverPort === '25577') {
+            setServerPort('25565');
+        }
+    }, [selectedSoftware]);
+
     const loadPlatforms = async () => {
         try {
 
@@ -145,7 +155,9 @@ function ServerDashboard({ onServerClick, runningInstances = {}, isGuest }) {
                 { type: 'fabric', name: 'Fabric' },
                 { type: 'forge', name: 'Forge' },
                 { type: 'neoforge', name: 'NeoForge' },
-                { type: 'folia', name: 'Folia' }
+                { type: 'folia', name: 'Folia' },
+                { type: 'bungeecord', name: 'BungeeCord' },
+                { type: 'velocity', name: 'Velocity' }
             ];
             setPlatforms(list);
         } catch (error) {

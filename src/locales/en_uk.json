@@ -69,6 +69,7 @@
         "name": "Name",
         "size": "Size",
         "modified": "Modified",
+        "readonly": "Read-only",
         "switch_to_client": "Switch to Client",
         "switch_to_server": "Switch to Server"
     },

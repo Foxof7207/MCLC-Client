@@ -52,7 +52,7 @@ const FileBrowser = ({ serverName }) => {
     };
 
     const handleFileClick = async (file) => {
-        const textExtensions = ['.txt', '.log', '.properties', '.yml', '.yaml', '.json', '.conf', '.sh', '.bat', '.py', '.js'];
+        const textExtensions = ['.txt', '.log', '.properties', '.yml', '.yaml', '.json', '.conf', '.sh', '.bat', '.py', '.js', '.secret'];
         const isText = textExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
 
         if (!isText) {
@@ -139,6 +139,8 @@ const FileBrowser = ({ serverName }) => {
     };
 
     if (selectedFile) {
+        const isReadOnly = selectedFile.name.toLowerCase().endsWith('.secret');
+
         return (
             <div className="flex flex-col h-full bg-surface-dark border border-white/5 rounded-xl overflow-hidden glass-panel">
                 <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5">
@@ -149,6 +151,11 @@ const FileBrowser = ({ serverName }) => {
                             </svg>
                         </button>
                         <span className="font-medium text-white truncate">{selectedFile.name}</span>
+                        {isReadOnly && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-gray-400 border border-white/10 uppercase tracking-wider backdrop-blur-sm">
+                                {t('common.readonly')}
+                            </span>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -157,21 +164,24 @@ const FileBrowser = ({ serverName }) => {
                         >
                             {t('common.cancel')}
                         </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="px-4 py-2 text-sm font-medium bg-primary hover:bg-primary-hover text-black rounded-lg transition-all shadow-primary-glow flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {isSaving && <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
-                            {t('common.save')}
-                        </button>
+                        {!isReadOnly && (
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="px-4 py-2 text-sm font-medium bg-primary hover:bg-primary-hover text-black rounded-lg transition-all shadow-primary-glow flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {isSaving && <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+                                {t('common.save')}
+                            </button>
+                        )}
                     </div>
                 </div>
                 <div className="flex-1 p-4 overflow-hidden">
                     <textarea
                         value={editingContent}
                         onChange={(e) => setEditingContent(e.target.value)}
-                        className="w-full h-full bg-black/40 text-gray-300 font-mono text-sm p-4 rounded-xl border border-white/5 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none resize-none custom-scrollbar"
+                        readOnly={isReadOnly}
+                        className={`w-full h-full bg-black/40 text-gray-300 font-mono text-sm p-4 rounded-xl border border-white/5 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 outline-none resize-none custom-scrollbar ${isReadOnly ? 'opacity-80 cursor-default' : ''}`}
                         spellCheck="false"
                     />
                 </div>

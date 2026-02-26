@@ -70,7 +70,8 @@
         "refresh": "Refresh",
         "name": "Name",
         "size": "Size",
-        "modified": "Modified"
+        "modified": "Modified",
+        "readonly": "Read-only"
     },
     "home": {
         "welcome_back": "Welcome back!",
