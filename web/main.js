@@ -69,7 +69,7 @@ async function checkAuth() {
         if (data.loggedIn) {
             authSection.innerHTML = `
                 <div class="flex items-center gap-3 pl-4 border-l border-white/10">
-                    <a href="dashboard.html" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                    <a href="/dashboard.html" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
                         <img src="${fixPath(data.user.avatar)}" alt="${data.user.username}" class="w-8 h-8 rounded-full border border-white/10 overflow-hidden object-cover">
                         <div class="hidden lg:block text-right leading-tight">
                             <div class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Signed in</div>
@@ -115,7 +115,7 @@ async function checkAuth() {
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <a href="dashboard.html" class="bg-white/5 text-white py-3 rounded-lg text-xs font-bold text-center">Dashboard</a>
+                        <a href="/dashboard.html" class="bg-white/5 text-white py-3 rounded-lg text-xs font-bold text-center">Dashboard</a>
                         <a href="${logoutUrl}" class="bg-red-500/10 text-red-500 py-3 rounded-lg text-xs font-bold text-center">Logout</a>
                     </div>
                 `;

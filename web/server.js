@@ -31,6 +31,7 @@ console.log('--- Server Starting / Restarting ---');
 // -----------------------------
 const multer = require('multer');
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 const passport = require('passport');
 require('dotenv').config();
 
@@ -82,15 +83,18 @@ if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
     process.exit(1);
 }
 
+const sessionStore = new MySQLStore({}, pool);
+
 app.use(session({
     secret: SESSION_SECRET || 'mclc-super-secret-session-key-2026',
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     proxy: true,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     }
 }));
 
@@ -309,8 +313,19 @@ const upload = multer({ storage: storage });
 app.get('/auth/google', (req, res, next) => {
     if (req.query.returnTo) {
         req.session.returnTo = req.query.returnTo;
+        console.log(`[Auth] Set session returnTo: ${req.session.returnTo}`);
+    } else {
+        console.log(`[Auth] No returnTo provided, session state: ${req.session.returnTo || 'none'}`);
     }
-    next();
+
+    // Add debug info for cookies
+    console.log(`[Auth] Protocol: ${req.protocol}, Secure Cookie: ${process.env.NODE_ENV === 'production'}, ENV: ${process.env.NODE_ENV}`);
+
+    // Explicitly save session before redirecting to Google
+    req.session.save((err) => {
+        if (err) console.error('[Auth] Session save error:', err);
+        next();
+    });
 }, passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback', (req, res, next) => {
@@ -329,6 +344,7 @@ app.get('/auth/google/callback', (req, res, next) => {
                 return res.status(500).send(`Login failed: ${loginErr.message}`);
             }
             const returnTo = req.session.returnTo || '/';
+            console.log(`[Auth] Redirecting after callback. returnTo was: ${req.session.returnTo}, defaulting to: ${returnTo}`);
             delete req.session.returnTo;
             console.log(`[Google OAuth] Login successful for: ${user.username}, redirecting to: ${returnTo}`);
             res.redirect(returnTo);

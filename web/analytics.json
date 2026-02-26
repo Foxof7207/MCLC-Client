@@ -9,7 +9,7 @@
       "ImmediatelyFast": 2,
       "YetAnotherConfigLib (YACL)": 2,
       "Fabric Language Kotlin": 2,
-      "Xaero's Minimap": 2,
+      "Xaero's Minimap": 3,
       "[ETF] Entity Texture Features": 2,
       "Architectury API": 2,
       "Xaero's World Map": 2,
@@ -60,7 +60,7 @@
       "Litematica": 1,
       "Sodium Shadowy Path Blocks": 1,
       "Wavey Capes": 1,
-      "Freecam": 1,
+      "Freecam": 2,
       "Chat Animation [Smooth Chat]": 1,
       "Particle Rain": 1,
       "Very Many Players (Fabric)": 1,
@@ -127,7 +127,10 @@
       "Fzzy Config": 1,
       "Forge Config API Port": 1,
       "TotemCounter": 1,
-      "Inventory Management": 1
+      "Inventory Management": 1,
+      "Player Health Indicators Unofficial": 1,
+      "Health Indicators": 1,
+      "Health Indicator": 1
     },
     "resourcepack": {
       "Fresh Animations": 2,
@@ -144,17 +147,21 @@
   },
   "launchesPerDay": {
     "2026-02-15": 30,
-    "2026-02-23": 1
+    "2026-02-26": 16
   },
   "clientVersions": {
-    "1.3.3": 778,
-    "1.6.5": 25
+    "1.3.3": 780,
+    "1.6.5": 3,
+    "1.6.6": 27,
+    "1.6.2": 4,
+    "1.6.7": 47,
+    "1.6.1": 2
   },
   "software": {
     "client": {
       "vanilla": 1,
-      "fabric": 20,
-      "Fabric": 1
+      "fabric": 23,
+      "Fabric": 13
     },
     "server": {
       "vanilla": 1
@@ -162,8 +169,8 @@
   },
   "gameVersions": {
     "client": {
-      "1.21.11": 18,
-      "1.21.8": 4
+      "1.21.11": 34,
+      "1.21.8": 3
     },
     "server": {
       "1.21.11": 1
