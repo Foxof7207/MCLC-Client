@@ -19,6 +19,7 @@ This project follows the guidelines of [Keep a Changelog](https://keepachangelog
 - Mod dependency validation (partially implemented)
 - Mobile application for the administration panel
 - Installer for Linux (currently, only windows default)
+- Add Server Creation Support for BungeeCord/ Velocity
 
 ### To Do
 
