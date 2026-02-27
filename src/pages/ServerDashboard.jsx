@@ -7,6 +7,7 @@ import Dropdown from '../components/Dropdown';
 import { useTranslation } from 'react-i18next';
 import { useNotification } from '../context/NotificationContext';
 import { Analytics } from '../services/Analytics';
+import { fetchVersionsFor, fetchDetailsFor } from '../services/serverJars';
 
 const DEFAULT_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='8' y1='9' x2='16' y2='9'%3E%3C/line%3E%3Cline x1='8' y1='13' x2='16' y2='13'%3E%3C/line%3E%3Cline x1='8' y1='17' x2='12' y2='17'%3E%3C/line%3E%3C/svg%3E";
 const formatUptime = (seconds, t) => {
@@ -99,14 +100,7 @@ function ServerDashboard({ onServerClick, runningInstances = {}, isGuest }) {
         const loadVersionsForSoftware = async () => {
             setLoadingVersions(true);
             try {
-
-                const response = await fetch(`https://mcutils.com/api/server-jars/${selectedSoftware}`);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                const data = await fetchVersionsFor(selectedSoftware);
 
                 let versionsList = [];
                 if (Array.isArray(data)) {
@@ -204,7 +198,23 @@ function ServerDashboard({ onServerClick, runningInstances = {}, isGuest }) {
         setIsCreating(true);
         const nameToUse = newServerName.trim() || "New Server";
         const newPort = parseInt(serverPort) || 25565;
-        const downloadUrl = `https://mcutils.com/api/server-jars/${selectedSoftware}/${selectedVersion}/download`;
+        let details;
+
+        try {
+            details = await fetchDetailsFor(selectedSoftware, selectedVersion);
+        } catch (error) {
+            setIsCreating(false);
+            addNotification(t('server.create_failed', { error: error.message || 'Could not resolve download URL' }), 'error');
+            return;
+        }
+
+        const downloadUrl = details?.downloadUrl;
+
+        if (!downloadUrl) {
+            setIsCreating(false);
+            addNotification(t('server.create_failed', { error: 'No download URL found for selected version' }), 'error');
+            return;
+        }
 
         const serverData = {
             name: nameToUse,
@@ -232,7 +242,7 @@ function ServerDashboard({ onServerClick, runningInstances = {}, isGuest }) {
     const doCreate = async (serverData) => {
         setIsCreating(true);
         try {
-            console.log(`Using mcutils.com for ${serverData.software}/${serverData.version}`);
+            console.log(`Using direct provider fetch for ${serverData.software}/${serverData.version}`);
             console.log('Sending server data:', serverData);
 
             const result = await window.electronAPI.createServer(serverData);

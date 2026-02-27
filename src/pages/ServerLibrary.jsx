@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNotification } from '../context/NotificationContext';
 import LoadingOverlay from '../components/LoadingOverlay';
+import { fetchSupportedPlatforms, fetchVersionsFor, fetchDetailsFor } from '../services/serverJars';
 
 function ServerLibrary() {
     const { t } = useTranslation();
@@ -37,10 +38,15 @@ function ServerLibrary() {
     const loadPlatforms = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('https://mcutils.com/api/server-jars');
-            const data = await response.json();
+            const data = fetchSupportedPlatforms();
             const supportedPlatforms = ['vanilla', 'bukkit', 'spigot', 'paper', 'purpur', 'folia', 'forge', 'fabric', 'neoforge', 'quilt', 'bungeecord', 'velocity'];
-            const filteredPlatforms = data.filter(p => supportedPlatforms.includes(p.key));
+            const filteredPlatforms = data
+                .filter((platform) => supportedPlatforms.includes(platform.key))
+                .map((platform) => {
+                    if (platform.key === 'craftbukkit') return { ...platform, key: 'bukkit' };
+                    if (platform.key === 'waterfall') return { ...platform, key: 'bungeecord', name: 'BungeeCord' };
+                    return platform;
+                });
             const sortedPlatforms = filteredPlatforms.sort((a, b) => supportedPlatforms.indexOf(a.key) - supportedPlatforms.indexOf(b.key));
 
             setPlatforms(sortedPlatforms);
@@ -71,9 +77,8 @@ function ServerLibrary() {
         setIsLoadingVersions(true);
         setSelectedPlatform(platform);
         try {
-            const response = await fetch(`https://mcutils.com/api/server-jars/${platform.key}`);
-            const data = await response.json();
-            setVersions(data);
+            const data = await fetchVersionsFor(platform.key);
+            setVersions((data || []).map((version) => ({ version })));
         } catch (error) {
             console.error('Failed to load versions:', error);
             addNotification(t('server_library.load_versions_failed', { name: platform.name }), 'error');
@@ -100,8 +105,7 @@ function ServerLibrary() {
     const handleDownload = async (platform, version) => {
         try {
             setDownloading(`${platform.key}-${version.version}`);
-            const response = await fetch(`https://mcutils.com/api/server-jars/${platform.key}/${version.version}`);
-            const data = await response.json();
+            const data = await fetchDetailsFor(platform.key, version.version);
             const result = await window.electronAPI.downloadServerSoftware({
                 platform: platform.key,
                 version: version.version,
