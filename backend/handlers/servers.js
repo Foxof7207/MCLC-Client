@@ -598,10 +598,15 @@ eula=true
             const safeName = data && data.safeName ? sanitizeFileName(data.safeName) : sanitizeFileName(name);
             serverDir = path.join(serversDir, safeName);
 
+            const isProxy = software === 'bungeecord' || software === 'velocity';
+
             await fs.ensureDir(serverDir);
             await fs.ensureDir(path.join(serverDir, 'logs'));
             await fs.ensureDir(path.join(serverDir, 'plugins'));
-            await fs.ensureDir(path.join(serverDir, 'mods'));
+            
+            if (!isProxy) {
+                await fs.ensureDir(path.join(serverDir, 'mods'));
+            }
 
             const serverConfig = {
                 name: name,
@@ -620,8 +625,6 @@ eula=true
             };
 
             await fs.writeJson(path.join(serverDir, 'server.json'), serverConfig, { spaces: 2 });
-            
-            const isProxy = software === 'bungeecord' || software === 'velocity';
 
             if (!isProxy) {
                 const serverProperties = `#Minecraft server properties
@@ -1392,13 +1395,40 @@ eula=false
 
             const process = serverProcesses.get(serverName);
             if (process && !process.killed) {
-                config.status = 'running';
+                if (config.status !== 'starting' && config.status !== 'stopping' && config.status !== 'restarting') {
+                    config.status = 'running';
+                }
             }
 
             return config;
         } catch (error) {
             console.error(`[Servers] Error getting server ${serverName}:`, error);
             return null;
+        }
+    });
+
+    ipcMain.handle('server:get-status', async (event, serverName) => {
+        try {
+            const serversDir = path.join(app.getPath('userData'), 'servers');
+            const safeName = sanitizeFileName(serverName);
+            const configPath = path.join(serversDir, safeName, 'server.json');
+
+            if (!await fs.pathExists(configPath)) return 'stopped';
+
+            const config = await fs.readJson(configPath);
+            const process = serverProcesses.get(serverName);
+
+            if (process && !process.killed) {
+                if (config.status !== 'starting' && config.status !== 'stopping' && config.status !== 'restarting') {
+                    return 'running';
+                }
+                return config.status;
+            }
+
+            return config.status === 'error' ? 'error' : 'stopped';
+        } catch (error) {
+            console.error(`[Servers] Error getting server status ${serverName}:`, error);
+            return 'error';
         }
     });
     ipcMain.handle('server:install-playit', async (event, serverName) => {
@@ -1573,6 +1603,39 @@ eula=false
             const serversDir = path.join(app.getPath('userData'), 'servers');
             const safeName = sanitizeFileName(serverName);
             const serverDir = path.join(serversDir, safeName);
+            const configPath = path.join(serverDir, 'server.json');
+            const config = await fs.pathExists(configPath) ? await fs.readJson(configPath) : null;
+
+            if (config && config.software.toLowerCase() === 'velocity') {
+                const tomlPath = path.join(serverDir, 'velocity.toml');
+                if (await fs.pathExists(tomlPath)) {
+                    const content = await fs.readFile(tomlPath, 'utf-8');
+                    const motdMatch = content.match(/motd\s*=\s*(["']?)(.*?)\1(?:\r?\n|$)/);
+                    const bindMatch = content.match(/bind\s*=\s*(["']?)([^:]*):(\d+)\1(?:\r?\n|$)/);
+                    const playersMatch = content.match(/show-max-players\s*=\s*(\d+)/);
+                    return {
+                        'motd': motdMatch ? motdMatch[2] : 'A Velocity Server',
+                        'server-port': bindMatch ? bindMatch[3] : '25577',
+                        'max-players': playersMatch ? playersMatch[1] : '500'
+                    };
+                }
+                return {};
+            } else if (config && config.software.toLowerCase() === 'bungeecord') {
+                const yamlPath = path.join(serverDir, 'config.yml');
+                if (await fs.pathExists(yamlPath)) {
+                    const content = await fs.readFile(yamlPath, 'utf-8');
+                    const motdMatch = content.match(/motd:\s*(["']?)(.*?)\1(?:\r?\n|$)/);
+                    const hostMatch = content.match(/host:\s*(["']?)([^:]*):(\d+)\1(?:\r?\n|$)/);
+                    const playersMatch = content.match(/max_players:\s*(\d+)/);
+                    return {
+                        'motd': motdMatch ? motdMatch[2] : 'A BungeeCord Server',
+                        'server-port': hostMatch ? hostMatch[3] : '25577',
+                        'max-players': playersMatch ? playersMatch[1] : '1'
+                    };
+                }
+                return {};
+            }
+
             const propertiesPath = path.join(serverDir, 'server.properties');
 
             if (!await fs.pathExists(propertiesPath)) {
@@ -1599,6 +1662,55 @@ eula=false
             const serversDir = path.join(app.getPath('userData'), 'servers');
             const safeName = sanitizeFileName(serverName);
             const serverDir = path.join(serversDir, safeName);
+            const configPath = path.join(serverDir, 'server.json');
+            const config = await fs.pathExists(configPath) ? await fs.readJson(configPath) : null;
+
+            if (config && config.software.toLowerCase() === 'velocity') {
+                const tomlPath = path.join(serverDir, 'velocity.toml');
+                if (await fs.pathExists(tomlPath)) {
+                    let content = await fs.readFile(tomlPath, 'utf-8');
+                    if (properties['motd'] !== undefined) {
+                        const safeMotd = properties['motd'].replace(/"/g, '\\"');
+                        content = content.replace(/(motd\s*=\s*)(["']?)(.*?)\2(\r?\n|$)/, `$1"${safeMotd}"$4`);
+                    }
+                    if (properties['server-port'] !== undefined) {
+                        content = content.replace(/(bind\s*=\s*)(["']?)([^:]*):(\d+)\2(\r?\n|$)/, `$1"$3:${properties['server-port']}"$5`);
+                    }
+                    if (properties['max-players'] !== undefined) {
+                        content = content.replace(/(show-max-players\s*=\s*)(\d+)(\r?\n|$)/, `$1${properties['max-players']}$3`);
+                    }
+                    await fs.writeFile(tomlPath, content, 'utf-8');
+                    console.log(`[Servers] Velocity properties saved for ${serverName}.`);
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('server:console', { serverName, log: `[INFO] Server properties updated` });
+                    }
+                    return { success: true };
+                }
+                return { success: false, error: 'velocity.toml not found' };
+            } else if (config && config.software.toLowerCase() === 'bungeecord') {
+                const yamlPath = path.join(serverDir, 'config.yml');
+                if (await fs.pathExists(yamlPath)) {
+                    let content = await fs.readFile(yamlPath, 'utf-8');
+                    if (properties['motd'] !== undefined) {
+                        const safeMotd = properties['motd'].replace(/'/g, "''");
+                        content = content.replace(/(motd:\s*)(["']?)(.*?)\2(\r?\n|$)/, `$1'${safeMotd}'$4`);
+                    }
+                    if (properties['server-port'] !== undefined) {
+                        content = content.replace(/(host:\s*)(["']?)([^:]*):(\d+)\2(\r?\n|$)/, `$1$3:${properties['server-port']}$5`);
+                    }
+                    if (properties['max-players'] !== undefined) {
+                        content = content.replace(/(max_players:\s*)(\d+)(\r?\n|$)/, `$1${properties['max-players']}$3`);
+                    }
+                    await fs.writeFile(yamlPath, content, 'utf-8');
+                    console.log(`[Servers] BungeeCord properties saved for ${serverName}.`);
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('server:console', { serverName, log: `[INFO] Server properties updated` });
+                    }
+                    return { success: true };
+                }
+                return { success: false, error: 'config.yml not found' };
+            }
+
             const propertiesPath = path.join(serverDir, 'server.properties');
 
             if (!await fs.pathExists(propertiesPath)) {

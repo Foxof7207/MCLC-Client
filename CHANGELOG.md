@@ -9,25 +9,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
-- Server-side mod validation
-- Mod compatibility overview
-- Quick server join (partially implemented)
-- Client-side quick join mod
-- Script support (partially implemented via extensions)
-- Log analysis utility
-- Mod dependency validation (partially implemented)
-- Mobile application for the administration panel
-- Linux installer (Windows installer is the default)
-
-### In Progress
-- Server-side mod validation
-- Mod compatibility overview
-- Quick server join (partially implemented)
-- Client-side quick join mod
 - Server creation support for BungeeCord/Velocity
 - Read-only support for `.secret` files in file manager
 
+### In Progress
+- Mod dependency validation (partially implemented)
+- Log analysis utility
+- Mod compatibility overview
+- Script support (partially implemented via extensions)
+- Server-side mod validation
+- Quick server join (partially implemented)
+- Client-side quick join mod
+
 ### Planned
+- Linux installer (Windows installer is the default)
+- Mobile application for the administration panel
 - Script support (partially implemented via extensions)
 - Log analysis utility
 - Mobile application for the administration panel
