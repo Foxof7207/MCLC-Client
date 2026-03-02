@@ -256,6 +256,7 @@
         "corner_roundness": "Arrondi des coins",
         "glass_blur": "Flou de verre",
         "sidebar_glow": "Lueur de la barre latérale",
+        "global_glow": "Lueur globale",
         "panel_opacity": "Opacité des panneaux",
         "console_opacity": "Opacité de la console",
         "atmosphere": "Atmosphère",

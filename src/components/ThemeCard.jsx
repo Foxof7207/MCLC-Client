@@ -1,6 +1,17 @@
 import React from 'react';
 
 function ThemeCard({ theme, onApply, onDelete, isCustom = false }) {
+    const hexToRgb = (hex) => {
+        const normalized = hex?.replace('#', '');
+        if (!normalized || normalized.length !== 6) return '34, 224, 122';
+        const r = parseInt(normalized.slice(0, 2), 16);
+        const g = parseInt(normalized.slice(2, 4), 16);
+        const b = parseInt(normalized.slice(4, 6), 16);
+        return `${r}, ${g}, ${b}`;
+    };
+
+    const primaryRgb = hexToRgb(theme.primary);
+
     return (
         <button
             onClick={onApply}
@@ -15,14 +26,14 @@ function ThemeCard({ theme, onApply, onDelete, isCustom = false }) {
                 <div
                     className="absolute inset-0"
                     style={{
-                        background: `linear-gradient(135deg, ${theme.primary}20 0%, transparent 100%)`
+                        background: `linear-gradient(135deg, rgba(${primaryRgb}, 0.125) 0%, rgba(${primaryRgb}, calc(0.125 * (1 - var(--global-glow-intensity, 0)))) 100%)`
                     }}
                 />
                 <div
                     className="absolute bottom-2 left-2 w-8 h-8 rounded-lg shadow-lg border-2 border-white/20"
                     style={{
                         background: theme.primary,
-                        boxShadow: `0 0 20px ${theme.primary}60`
+                        boxShadow: `0 0 calc(20px * var(--global-glow-intensity, 0)) rgba(${primaryRgb}, calc(0.375 * var(--global-glow-intensity, 0)))`
                     }}
                 />
                 <div

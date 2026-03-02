@@ -31,8 +31,11 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
     const visibleMenuItems = menuItems.filter(item => !item.disabled || settings.showDisabledFeatures);
 
     return (
-        <div className={`transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-56'} my-4 ml-4 mr-2 bg-surface/10 rounded-2xl border border-white/5 shadow-2xl flex flex-col items-center pb-6 relative z-50`}
-            style={{ backdropFilter: 'blur(10px)' }}>
+        <div className={`transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-56'} my-4 ml-4 mr-2 bg-surface/10 rounded-2xl border border-white/5 flex flex-col items-center pb-6 relative z-50`}
+            style={{
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45), 0 0 calc(var(--sidebar-glow-intensity, 0) * 32px) rgba(var(--primary-color-rgb), calc(var(--sidebar-glow-intensity, 0) * 0.55))'
+            }}>
 
             {/* Header with Toggle */}
             <div className={`w-full flex ${isCollapsed ? 'justify-center' : 'justify-end'} px-2 pt-4 mb-2`}>

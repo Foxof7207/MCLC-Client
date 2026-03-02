@@ -14,13 +14,14 @@
   --glass-opacity: 0.8;
   --border-radius: 12px;
   --panel-opacity: 0.85;
+  --sidebar-glow-intensity: 0;
+  --global-glow-intensity: 0;
   --bg-image: none;
 }
 
 @layer base {
   body {
     @apply antialiased text-gray-100 bg-background select-none overflow-hidden;
-
   }
 
   .rounded-custom {
@@ -115,8 +116,35 @@
   border-radius: 10px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+@layer utilities {
+  .global-primary-glow,
+  .shadow-primary-glow,
+  [class*="shadow-primary-glow/10"] {
+    box-shadow: 0 0 calc(20px * var(--global-glow-intensity, 0)) rgba(var(--primary-color-rgb), calc(0.3 * var(--global-glow-intensity, 0)));
+  }
+
+  [class*="shadow-primary-glow/10"] {
+    box-shadow: 0 0 calc(20px * var(--global-glow-intensity, 0)) rgba(var(--primary-color-rgb), calc(0.03 * var(--global-glow-intensity, 0)));
+  }
+
+  [class*="shadow-primary/5"] {
+    --tw-shadow-color: rgba(var(--primary-color-rgb), calc(0.05 * var(--global-glow-intensity, 0)));
+    --tw-shadow: var(--tw-shadow-colored);
+  }
+
+  [class*="shadow-primary/20"] {
+    --tw-shadow-color: rgba(var(--primary-color-rgb), calc(0.2 * var(--global-glow-intensity, 0)));
+    --tw-shadow: var(--tw-shadow-colored);
+  }
+
+  [class*="shadow-primary/30"] {
+    --tw-shadow-color: rgba(var(--primary-color-rgb), calc(0.3 * var(--global-glow-intensity, 0)));
+    --tw-shadow: var(--tw-shadow-colored);
+  }
 }
 
 input[type="range"].slider-thumb::-webkit-slider-thumb {

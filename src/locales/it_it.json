@@ -255,6 +255,7 @@
         "corner_roundness": "Arrotondamento Angoli",
         "glass_blur": "Sfocatura Vetro",
         "sidebar_glow": "Bagliore Barra Laterale",
+        "global_glow": "Bagliore globale",
         "panel_opacity": "Opacità Pannello",
         "console_opacity": "Opacità Console",
         "atmosphere": "Atmosfera",

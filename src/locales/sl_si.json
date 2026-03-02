@@ -255,6 +255,7 @@
         "corner_roundness": "Zaokroženost vogalov",
         "glass_blur": "Zameglitev stekla",
         "sidebar_glow": "Sij stranske vrstice",
+        "global_glow": "Globalni sij",
         "panel_opacity": "Motnost plošče",
         "console_opacity": "Motnost konzole",
         "atmosphere": "Vzdušje",

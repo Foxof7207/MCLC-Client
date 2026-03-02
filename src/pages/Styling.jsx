@@ -91,6 +91,7 @@ const DEFAULT_THEME = {
   borderRadius: 12,
   bgMedia: { url: "", type: "none" },
   sidebarGlow: 0.3,
+  globalGlow: 0,
   panelOpacity: 0.85,
   bgOverlay: 0.4,
   autoAdaptColor: false,
@@ -122,7 +123,8 @@ function Styling() {
           root.style.setProperty("--glass-opacity", t.glassOpacity);
           root.style.setProperty("--console-opacity", t.consoleOpacity || 0.8);
           root.style.setProperty("--border-radius", `${t.borderRadius || 12}px`);
-          root.style.setProperty("--sidebar-glow-intensity", t.sidebarGlow || 0.3);
+          root.style.setProperty("--sidebar-glow-intensity", t.sidebarGlow ?? 0.3);
+          root.style.setProperty("--global-glow-intensity", t.globalGlow ?? 0);
           root.style.setProperty("--panel-opacity", t.panelOpacity || 0.85);
           root.style.setProperty("--bg-overlay-opacity", t.bgOverlay || 0.4);
 
@@ -202,6 +204,7 @@ function Styling() {
       bg: theme.backgroundColor,
       surface: theme.surfaceColor,
       sidebarGlow: theme.sidebarGlow,
+      globalGlow: theme.globalGlow,
       panelOpacity: theme.panelOpacity,
       bgOverlay: theme.bgOverlay,
     };
@@ -230,7 +233,8 @@ function Styling() {
       primaryColor: p.primary,
       backgroundColor: p.bg,
       surfaceColor: p.surface,
-      sidebarGlow: p.sidebarGlow || theme.sidebarGlow,
+      sidebarGlow: p.sidebarGlow ?? theme.sidebarGlow,
+      globalGlow: p.globalGlow ?? theme.globalGlow,
       panelOpacity: p.panelOpacity || theme.panelOpacity,
       bgOverlay: p.bgOverlay || theme.bgOverlay,
     };
@@ -242,8 +246,9 @@ function Styling() {
     const res = await window.electronAPI.getSettings();
     if (res.success) {
       if (res.settings.theme) {
-        setTheme((prev) => ({ ...prev, ...res.settings.theme }));
-        applyTheme(res.settings.theme);
+        const loadedTheme = { ...DEFAULT_THEME, ...res.settings.theme };
+        setTheme(loadedTheme);
+        applyTheme(loadedTheme);
       }
     }
   };
@@ -257,7 +262,8 @@ function Styling() {
     root.style.setProperty("--glass-opacity", t.glassOpacity);
     root.style.setProperty("--console-opacity", t.consoleOpacity || 0.8);
     root.style.setProperty("--border-radius", `${t.borderRadius || 12}px`);
-    root.style.setProperty("--sidebar-glow-intensity", t.sidebarGlow || 0.3);
+    root.style.setProperty("--sidebar-glow-intensity", t.sidebarGlow ?? 0.3);
+    root.style.setProperty("--global-glow-intensity", t.globalGlow ?? 0);
     root.style.setProperty("--panel-opacity", t.panelOpacity || 0.85);
     root.style.setProperty("--bg-overlay-opacity", t.bgOverlay || 0.4);
 
@@ -541,6 +547,15 @@ function Styling() {
                   step={5}
                   unit="%"
                   onChange={(val) => handleUpdate("sidebarGlow", val / 100)}
+                />
+                <SliderControl
+                  label={t('styling.global_glow')}
+                  value={Math.round((theme.globalGlow ?? 0) * 100)}
+                  min={0}
+                  max={100}
+                  step={5}
+                  unit="%"
+                  onChange={(val) => handleUpdate("globalGlow", val / 100)}
                 />
                 <SliderControl
                   label={t('styling.panel_opacity')}

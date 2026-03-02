@@ -256,6 +256,7 @@
         "corner_roundness": "Esquinas redondeadas",
         "glass_blur": "Desenfoque de vidrio",
         "sidebar_glow": "Iluminado de barra lateral",
+        "global_glow": "Brillo global",
         "panel_opacity": "Opacidad de panel",
         "console_opacity": "Opacidad de consola",
         "atmosphere": "Atmósfera",

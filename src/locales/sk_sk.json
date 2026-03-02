@@ -255,6 +255,7 @@
         "corner_roundness": "Zaoblenie rohov",
         "glass_blur": "Rozostrenie skla",
         "sidebar_glow": "Žiara bočného panela",
+        "global_glow": "Globálna žiara",
         "panel_opacity": "Priehľadnosť panela",
         "console_opacity": "Priehľadnosť konzoly",
         "atmosphere": "Atmosféra",

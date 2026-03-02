@@ -256,6 +256,7 @@
         "corner_roundness": "Corner roundness",
         "glass_blur": "Glass blur",
         "sidebar_glow": "Sidebar glow",
+        "global_glow": "Global glow",
         "panel_opacity": "Panel opacity",
         "console_opacity": "Console opacity",
         "atmosphere": "Atmosphere",

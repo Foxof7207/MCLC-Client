@@ -255,6 +255,7 @@
         "corner_roundness": "Zaokrąglenie rogów",
         "glass_blur": "Rozmycie szkła",
         "sidebar_glow": "Poświata paska bocznego",
+        "global_glow": "Globalna poświata",
         "panel_opacity": "Nieprzezroczystość panelu",
         "console_opacity": "Nieprzezroczystość konsoli",
         "atmosphere": "Atmosfera",

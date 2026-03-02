@@ -255,6 +255,7 @@
         "corner_roundness": "Ecke-Rundig",
         "glass_blur": "Glas-Unschärfi",
         "sidebar_glow": "Syteleischte-Lüchte",
+        "global_glow": "Globale Lüchte",
         "panel_opacity": "Paneel-Deckkraft",
         "console_opacity": "Konsole-Deckkraft",
         "atmosphere": "Atmosphär",

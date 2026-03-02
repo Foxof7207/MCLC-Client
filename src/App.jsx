@@ -289,8 +289,12 @@ function App() {
         root.style.setProperty('--surface-color', t.surfaceColor);
         root.style.setProperty('--glass-blur', `${t.glassBlur}px`);
         root.style.setProperty('--glass-opacity', t.glassOpacity);
+        root.style.setProperty('--console-opacity', t.consoleOpacity || 0.8);
         root.style.setProperty('--border-radius', `${t.borderRadius || 12}px`);
-        root.style.setProperty('--panel-opacity', t.glassOpacity);
+        root.style.setProperty('--sidebar-glow-intensity', t.sidebarGlow ?? 0.3);
+        root.style.setProperty('--global-glow-intensity', t.globalGlow ?? 0);
+        root.style.setProperty('--panel-opacity', t.panelOpacity || 0.85);
+        root.style.setProperty('--bg-overlay-opacity', t.bgOverlay || 0.4);
 
         const adjustColor = (hex, percent) => {
             if (!hex || typeof hex !== 'string') return '#ffffff';
@@ -747,6 +751,7 @@ function App() {
                     onDecline={handleDeclineAgreement}
                 />
             )}
+
         </ExtensionProvider>
     );
 }

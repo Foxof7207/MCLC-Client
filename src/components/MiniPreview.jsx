@@ -41,7 +41,7 @@ function MiniPreview({ theme }) {
                         className="w-6 h-6 rounded-lg flex items-center justify-center transition-all"
                         style={{
                             background: i === 1 ? theme.primaryColor : 'transparent',
-                            boxShadow: i === 1 ? `0 0 ${theme.sidebarGlow * 20 || 6}px ${theme.primaryColor}` : 'none',
+                            boxShadow: i === 1 ? `0 0 ${(theme.sidebarGlow ?? 0) * 20}px ${theme.primaryColor}` : 'none',
                             color: i === 1 ? '#000' : '#666'
                         }}
                     >
@@ -85,7 +85,7 @@ function MiniPreview({ theme }) {
                         background: theme.primaryColor,
                         color: '#000',
                         borderRadius: `${theme.borderRadius || 12}px`,
-                        boxShadow: `0 0 ${theme.sidebarGlow * 20 || 6}px ${theme.primaryColor}40`
+                        boxShadow: `0 0 ${(theme.sidebarGlow ?? 0) * 20}px ${theme.primaryColor}40`
                     }}
                 >
                     PREVIEW

@@ -256,6 +256,7 @@
         "corner_roundness": "Eckenabrundung",
         "glass_blur": "Glas-Unschärfe",
         "sidebar_glow": "Seitenleiste hervorheben",
+        "global_glow": "Globales Leuchten",
         "panel_opacity": "Bereichs-Deckkraft",
         "console_opacity": "Konsolen-Deckkraft",
         "atmosphere": "Atmosphäre",
