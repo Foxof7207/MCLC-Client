@@ -6,6 +6,10 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
     const { t } = useTranslation();
     const [recentInstances, setRecentInstances] = useState([]);
     const [settings, setSettings] = useState({ showDisabledFeatures: false });
+    const getLabelClasses = (baseClasses, expandedWidth = 'max-w-[10rem]') => (
+        `${baseClasses} min-w-0 flex-1 overflow-hidden whitespace-nowrap text-left transition-[max-width] duration-300 ease-in-out ${isCollapsed ? 'max-w-0' : expandedWidth}`
+    );
+    const dividerClassName = `h-[1px] bg-white/10 shrink-0 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-8' : 'w-full'}`;
 
     useEffect(() => {
         loadRecentInstances();
@@ -60,21 +64,32 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
             }}>
 
             {/* Header with Toggle */}
-            <div className={`w-full flex ${isCollapsed ? 'justify-center' : 'justify-end'} px-2 pt-4 mb-2`}>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCollapsed(!isCollapsed);
-                    }}
-                    className="p-2 text-gray-400 hover:text-white transition-all rounded-lg hover:bg-white/5 group/toggle"
-                    title={isCollapsed ? t('common.expand', 'Expand') : t('common.collapse', 'Collapse')}
-                >
-                    <div className={`transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`}>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </button>
+            <div className="w-full px-2 pt-4 mb-2">
+                <div className="relative h-9">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsCollapsed(!isCollapsed);
+                        }}
+                        className="absolute top-0 p-2 text-gray-400 hover:text-white transition-all duration-300 ease-in-out rounded-lg hover:bg-white/5 group/toggle"
+                        style={{
+                            left: isCollapsed ? '50%' : '100%',
+                            transform: isCollapsed ? 'translateX(-50%)' : 'translateX(-100%)'
+                        }}
+                        title={isCollapsed ? t('common.expand', 'Expand') : t('common.collapse', 'Collapse')}
+                    >
+                        <div
+                            className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                            style={{
+                                transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)'
+                            }}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </button>
+                </div>
             </div>
 
             <div className="flex-1 w-full px-2 flex flex-col items-center gap-2">
@@ -82,7 +97,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                     <React.Fragment key={item.id}>
                         <button
                             onClick={() => !item.disabled && setView(item.id)}
-                            className={`h-12 rounded-xl flex items-center transition-all group relative shrink-0 ${isCollapsed ? 'w-12 justify-center' : 'w-full px-4 gap-3'} ${currentView === item.id
+                            className={`h-12 w-full rounded-xl flex items-center px-3 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden ${currentView === item.id
                                 ? 'bg-primary text-black global-primary-glow'
                                 : 'text-gray-400 hover:text-white hover:bg-white/5'
                                 } ${item.disabled ? 'opacity-40 grayscale cursor-not-allowed pointer-events-none' : ''}`}
@@ -97,11 +112,9 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                                 )}
                             </div>
 
-                            {!isCollapsed && (
-                                <span className="text-sm font-bold whitespace-nowrap transition-all duration-300">
-                                    {item.label}
-                                </span>
-                            )}
+                            <span className={getLabelClasses('ml-3 text-sm font-bold')}>
+                                {item.label}
+                            </span>
 
                             {isCollapsed && (
                                 <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">
@@ -111,17 +124,21 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                             )}
                         </button>
                         {item.id === 'library' && (
-                            <div className={`h-[1px] bg-white/10 my-1 shrink-0 ${isCollapsed ? 'w-8' : 'w-full mx-2'}`}></div>
+                            <div className="w-full px-2 my-1 flex justify-center shrink-0">
+                                <div className={dividerClassName}></div>
+                            </div>
                         )}
                         {item.id === 'styling' && (
                             <>
-                                <div className={`h-[1px] bg-white/10 my-1 shrink-0 ${isCollapsed ? 'w-8' : 'w-full mx-2'}`}></div>
+                                <div className="w-full px-2 my-1 flex justify-center shrink-0">
+                                    <div className={dividerClassName}></div>
+                                </div>
 
                                 {recentInstances.map((inst) => (
                                     <button
                                         key={inst.name}
                                         onClick={() => onInstanceClick && onInstanceClick(inst)}
-                                        className={`h-10 rounded-lg flex items-center transition-all group relative shrink-0 border border-transparent hover:border-white/10 my-0.5 ${isCollapsed ? 'w-10 justify-center' : 'w-full px-4 gap-3'}`}
+                                        className="h-10 w-full rounded-lg flex items-center px-3 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden border border-transparent hover:border-white/10 my-0.5"
                                     >
                                         <div className="shrink-0 w-6 h-6 flex items-center justify-center">
                                             {inst.icon && inst.icon.startsWith('data:') ? (
@@ -133,11 +150,9 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                                             )}
                                         </div>
 
-                                        {!isCollapsed && (
-                                            <span className="text-xs font-medium truncate text-gray-300 group-hover:text-white transition-colors">
-                                                {inst.name}
-                                            </span>
-                                        )}
+                                        <span className={getLabelClasses('ml-3 text-xs font-medium text-gray-300 group-hover:text-white transition-colors', 'max-w-[9rem]')}>
+                                            {inst.name}
+                                        </span>
 
                                         {isCollapsed && (
                                             <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">
@@ -149,12 +164,14 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                                 ))}
 
                                 {recentInstances.length > 0 && (
-                                    <div className={`h-[1px] bg-white/10 my-1 shrink-0 ${isCollapsed ? 'w-8' : 'w-full mx-2'}`}></div>
+                                    <div className="w-full px-2 my-1 flex justify-center shrink-0">
+                                        <div className={dividerClassName}></div>
+                                    </div>
                                 )}
 
                                 <button
                                     onClick={() => onCreateInstance && onCreateInstance()}
-                                    className={`h-10 rounded-lg flex items-center text-gray-400 hover:text-primary hover:bg-primary/10 transition-all group relative shrink-0 border border-transparent hover:border-primary/20 ${isCollapsed ? 'w-10 justify-center' : 'w-full px-4 gap-3'}`}
+                                    className="h-10 w-full rounded-lg flex items-center px-3 text-gray-400 hover:text-primary hover:bg-primary/10 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden border border-transparent hover:border-primary/20"
                                 >
                                     <div className="shrink-0 w-5 h-5 flex items-center justify-center">
                                         <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,11 +179,9 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                                         </svg>
                                     </div>
 
-                                    {!isCollapsed && (
-                                        <span className="text-xs font-bold uppercase tracking-wider">
-                                            {t('common.new_instance')}
-                                        </span>
-                                    )}
+                                    <span className={getLabelClasses('ml-3 text-xs font-bold uppercase tracking-wider', 'max-w-[9rem]')}>
+                                        {t('common.new_instance')}
+                                    </span>
 
                                     {isCollapsed && (
                                         <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">
@@ -185,7 +200,7 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
             <div className="w-full px-2 mt-4 flex flex-col items-center gap-2">
                 <button
                     onClick={() => setView('settings')}
-                    className={`h-12 rounded-xl flex items-center transition-all group relative shrink-0 ${isCollapsed ? 'w-12 justify-center' : 'w-full px-4 gap-3'} ${currentView === 'settings'
+                    className={`h-12 w-full rounded-xl flex items-center px-3 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden ${currentView === 'settings'
                         ? 'bg-primary text-black global-primary-glow'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                         }`}
@@ -196,11 +211,9 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                         </svg>
                     </div>
 
-                    {!isCollapsed && (
-                        <span className="text-sm font-bold truncate">
-                            {t('common.settings')}
-                        </span>
-                    )}
+                    <span className={getLabelClasses('ml-3 text-sm font-bold')}>
+                        {t('common.settings')}
+                    </span>
 
                     {isCollapsed && (
                         <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">
@@ -210,11 +223,13 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                     )}
                 </button>
 
-                <div className={`h-[1px] bg-white/10 my-1 shrink-0 ${isCollapsed ? 'w-8' : 'w-full mx-2'}`}></div>
+                <div className="w-full px-2 my-1 flex justify-center shrink-0">
+                    <div className={dividerClassName}></div>
+                </div>
 
                 <button
                     onClick={onLogout}
-                    className={`h-12 rounded-xl flex items-center transition-all group relative shrink-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10 ${isCollapsed ? 'w-12 justify-center' : 'w-full px-4 gap-3'}`}
+                    className="h-12 w-full rounded-xl flex items-center px-3 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden text-gray-400 hover:text-red-400 hover:bg-red-500/10"
                 >
                     <div className="shrink-0 flex items-center justify-center w-6 h-6">
                         <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -222,11 +237,9 @@ function Sidebar({ currentView, setView, onLogout, onInstanceClick, onCreateInst
                         </svg>
                     </div>
 
-                    {!isCollapsed && (
-                        <span className="text-sm font-bold truncate">
-                            {t('common.logout')}
-                        </span>
-                    )}
+                    <span className={getLabelClasses('ml-3 text-sm font-bold')}>
+                        {t('common.logout')}
+                    </span>
 
                     {isCollapsed && (
                         <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">

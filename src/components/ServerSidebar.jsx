@@ -2,6 +2,10 @@ import React from 'react';
 
 function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsCollapsed }) {
     const [settings, setSettings] = React.useState({ showDisabledFeatures: false });
+    const getLabelClasses = (baseClasses, expandedWidth = 'max-w-[10rem]') => (
+        `${baseClasses} min-w-0 flex-1 overflow-hidden whitespace-nowrap text-left transition-[max-width] duration-300 ease-in-out ${isCollapsed ? 'max-w-0' : expandedWidth}`
+    );
+    const dividerClassName = `h-[1px] bg-white/10 shrink-0 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-8' : 'w-full'}`;
 
     React.useEffect(() => {
         const loadSettings = async () => {
@@ -38,21 +42,32 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
             }}>
 
             {/* Header with Toggle */}
-            <div className={`w-full flex ${isCollapsed ? 'justify-center' : 'justify-end'} px-2 pt-4 mb-2`}>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCollapsed(!isCollapsed);
-                    }}
-                    className="p-2 text-gray-400 hover:text-white transition-all rounded-lg hover:bg-white/5 group/toggle"
-                    title={isCollapsed ? 'Expand' : 'Collapse'}
-                >
-                    <div className={`transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`}>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                        </svg>
-                    </div>
-                </button>
+            <div className="w-full px-2 pt-4 mb-2">
+                <div className="relative h-9">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsCollapsed(!isCollapsed);
+                        }}
+                        className="absolute top-0 p-2 text-gray-400 hover:text-white transition-all duration-300 ease-in-out rounded-lg hover:bg-white/5 group/toggle"
+                        style={{
+                            left: isCollapsed ? '50%' : '100%',
+                            transform: isCollapsed ? 'translateX(-50%)' : 'translateX(-100%)'
+                        }}
+                        title={isCollapsed ? 'Expand' : 'Collapse'}
+                    >
+                        <div
+                            className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                            style={{
+                                transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)'
+                            }}
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </button>
+                </div>
             </div>
 
             <div className="flex-1 w-full px-2 flex flex-col items-center gap-2">
@@ -60,7 +75,7 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
                     <button
                         key={item.id}
                         onClick={() => setView(item.id)}
-                        className={`h-12 rounded-xl flex items-center transition-all group relative shrink-0 overflow-hidden ${isCollapsed ? 'w-12 justify-center' : 'w-full px-4 gap-3'} ${currentView === item.id
+                        className={`h-12 w-full rounded-xl flex items-center px-3 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden ${currentView === item.id
                             ? 'bg-primary/20 text-primary border border-primary/30'
                             : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
@@ -71,11 +86,9 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
                             </svg>
                         </div>
 
-                        {!isCollapsed && (
-                            <span className="text-sm font-bold truncate">
-                                {item.label}
-                            </span>
-                        )}
+                        <span className={getLabelClasses('ml-3 text-sm font-bold')}>
+                            {item.label}
+                        </span>
 
                         {isCollapsed && (
                             <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">
@@ -91,7 +104,7 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
             <div className={`flex flex-col items-center gap-2 w-full px-2 mt-4`}>
                 <button
                     onClick={() => setView('server-settings')}
-                    className={`h-12 rounded-xl flex items-center transition-all group relative shrink-0 overflow-hidden ${isCollapsed ? 'w-12 justify-center' : 'w-full px-4 gap-3'} ${currentView === 'server-settings'
+                    className={`h-12 w-full rounded-xl flex items-center px-3 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden ${currentView === 'server-settings'
                         ? 'bg-primary/20 text-primary border border-primary/30'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                         }`}
@@ -102,11 +115,9 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
                         </svg>
                     </div>
 
-                    {!isCollapsed && (
-                        <span className="text-sm font-bold truncate">
-                            Settings
-                        </span>
-                    )}
+                    <span className={getLabelClasses('ml-3 text-sm font-bold')}>
+                        Settings
+                    </span>
 
                     {isCollapsed && (
                         <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">
@@ -116,11 +127,13 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
                     )}
                 </button>
 
-                <div className={`h-[1px] bg-white/10 my-1 shrink-0 ${isCollapsed ? 'w-8' : 'w-full mx-2'}`}></div>
+                <div className="w-full px-2 my-1 flex justify-center shrink-0">
+                    <div className={dividerClassName}></div>
+                </div>
 
                 <button
                     onClick={onLogout}
-                    className={`h-12 rounded-xl flex items-center transition-all group relative shrink-0 overflow-hidden text-gray-400 hover:text-red-400 hover:bg-red-500/10 ${isCollapsed ? 'w-12 justify-center' : 'w-full px-4 gap-3'}`}
+                    className="h-12 w-full rounded-xl flex items-center px-3 transition-all duration-300 ease-in-out group relative shrink-0 overflow-hidden text-gray-400 hover:text-red-400 hover:bg-red-500/10"
                 >
                     <div className="shrink-0 flex items-center justify-center w-6 h-6">
                         <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,11 +141,9 @@ function ServerSidebar({ currentView, setView, onLogout, isCollapsed, setIsColla
                         </svg>
                     </div>
 
-                    {!isCollapsed && (
-                        <span className="text-sm font-bold truncate">
-                            Logout
-                        </span>
-                    )}
+                    <span className={getLabelClasses('ml-3 text-sm font-bold')}>
+                        Logout
+                    </span>
 
                     {isCollapsed && (
                         <div className="absolute left-full ml-4 px-3 py-1.5 bg-[#0d0d0d] border border-white/10 rounded-lg text-xs font-bold text-white whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-[100] shadow-2xl">
