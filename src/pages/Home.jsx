@@ -6,7 +6,7 @@ import { useNotification } from '../context/NotificationContext';
 
 
 
-function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch, isGuest }) {
+function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch, isGuest, userProfile }) {
     const { t } = useTranslation();
     const { addNotification } = useNotification();
 
@@ -706,10 +706,12 @@ function Home({ onInstanceClick, runningInstances = {}, onNavigateSearch, isGues
             { }
             <div className={`mb-8 flex justify-between items-start ${!dashSettings.focusMode ? 'animate-in fade-in slide-in-from-top-4 duration-700' : ''}`}>
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-1">
-                        {dashSettings.welcomeMessage === 'Welcome back!' || dashSettings.welcomeMessage === t('home.welcome_back') ? t('home.welcome_back') : dashSettings.welcomeMessage}
+                    <h1 className="text-4xl font-black text-white mb-2 tracking-tight">
+                        {userProfile?.name
+                            ? t('home.welcome_back_name', { name: userProfile.name, defaultValue: `Welcome back, ${userProfile.name}!` })
+                            : t('home.welcome_back')}
                     </h1>
-                    <p className="text-gray-500 text-sm">{t('home.everything_place')}</p>
+                    <p className="text-gray-400 font-medium">{t('home.everything_place')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {isEditing && (
