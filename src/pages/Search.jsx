@@ -219,11 +219,6 @@ function Search({ initialCategory, onCategoryConsumed }) {
                 return;
             }
             addNotification(t('search.starting_install', { title: mod.title }), 'info');
-            console.log('--- FRONTEND MODPACK INSTALL START ---');
-            console.log('Mod Title:', mod.title);
-            console.log('Icon URL:', mod.icon_url);
-            console.log('Full Mod Object:', JSON.stringify(mod, null, 2));
-            console.log('---------------------------------------');
             const installRes = await window.electronAPI.installModpack(primaryFile.url, mod.title, mod.icon_url);
 
             if (installRes.success) {

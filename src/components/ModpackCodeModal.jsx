@@ -60,8 +60,6 @@ function ModpackCodeModal({
     };
 
     const handleExport = async () => {
-        console.log('[ModpackCodeModal] handleExport gestartet');
-
         if (!mods.length && !resourcePacks.length && !shaders.length) {
             addNotification('No content to export!', 'error');
             return;
@@ -80,7 +78,6 @@ function ModpackCodeModal({
             };
 
             const result = await window.electronAPI.exportModpackAsCode(exportData);
-            console.log('[ModpackCodeModal] Export result:', result);
 
             if (result.success) {
                 setExportedCode(result.code);

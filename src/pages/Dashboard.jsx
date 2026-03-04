@@ -236,15 +236,6 @@ function Dashboard({ onInstanceClick, runningInstances = {}, activeDownloads = {
     useEffect(() => {
         loadInstances();
 
-        const testBackend = async () => {
-            try {
-                const pong = await window.electronAPI.ping();
-                console.log('📡 [Dashboard] Backend Ping Result:', pong);
-            } catch (err) {
-                console.warn('📡 [Dashboard] Backend Ping Failed:', err.message);
-            }
-        };
-        testBackend();
         const removeListener = window.electronAPI.onInstanceStatus(({ instanceName, status }) => {
             if (status === 'stopped' || status === 'ready' || status === 'error' || status === 'deleted') {
                 loadInstances();
@@ -353,9 +344,7 @@ function Dashboard({ onInstanceClick, runningInstances = {}, activeDownloads = {
     }, [showCreateModal, selectedLoader, showSnapshots]);
 
     const loadInstances = async () => {
-        console.log('[Dashboard] Fetching instances...');
         const list = await window.electronAPI.getInstances();
-        console.log('[Dashboard] Received instances:', list);
         setInstances(list || []);
     };
 
@@ -719,13 +708,11 @@ function Dashboard({ onInstanceClick, runningInstances = {}, activeDownloads = {
                                     <button
                                         onClick={async () => {
                                             setShowCreateMenu(false);
-                                            console.log('[Dashboard] 📁 Unified Import triggered (Header)');
                                             try {
                                                 if (!window.electronAPI.importFile) {
                                                     throw new Error('electronAPI.importFile is not defined. Please restart the application.');
                                                 }
                                                 const result = await window.electronAPI.importFile();
-                                                console.log('[Dashboard] 📁 Unified Import result:', result);
                                                 if (result.success) {
                                                     addNotification(`Importing Modpack: ${result.instanceName}...`, 'info');
                                                     loadInstances();
@@ -980,13 +967,11 @@ function Dashboard({ onInstanceClick, runningInstances = {}, activeDownloads = {
                                                     type="button"
                                                     onClick={async () => {
                                                         setShowModalImportMenu(false);
-                                                        console.log('[Dashboard] 📁 Unified Import triggered (Modal)');
                                                         try {
                                                             if (!window.electronAPI.importFile) {
                                                                 throw new Error('electronAPI.importFile is not defined. Please restart the application.');
                                                             }
                                                             const result = await window.electronAPI.importFile();
-                                                            console.log('[Dashboard] 📁 Unified Import result:', result);
                                                             if (result.success) {
                                                                 addNotification(`Importing Modpack: ${result.instanceName}...`, 'info');
                                                                 setShowCreateModal(false);
