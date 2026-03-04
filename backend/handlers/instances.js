@@ -2564,7 +2564,7 @@ module.exports = (ipcMain, win) => {
             try {
                 const { filePath } = await dialog.showSaveDialog(win, {
                     title: 'Export Theme Preset',
-                    defaultPath: `${preset.handle}.json`,
+                    defaultPath: path.join(app.getPath('downloads'), `${preset.handle}.json`),
                     filters: [{ name: 'JSON Files', extensions: ['json'] }]
                 });
 

@@ -6,6 +6,7 @@ import SliderControl from "../components/SliderControl";
 import ThemeCard from "../components/ThemeCard";
 import MiniPreview from "../components/MiniPreview";
 import Dropdown from "../components/Dropdown";
+import ThemeExportModal from "../components/ThemeExportModal";
 import { syncCustomFonts } from "../services/fontManager";
 
 const PRESETS = [
@@ -132,6 +133,7 @@ function Styling() {
   });
 
   const [customPresets, setCustomPresets] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
   const fontOptions = [
     ...FONT_OPTIONS.map((font) => ({
       value: font.value,
@@ -243,10 +245,10 @@ function Styling() {
     }
   };
 
-  const handleExportTheme = async () => {
+  const handleExportTheme = async (themeName) => {
     const presetData = {
-      handle: theme.name ? theme.name.toLowerCase().replace(/[^a-z0-9_-]/g, '') : 'custom_theme',
-      name: theme.name || "Custom Theme",
+      handle: themeName.toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
+      name: themeName,
       primary: theme.primaryColor,
       bg: theme.backgroundColor,
       surface: theme.surfaceColor,
@@ -260,6 +262,7 @@ function Styling() {
     const res = await window.electronAPI.exportCustomPreset(presetData);
     if (res.success) {
       addNotification(t('styling.exported_to', { path: res.path }), "success");
+      setShowExportModal(false);
     } else if (res.error !== 'Cancelled') {
       addNotification(`${t('styling.export')} failed: ${res.error}`, "error");
     }
@@ -788,7 +791,7 @@ function Styling() {
               {t('styling.reset_factory')}
             </button>
             <button
-              onClick={handleExportTheme}
+              onClick={() => setShowExportModal(true)}
               className="bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-6 py-3 rounded-xl font-bold transition-all text-sm border border-white/5 hover:border-white/10 flex items-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -798,12 +801,19 @@ function Styling() {
             </button>
             <button
               onClick={handleSave}
-              className="bg-primary hover:bg-primary-hover text-black px-8 py-3 rounded-xl font-black shadow-lg shadow-primary/30 transition-all text-sm hover:scale-[1.02] active:scale-95"
+              className="bg-primary hover:bg-primary-hover text-black px-10 py-3 rounded-xl font-bold transition-all text-sm shadow-lg shadow-primary/20"
             >
               {t('styling.save')}
             </button>
           </div>
         </div>
+
+        {showExportModal && (
+          <ThemeExportModal
+            onClose={() => setShowExportModal(false)}
+            onExport={handleExportTheme}
+          />
+        )}
       </div>
     </div>
   );
