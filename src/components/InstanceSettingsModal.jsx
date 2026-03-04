@@ -396,7 +396,7 @@ function InstanceSettingsModal({ instance, onClose, onSave, onDelete }) {
                                         </p>
                                         <button
                                             onClick={() => setShowReinstall(true)}
-                                            className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/50 rounded hover:bg-red-500 hover:text-white transition-all font-bold text-sm"
+                                            className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/50 rounded hover:bg-red-700 hover:text-white transition-all font-bold text-sm"
                                         >
                                             {t('instance_settings.danger.reinstall_btn')}
                                         </button>

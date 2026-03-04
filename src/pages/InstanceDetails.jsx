@@ -732,7 +732,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate,
                     {isRunning ? (
                         <button
                             onClick={() => window.electronAPI.killGame(instance.name)}
-                            className="px-8 py-3 rounded-xl font-bold flex items-center gap-2 transform transition-all bg-red-500 hover:bg-red-400 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+                            className="px-8 py-3 rounded-xl font-bold flex items-center gap-2 transform transition-all bg-red-700 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(185,28,28,0.3)]"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             {t('common.stop')}
@@ -957,7 +957,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate,
                                         {Object.keys(updates).length > 0 && (
                                             <button
                                                 onClick={handleUpdateAll}
-                                                className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-500/20 transition-all transform hover:scale-105"
+                                                className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-700/20 transition-all transform hover:scale-105"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1794,7 +1794,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate,
                                 </button>
                                 <button
                                     onClick={handleDeleteWorld}
-                                    className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-all shadow-lg shadow-red-500/20"
+                                    className="flex-1 px-4 py-2 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold transition-all shadow-lg shadow-red-700/20"
                                 >
                                     {t('instance.delete_world_btn')}
                                 </button>
@@ -1833,7 +1833,7 @@ function InstanceDetails({ instance, onBack, runningInstances, onInstanceUpdate,
                                 </button>
                                 <button
                                     onClick={confirmDeleteMod}
-                                    className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-all shadow-lg shadow-red-500/20"
+                                    className="flex-1 px-4 py-2 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold transition-all shadow-lg shadow-red-700/20"
                                 >
                                     {modToDelete.type === 'mod' ? t('instance.delete_mod_btn') :
                                         modToDelete.type === 'shader' ? t('instance.delete_shader_btn') :

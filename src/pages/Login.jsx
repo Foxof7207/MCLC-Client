@@ -38,7 +38,7 @@ function Login({ onLoginSuccess, onGuestMode }) {
                 <button
                     onClick={handleLogin}
                     disabled={loading}
-                    className={`w-full py-3 px-4 rounded font-bold text-white transition-all transform hover:scale-[1.02] ${loading ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500 shadow-lg shadow-green-900/20'
+                    className={`w-full py-3 px-4 rounded font-bold text-white transition-all transform hover:scale-[1.02] ${loading ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-700 hover:bg-green-600 shadow-lg shadow-green-900/20'
                         }`}
                 >
                     {loading ? t('login.logging_in') : t('login.sign_in_button')}

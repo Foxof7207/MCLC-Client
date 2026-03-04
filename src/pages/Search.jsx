@@ -555,7 +555,7 @@ function Search({ initialCategory, onCategoryConsumed }) {
                                 <button
                                     onClick={handleInstall}
                                     disabled={installing || !selectedInstance}
-                                    className={`bg-primary text-black font-bold px-6 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 ${instanceInstalledIds.has(selectedMod?.project_id) ? 'bg-[#10b981] text-white hover:bg-[#059669]' : 'hover:bg-primary-hover'}`}
+                                    className={`bg-primary text-black font-bold px-6 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 ${instanceInstalledIds.has(selectedMod?.project_id) ? 'bg-[#047857] text-white hover:bg-[#065f46]' : 'hover:bg-primary-hover'}`}
                                 >
                                     {installing && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>}
                                     {installing ? t('search.installing_dots') : (instanceInstalledIds.has(selectedMod?.project_id) ? t('search.already_installed') : t('search.install'))}

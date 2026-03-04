@@ -16,7 +16,7 @@ function ConfirmationModal({ title, message, onConfirm, onCancel, confirmText = 
                     </button>
                     <button
                         onClick={onConfirm}
-                        className={`px-6 py-2 rounded-xl font-bold transition-transform transform hover:scale-105 shadow-lg ${isDangerous ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-primary hover:bg-primary-hover text-black'}`}
+                        className={`px-6 py-2 rounded-xl font-bold transition-transform transform hover:scale-105 shadow-lg ${isDangerous ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-primary hover:bg-primary-hover text-black'}`}
                     >
                         {confirmText}
                     </button>

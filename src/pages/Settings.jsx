@@ -430,7 +430,7 @@ function Settings() {
             <div className="w-full mb-6 flex justify-end">
                 <button
                     onClick={handleManualSave}
-                    className="px-6 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-medium transition flex items-center gap-2"
+                    className="px-6 py-2 bg-primary hover:bg-primary-hover text-black rounded-lg text-sm font-medium transition flex items-center gap-2"
                 >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -555,11 +555,11 @@ function Settings() {
                             <button
                                 onClick={() => setShowJavaModal(true)}
                                 disabled={isInstallingJava}
-                                className={`px-4 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-medium transition flex items-center gap-2 ${isInstallingJava ? 'opacity-50 cursor-wait' : ''}`}
+                                className={`px-4 py-2 bg-primary hover:bg-primary-hover text-black rounded-lg text-sm font-medium transition flex items-center gap-2 ${isInstallingJava ? 'opacity-50 cursor-wait' : ''}`}
                             >
                                 {isInstallingJava ? (
                                     <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                         <span>{javaInstallProgress ? `${Math.round(javaInstallProgress.progress)}%` : t('settings.java.installing')}</span>
                                     </>
                                 ) : (
@@ -837,7 +837,7 @@ function Settings() {
                                 />
                                 <button
                                     onClick={addAutoInstallMod}
-                                    className="px-4 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-medium transition"
+                                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-black rounded-lg text-sm font-medium transition"
                                 >
                                     {t('settings.auto_install.btn_add')}
                                 </button>
@@ -958,7 +958,7 @@ function Settings() {
                                     ) : (
                                         <button
                                             onClick={() => handleCloudLogin(provider.id)}
-                                            className="w-full py-2 text-xs bg-primary hover:bg-primary-hover text-white rounded font-medium transition"
+                                            className="w-full py-2 text-xs bg-primary hover:bg-primary-hover text-black rounded font-medium transition"
                                         >
                                             {t('settings.cloud.login_btn')}
                                         </button>
@@ -1023,10 +1023,10 @@ function Settings() {
                             <button
                                 onClick={handleCheckUpdate}
                                 disabled={isCheckingUpdate}
-                                className="px-6 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50"
+                                className="px-6 py-2 bg-primary hover:bg-primary-hover text-black rounded-lg text-sm font-medium transition flex items-center gap-2 disabled:opacity-50"
                             >
                                 {isCheckingUpdate ? (
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                 ) : (
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1046,7 +1046,7 @@ function Settings() {
                                     {!downloadedFilePath && !isDownloadingUpdate && (
                                         <button
                                             onClick={handleDownloadUpdate}
-                                            className="px-6 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-bold transition flex items-center gap-2"
+                                            className="px-6 py-2 bg-primary hover:bg-primary-hover text-black rounded-lg text-sm font-bold transition flex items-center gap-2"
                                         >
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1057,7 +1057,7 @@ function Settings() {
                                     {downloadedFilePath && (
                                         <button
                                             onClick={handleInstallUpdate}
-                                            className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold transition flex items-center gap-2"
+                                            className="px-6 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-bold transition flex items-center gap-2"
                                         >
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
