@@ -77,6 +77,7 @@ let mainWindow;
 let splashWindow;
 let tray = null;
 let isQuiting = false;
+const isDeveloperMode = process.env.NODE_ENV === 'development';
 
 function createSplashWindow() {
     splashWindow = new BrowserWindow({
@@ -113,7 +114,7 @@ async function checkAndLaunch() {
     const maxRetries = 3;
 
     const performCheck = async () => {
-        if (!app.isPackaged && process.env.NODE_ENV !== 'production') {
+        if (isDeveloperMode) {
             console.log('[Main] Skipping update check in dev mode.');
             splashWindow.webContents.send('updater:status', { status: 'Searching for updates' });
             setTimeout(() => {
@@ -341,6 +342,10 @@ function createWindow() {
         event.returnValue = app.isPackaged;
     });
 
+    ipcMain.on('app:is-developer-mode', (event) => {
+        event.returnValue = isDeveloperMode;
+    });
+
     ipcMain.handle('app:get-version', () => {
         try {
             const pkg = require(path.join(__dirname, '../package.json'));
@@ -354,8 +359,7 @@ function createWindow() {
     discord.initRPC();
     const backupManager = require('../backend/backupManager');
     backupManager.init(ipcMain);
-    const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-    if (isDev) {
+    if (isDeveloperMode) {
         console.log('[Main] Loading development URL...');
         mainWindow.loadURL('http://localhost:3000');
         mainWindow.webContents.openDevTools();

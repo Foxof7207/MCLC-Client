@@ -32,11 +32,13 @@
         "restart_app": "Restart App",
         "error_title": "Oops! Something went wrong...",
         "error_desc": "An unexpected error occurred. Try restarting the app.",
-        "launcher": "Client",
+        "launcher": "Launcher",
         "server": "Server",
-        "switch_to_client": "Switch to Client",
+        "switch_to_client": "Switch to Launcher",
         "switch_to_server": "Switch to Server",
         "news": "News",
+        "open_client": "Open Client",
+        "open_launcher": "Open Launcher",
         "no_news_available": "No news available",
         "new_instance": "New Instance",
         "play": "Play",
@@ -75,6 +77,26 @@
         "modified": "Modified",
         "readonly": "Read-only",
         "theme_marketplace": "Theme Marketplace"
+    },
+    "client_page": {
+        "title": "Open Client",
+        "description": "Select a version and start playing.",
+        "version": "Version",
+        "loading_versions": "Loading versions...",
+        "installed_state": "Installed",
+        "not_installed_state": "Not installed",
+        "install": "Install",
+        "update": "Update",
+        "installed": "Client installed.",
+        "updated": "Updates installed.",
+        "auto_mods_installed": "{{count}} configured mods installed.",
+        "launching": "Starting client...",
+        "errors": {
+            "load_versions": "Could not load versions.",
+            "install": "Installation failed: {{error}}",
+            "play": "Could not start client: {{error}}",
+            "update": "Update failed: {{error}}"
+        }
     },
     "action_bar": {
         "title": "Action Bar",

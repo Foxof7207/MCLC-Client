@@ -37,6 +37,8 @@
         "switch_to_client": "Zum Client wechseln",
         "switch_to_server": "Zum Server wechseln",
         "news": "Neuigkeiten",
+        "open_client": "Open Client",
+        "open_launcher": "Open Launcher",
         "no_news_available": "Keine Neuigkeiten verfügbar",
         "new_instance": "Neue Instanz",
         "play": "Spielen",
@@ -75,6 +77,26 @@
         "modified": "Geändert",
         "readonly": "Schreibgeschützt",
         "theme_marketplace": "Theme Marketplace"
+    },
+    "client_page": {
+        "title": "Open Client",
+        "description": "Wähle eine Version und starte direkt.",
+        "version": "Version",
+        "loading_versions": "Versionen werden geladen...",
+        "installed_state": "Installiert",
+        "not_installed_state": "Nicht installiert",
+        "install": "Installieren",
+        "update": "Update",
+        "installed": "Client wurde installiert.",
+        "updated": "Updates installiert.",
+        "auto_mods_installed": "{{count}} konfigurierte Mods installiert.",
+        "launching": "Client wird gestartet...",
+        "errors": {
+            "load_versions": "Versionen konnten nicht geladen werden.",
+            "install": "Installation fehlgeschlagen: {{error}}",
+            "play": "Client konnte nicht gestartet werden: {{error}}",
+            "update": "Update fehlgeschlagen: {{error}}"
+        }
     },
     "action_bar": {
         "title": "Aktionsleiste",

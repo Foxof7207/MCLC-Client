@@ -14,9 +14,11 @@ const ServerSettings = React.lazy(() => import('./pages/ServerSettings'));
 const ServerSearch = React.lazy(() => import('./pages/ServerSearch'));
 const ServerLibrary = React.lazy(() => import('./pages/ServerLibrary'));
 const InstanceDetails = React.lazy(() => import('./pages/InstanceDetails'));
+const OpenClient = React.lazy(() => import('./pages/OpenClient'));
 const Extensions = React.lazy(() => import('./pages/Extensions'));
 const Login = React.lazy(() => import('./pages/Login'));
 const News = React.lazy(() => import('./pages/News'));
+import { isFeatureEnabled } from './config/featureFlags';
 
 import Sidebar from './components/Sidebar';
 import ServerSidebar from './components/ServerSidebar';
@@ -467,6 +469,8 @@ function App() {
             setCurrentView(lastClientView.current || 'dashboard');
         } else if (mode === 'server') {
             setCurrentView(lastServerView.current || 'server-dashboard');
+        } else if (mode === 'client') {
+            setCurrentView('open-client');
         }
         setSelectedInstance(null);
         setSelectedServer(null);
@@ -580,7 +584,7 @@ function App() {
                                 )}
                             </div>
 
-                            {appSettings.showQuickSwitchButton !== false && (
+                            {appSettings.showQuickSwitchButton !== false && currentMode !== 'client' && (
                                 <>
                                     <button
                                         onClick={() => handleModeSelect(currentMode === 'launcher' ? 'server' : 'launcher')}
@@ -617,6 +621,30 @@ function App() {
 
                             { }
                             <div className="relative h-full flex items-center" ref={sessionsRef}>
+                                {isFeatureEnabled('openClientPage') && currentMode === 'launcher' && (
+                                    <button
+                                        onClick={() => handleModeSelect('client')}
+                                        className="px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors border whitespace-nowrap hidden sm:flex items-center gap-2 shadow-lg bg-[#1a1a1a] border-white/20 text-gray-100 hover:bg-[#252525] hover:text-white"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
+                                        </svg>
+                                        {t('common.open_client', 'Open Client')}
+                                    </button>
+                                )}
+
+                                {isFeatureEnabled('openClientPage') && currentMode === 'client' && (
+                                    <button
+                                        onClick={() => handleModeSelect('launcher')}
+                                        className="px-3 py-1.5 rounded-xl text-sm font-semibold transition-colors border whitespace-nowrap hidden sm:flex items-center gap-2 shadow-lg bg-primary/20 border-primary/40 text-primary hover:bg-primary/30"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 12H5m0 0l4-4m-4 4l4 4" />
+                                        </svg>
+                                        {t('common.open_launcher', 'Open Launcher')}
+                                    </button>
+                                )}
+
                                 <button
                                     onClick={() => setShowSessions(!showSessions)}
                                     className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-white/20 hover:bg-[#252525] rounded-full transition-all group shadow-lg"
@@ -699,29 +727,32 @@ function App() {
                     </div>
 
                     <div className="flex flex-1 overflow-hidden">
-                        { }
-                        {currentMode === 'launcher' ? (
-                            <Sidebar
-                                currentView={currentView}
-                                setView={setCurrentView}
-                                onLogout={handleLogout}
-                                onInstanceClick={handleInstanceClick}
-                                onCreateInstance={() => { setCurrentView('library'); setTriggerCreateInstance(true); }}
-                                isGuest={isGuest}
-                                isCollapsed={isSidebarCollapsed}
-                                setIsCollapsed={setIsSidebarCollapsed}
-                            />
-                        ) : (
-                            <ServerSidebar
-                                currentView={currentView}
-                                setView={setCurrentView}
-                                onLogout={handleLogout}
-                                isCollapsed={isSidebarCollapsed}
-                                setIsCollapsed={setIsSidebarCollapsed}
-                            />
+                        {currentMode !== 'client' && (
+                            <>
+                                {currentMode === 'launcher' ? (
+                                    <Sidebar
+                                        currentView={currentView}
+                                        setView={setCurrentView}
+                                        onLogout={handleLogout}
+                                        onInstanceClick={handleInstanceClick}
+                                        onCreateInstance={() => { setCurrentView('library'); setTriggerCreateInstance(true); }}
+                                        isGuest={isGuest}
+                                        isCollapsed={isSidebarCollapsed}
+                                        setIsCollapsed={setIsSidebarCollapsed}
+                                    />
+                                ) : (
+                                    <ServerSidebar
+                                        currentView={currentView}
+                                        setView={setCurrentView}
+                                        onLogout={handleLogout}
+                                        isCollapsed={isSidebarCollapsed}
+                                        setIsCollapsed={setIsSidebarCollapsed}
+                                    />
+                                )}
+                            </>
                         )}
 
-                        <main className={`flex-1 my-4 ${isSidebarCollapsed ? 'ml-4' : 'ml-2'} mr-2 bg-surface/10 relative overflow-hidden flex flex-col rounded-2xl border border-white/5 shadow-2xl transition-all duration-300`}
+                        <main className={`flex-1 my-4 ${currentMode === 'client' ? 'mx-4' : (isSidebarCollapsed ? 'ml-4 mr-2' : 'ml-2 mr-2')} bg-surface/10 relative overflow-hidden flex flex-col rounded-2xl border border-white/5 shadow-2xl transition-all duration-300`}
                             style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
                         >
 
@@ -773,6 +804,10 @@ function App() {
                                         </>
                                     )}
 
+                                    {currentMode === 'client' && isFeatureEnabled('openClientPage') && (
+                                        <OpenClient />
+                                    )}
+
                                     {currentView === 'news' && <News />}
 
                                     { }
@@ -781,14 +816,16 @@ function App() {
                             </div>
                         </main>
 
-                        <div
-                            className="my-4 ml-2 mr-4 bg-surface/10 z-10 flex flex-col rounded-2xl border border-white/5 shadow-2xl"
-                            style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
-                        >
-                            <div className="flex-1 overflow-hidden">
-                                <RightPanel userProfile={userProfile} onProfileUpdate={setUserProfile} />
+                        {currentMode !== 'client' && (
+                            <div
+                                className="my-4 ml-2 mr-4 bg-surface/10 z-10 flex flex-col rounded-2xl border border-white/5 shadow-2xl"
+                                style={{ backdropFilter: `blur(${theme.glassBlur}px)` }}
+                            >
+                                <div className="flex-1 overflow-hidden">
+                                    <RightPanel userProfile={userProfile} onProfileUpdate={setUserProfile} />
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                     <UpdateNotification />
                 </div>

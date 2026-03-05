@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNotification } from '../context/NotificationContext';
+import { isFeatureEnabled } from '../config/featureFlags';
 import ToggleBox from '../components/ToggleBox';
 import ConfirmationModal from '../components/ConfirmationModal';
 
@@ -1106,7 +1107,7 @@ function Settings() {
 
                 {showAdvancedSettings && (
                     <>
-                        {!window.electronAPI.isPackaged && (
+                        {isFeatureEnabled('settingsDevelopmentTesting') && (
                             <div className="bg-surface/50 p-8 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
                                 <h3 className="text-xs font-black text-yellow-500 uppercase tracking-widest mb-4">Development Testing</h3>
                                 <div className="flex gap-2">
